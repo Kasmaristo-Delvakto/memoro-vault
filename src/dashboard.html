@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Memoro Vault - Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 { font-size: 48px; margin-bottom: 5px; }
+    p { font-size: 20px; margin-bottom: 30px; color: #bbb; text-align: center; }
+    .button-group { display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 40px; gap: 10px; }
+    .button { background-color: #0066cc; color: #fff; border: none; padding: 15px 30px; font-size: 18px; border-radius: 10px; cursor: pointer; transition: background-color 0.3s; }
+    .button:hover { background-color: #0055aa; }
+    .vault-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; }
+    .vault-item { background: linear-gradient(135deg, #1b1b1b, #222); padding: 25px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: flex-start; position: relative; animation: fadeIn 0.5s ease; }
+    .vault-item h2 { margin: 0 0 10px; font-size: 22px; word-break: break-word; }
+    .vault-item p { margin: 5px 0; font-size: 16px; color: #ccc; }
+    .unlock-button { margin-top: 15px; background-color: #333; color: #eee; padding: 10px 25px; font-size: 16px; border: 1px solid #555; border-radius: 8px; cursor: pointer; align-self: stretch; transition: background-color 0.3s, transform 0.2s; }
+    .unlock-button:hover { background-color: #444; transform: translateY(-2px); }
+    .three-dots { position: absolute; top: 15px; right: 15px; background: none; border: none; color: #eee; font-size: 22px; cursor: pointer; }
+    .vault-menu { display: none; position: absolute; top: 45px; right: 15px; background: #222; border: 1px solid #555; border-radius: 8px; overflow: hidden; z-index: 10; }
+    .vault-menu button { display: block; width: 150px; padding: 10px; background: none; border: none; color: #eee; text-align: left; cursor: pointer; }
+    .vault-menu button:hover { background-color: #333; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Generic Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 9999; }
+    .modal { background-color: #222; padding: 30px; border-radius: 12px; width: 300px; display: flex; flex-direction: column; gap: 15px; align-items: center; }
+    .modal h2, .modal p { margin: 0; color: #ccc; text-align: center; }
+    .modal input { padding: 10px; border-radius: 8px; border: 1px solid #555; background-color: #111; color: #eee; width: 100%; }
+    .modal-buttons { display: flex; justify-content: space-between; gap: 10px; width: 100%; }
+    .modal-buttons button { flex: 1; padding: 10px; border: none; border-radius: 8px; background-color: #0066cc; color: #fff; cursor: pointer; transition: background-color 0.3s; }
+    .modal-buttons button:hover { background-color: #0055aa; }
+  </style>
+</head>
+
+<body>
+
+<h1>Memoro Vault</h1>
+<p>Your mind. Your memory. Your vault.</p>
+
+<div class="button-group">
+  <button class="button" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
+  <button class="button" onclick="promptOfflineWarning('load')">📂 Load Vault File</button>
+  <button class="button" onclick="goToHowItWorks()">How Memoro Works</button>
+</div>
+
+<input type="file" id="vaultFileInput" accept=".json" onchange="handleVaultFile(event)" style="display:none;" aria-hidden="true">
+
+<div class="vault-list" id="vaultList"></div>
+
+<!-- Unlock Vault Modal -->
+<div class="modal-overlay" id="unlockModal">
+  <div class="modal">
+    <h2>Unlock Vault</h2>
+    <h3 id="question1Label"></h3>
+    <input type="text" id="answer1Input" placeholder="Answer 1">
+    <h3 id="question2Label"></h3>
+    <input type="text" id="answer2Input" placeholder="Answer 2">
+
+    <!-- Lockout Visuals -->
+    <div id="lockoutSection" style="display:none; width:100%; margin-top:10px; text-align:center;">
+      <p id="lockoutTimerText" style="margin:5px 0; font-size:16px; color:#ccc;">Locked for 15s</p>
+      <div style="background-color:#444; width:100%; height:10px; border-radius:5px; overflow:hidden;">
+        <div id="lockoutProgress" style="background-color:#0066cc; width:100%; height:10px;"></div>
+      </div>
+    </div>
+
+    <div class="modal-buttons">
+      <button onclick="cancelUnlock()">Cancel</button>
+      <button id="unlockButton" onclick="submitUnlock()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Offline Warning Modal -->
+<div class="modal-overlay" id="offlineWarning">
+  <div class="modal">
+    <h2>Offline Mode Recommended</h2>
+    <p>We recommend disabling your internet connection temporarily for maximum security.</p>
+    <div class="modal-buttons">
+      <button onclick="proceedAfterOfflineWarning()">Continue</button>
+      <button onclick="cancelOfflineWarning()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Message Modal -->
+<div class="modal-overlay" id="messageModal">
+  <div class="modal">
+    <h2 id="messageModalTitle">Title</h2>
+    <p id="messageModalText">Message goes here.</p>
+    <div class="modal-buttons">
+      <button onclick="closeMessageModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <h2>Confirm</h2>
+    <p id="confirmModalText">Are you sure?</p>
+    <div class="modal-buttons">
+      <button onclick="confirmNo()">No</button>
+      <button onclick="confirmYes()">Yes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Vault Modal -->
+<div class="modal-overlay" id="renameModal">
+  <div class="modal">
+    <h2>Rename Vault</h2>
+    <input type="text" id="renameInput" placeholder="New vault name">
+    <div class="modal-buttons">
+      <button onclick="cancelRename()">Cancel</button>
+      <button onclick="submitRename()">Rename</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const loadedVaults = {};
+let currentUnlockVaultId = null;
+let nextAction = null;
+let confirmYesCallback = null;
+let failedAttempts = Number(localStorage.getItem('failedAttempts')) || 0;
+let lockoutUntil = Number(localStorage.getItem('lockoutUntil')) || 0;
+let countdownInterval = null;
+
+  // Message Modal
+  function showMessageModal(title, message) {
+  document.getElementById('messageModalTitle').innerText = title;
+  document.getElementById('messageModalText').innerText = message;
+  document.getElementById('messageModal').style.display = 'flex';
+}
+function closeMessageModal() {
+  document.getElementById('messageModal').style.display = 'none';
+}
+
+  // Confirm Modal
+  function showConfirmModal(message, yesCallback) {
+    document.getElementById('confirmModalText').innerText = message;
+    document.getElementById('confirmModal').style.display = 'flex';
+    confirmYesCallback = yesCallback;
+  }
+
+  function confirmNo() {
+    document.getElementById('confirmModal').style.display = 'none';
+    confirmYesCallback = null;
+  }
+
+  function confirmYes() {
+    document.getElementById('confirmModal').style.display = 'none';
+    if (typeof confirmYesCallback === 'function') {
+      confirmYesCallback();
+      confirmYesCallback = null;
+    }
+  }
+
+  // Vault Functions
+  function saveVaultsToLocalStorage() {
+    const vaultArray = Object.entries(loadedVaults).map(([vaultId, data]) => ({
+      vaultId,
+      fileName: data.fileName,
+      vaultData: data.vaultData
+    }));
+    localStorage.setItem('savedVaults', JSON.stringify(vaultArray));
+  }
+
+  function loadVaultsFromLocalStorage() {
+    const saved = localStorage.getItem('savedVaults');
+    if (saved) {
+      const vaultArray = JSON.parse(saved);
+      vaultArray.forEach(({ vaultId, fileName, vaultData }) => {
+        loadedVaults[vaultId] = { fileName, vaultData };
+        addVaultToList(vaultId, fileName, vaultData, true);
+      });
+    }
+  }
+
+  function addVaultToList(vaultId, fileName, vaultData, skipSaving = false) {
+    const vaultList = document.getElementById('vaultList');
+    const vaultItem = document.createElement('div');
+    vaultItem.className = 'vault-item';
+    vaultItem.id = vaultId;
+    vaultItem.innerHTML = `
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+        <h2 id="title-${vaultId}" style="margin:0;">${fileName}</h2>
+        <div style="position:relative;">
+          <button class="three-dots" onclick="toggleMenu('${vaultId}')">⋮</button>
+          <div class="vault-menu" id="menu-${vaultId}">
+            <button onclick="renameVault('${vaultId}')">Rename</button>
+            <button onclick="deleteVault('${vaultId}')">Delete</button>
+          </div>
+        </div>
+      </div>
+      <p>Status: 🔒 Locked</p>
+      <button class="unlock-button" onclick="openUnlockModal('${vaultId}')">Unlock Vault</button>
+    `;
+    vaultList.appendChild(vaultItem);
+    if (!skipSaving) {
+      saveVaultsToLocalStorage();
+    }
+  }
+
+  function toggleMenu(vaultId) {
+    const menu = document.getElementById(`menu-${vaultId}`);
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    document.querySelectorAll('.vault-menu').forEach(m => {
+      if (m.id !== `menu-${vaultId}`) m.style.display = 'none';
+    });
+  }
+
+  let currentRenameVaultId = null;
+
+  function renameVault(vaultId) {
+    currentRenameVaultId = vaultId;
+    const vault = loadedVaults[vaultId];
+    if (!vault) {
+      showMessageModal('Error', 'Vault not found.');
+      return;
+    }
+    document.getElementById('renameInput').value = vault.fileName;
+    document.getElementById('renameModal').style.display = 'flex';
+  }
+
+  function cancelRename() {
+    currentRenameVaultId = null;
+    document.getElementById('renameModal').style.display = 'none';
+  }
+
+  function submitRename() {
+    const newName = document.getElementById('renameInput').value.trim();
+    if (!newName) {
+      showMessageModal('Missing Name', 'Please enter a new name.');
+      return;
+    }
+    if (currentRenameVaultId && loadedVaults[currentRenameVaultId]) {
+      loadedVaults[currentRenameVaultId].fileName = newName;
+      document.getElementById(`title-${currentRenameVaultId}`).innerText = newName;
+      saveVaultsToLocalStorage();
+    }
+    cancelRename();
+  }
+
+  function deleteVault(vaultId) {
+    showConfirmModal('Are you sure you want to delete this vault?', () => {
+      delete loadedVaults[vaultId];
+      document.getElementById(vaultId).remove();
+      saveVaultsToLocalStorage();
+    });
+  }
+
+  function openUnlockModal(vaultId) {
+  currentUnlockVaultId = vaultId;
+  const vault = loadedVaults[vaultId];
+  const questions = vault.vaultData.unlockQuestions;
+  document.getElementById('question1Label').innerText = questions.question1 || "Question 1:";
+  document.getElementById('question2Label').innerText = questions.question2 || "Question 2:";
+  document.getElementById('answer1Input').value = '';
+  document.getElementById('answer2Input').value = '';
+  document.getElementById('unlockModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('answer1Input').focus(), 100);
+
+  checkIfLocked();
+}
+
+function cancelUnlock() {
+  currentUnlockVaultId = null;
+  document.getElementById('unlockModal').style.display = 'none';
+  clearInterval(countdownInterval);
+}
+
+async function submitUnlock() {
+  if (Date.now() < lockoutUntil) return; // prevent unlocking during lockout
+
+  const answer1 = document.getElementById('answer1Input').value.trim();
+  const answer2 = document.getElementById('answer2Input').value.trim();
+  if (!answer1 || !answer2) {
+    showMessageModal('Missing Answers', 'Please answer both questions.');
+    return;
+  }
+
+  const vault = loadedVaults[currentUnlockVaultId];
+  if (!vault) {
+    showMessageModal('Error', 'Vault data not found.');
+    cancelUnlock();
+    return;
+  }
+
+  try {
+    const combined = answer1 + answer2;
+    const salt = CryptoJS.enc.Utf8.parse('memoro-vault-salt');
+    const unlockKey = CryptoJS.PBKDF2(combined, salt, { keySize: 256/32, iterations: 100000 }).toString();
+
+    const decrypted = CryptoJS.AES.decrypt(vault.vaultData.encryptedDashboardData, unlockKey);
+    const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+    if (!plaintext) throw new Error('Invalid decryption.');
+
+// Success!
+localStorage.removeItem('failedAttempts');
+localStorage.removeItem('lockoutUntil');
+failedAttempts = 0;
+lockoutUntil = 0;
+clearInterval(countdownInterval);
+
+const unlockedVault = JSON.parse(plaintext);
+localStorage.setItem('decryptedVault', JSON.stringify(unlockedVault));
+window.location.href = "recover.html";
+
+  } catch (error) {
+    console.error('Decryption failed:', error);
+    failedAttempts++;
+    const baseDelay = 15000; // 15 seconds
+    const delay = baseDelay * Math.pow(2, failedAttempts - 1);
+    lockoutUntil = Date.now() + delay;
+    localStorage.setItem('failedAttempts', failedAttempts);
+    localStorage.setItem('lockoutUntil', lockoutUntil);
+    showMessageModal('Unlock Failed', `Failed to unlock vault. Attempts: ${failedAttempts}`);
+    startCountdown();
+  }
+}
+
+function checkIfLocked() {
+  if (Date.now() < lockoutUntil) {
+    startCountdown();
+  }
+}
+
+function startCountdown() {
+  clearInterval(countdownInterval);
+  const now = Date.now();
+  const totalTime = lockoutUntil - now;
+  const lockoutSection = document.getElementById('lockoutSection');
+  const timerText = document.getElementById('lockoutTimerText');
+  const progressBar = document.getElementById('lockoutProgress');
+  const unlockButton = document.getElementById('unlockButton');
+
+  lockoutSection.style.display = 'block';
+  document.getElementById('answer1Input').disabled = true;
+  document.getElementById('answer2Input').disabled = true;
+  unlockButton.disabled = true;
+  unlockButton.textContent = 'Locked';
+
+  countdownInterval = setInterval(() => {
+    const nowInner = Date.now();
+    const remaining = lockoutUntil - nowInner;
+
+    if (remaining <= 0) {
+      clearInterval(countdownInterval);
+      document.getElementById('answer1Input').disabled = false;
+      document.getElementById('answer2Input').disabled = false;
+      lockoutSection.style.display = 'none';
+      unlockButton.disabled = false;
+      unlockButton.textContent = 'Unlock';
+      return;
+    }
+
+    const seconds = Math.ceil(remaining / 1000);
+    timerText.innerText = `Locked for ${seconds}s`;
+
+    const percent = (remaining / totalTime) * 100;
+    progressBar.style.width = `${percent}%`;
+  }, 200);
+}
+
+  function promptOfflineWarning(action) {
+    nextAction = action;
+    document.getElementById('offlineWarning').style.display = 'flex';
+  }
+
+  function proceedAfterOfflineWarning() {
+    document.getElementById('offlineWarning').style.display = 'none';
+    if (nextAction === 'create') {
+      window.location.href = "create-vault.html";
+    } else if (nextAction === 'load') {
+      document.getElementById('vaultFileInput').click();
+    }
+    nextAction = null;
+  }
+
+  function cancelOfflineWarning() {
+    document.getElementById('offlineWarning').style.display = 'none';
+    nextAction = null;
+  }
+
+  function goToHowItWorks() {
+    window.location.href = "how-it-works.html";
+  }
+
+  function handleVaultFile(event) {
+    const file = event.target.files[0];
+    if (!file) {
+      showMessageModal('No File Selected', 'Please select a file to load.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const vaultData = JSON.parse(e.target.result);
+        const vaultId = 'vault-' + Date.now();
+        const fileName = file.name.replace(/\.[^/.]+$/, "");
+        loadedVaults[vaultId] = { fileName, vaultData };
+        addVaultToList(vaultId, fileName, vaultData);
+        showMessageModal('Success', '✅ Vault imported successfully!');
+      } catch (err) {
+        console.error('Failed to parse vault file:', err);
+        showMessageModal('Import Failed', '❌ Failed to import vault. Please check the file.');
+      }
+    };
+    reader.onerror = function() {
+      console.error('Error reading file:', reader.error);
+      showMessageModal('Error', '❌ Error reading file.');
+    };
+    reader.readAsText(file);
+  }
+
+  // Load saved vaults at startup
+  loadVaultsFromLocalStorage();
+</script>
+
+
+</body>
+</html>

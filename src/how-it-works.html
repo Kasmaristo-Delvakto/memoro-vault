@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>How Memoro Vault Works</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 40px;
+      line-height: 1.6;
+    }
+    h1, h2 {
+      color: #00aaff;
+    }
+    a {
+      color: #00aaff;
+      text-decoration: none;
+    }
+    .content {
+      max-width: 900px;
+      margin: auto;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+      margin-top: 15px;
+      margin-bottom: 30px;
+    }
+    ul li {
+      position: relative;
+      padding-left: 25px;
+      margin-bottom: 12px;
+    }
+    ul li::before {
+      content: "\2022";
+      position: absolute;
+      left: 0;
+      color: #00aaff;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .button-container {
+      margin-top: 40px;
+      text-align: center;
+    }
+    .button {
+      background-color: #333;
+      color: #eee;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .button:hover {
+      background-color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<div class="content">
+  <h1>How Memoro Vault Works</h1>
+
+  <p><strong>Memoro Vault</strong> protects your crypto seed phrase using memory-based encryption instead of fragile physical backups.</p>
+
+  <h2>The Problem with Traditional Storage</h2>
+  <p>Paper, metal plates, and hardware wallets all have one weakness: if discovered, your seed can be stolen. Memoro Vault eliminates that single point of failure by relying on what only you know—your mind.</p>
+
+  <h2>Designed for Decentralized Inheritance</h2>
+  <p>Memoro Vault isn’t just about security—it’s also a decentralized wealth transfer tool. You can design your vault so that no single family member knows all the answers, but several working together can unlock it. This enables secure estate access without lawyers or custodians.</p>
+  <p>If you can’t trust anyone in your life to carry part of your legacy, you have deeper issues than seed storage. Memoro Vault is built for real-world family dynamics—resilient, flexible, and trust-aware.</p>
+
+  <h2>Why Seeds Get Lost</h2>
+  <p>It's estimated that 20% of all Bitcoin is permanently lost—largely due to forgotten or misplaced seed phrases. Memoro Vault helps mitigate that risk by anchoring recovery to personal memory and relationships, not fragile metal or paper. Most people who find your vault file won’t even know what it is. And the people who would know what to do with it (hackers) probably don’t know you personally. This makes targeted attacks extremely unlikely.</p>
+
+  <h2>Two Independent Layers of Security</h2>
+  <ul>
+    <li><strong>Layer 1: Vault Unlock</strong> — Two memory questions must be answered without hints. These unlock the dashboard only—no sensitive data is revealed. Incorrect attempts trigger increasing delays.</li>
+    <li><strong>Layer 2: Full Seed Recovery</strong> — 16–25 additional memory questions must be answered correctly. Character counts (underscores) are shown to assist memory. A dynamic proof-of-work (PoW) puzzle must also be solved. Each incorrect attempt increases PoW difficulty.</li>
+  </ul>
+
+  <h2>Security Grade: How Safe Is It Really?</h2>
+  <p>Memoro Vault is built for resilience against brute force, AI attacks, and physical discovery. It combines strong encryption, knowledge-based authentication, and PoW to frustrate even persistent attackers.</p>
+
+  <ul>
+    <li><strong>Layer 1:</strong> AES-256 encrypted dashboard data using PBKDF2 (100,000 iterations). Reveals only question metadata, not seeds or hints.</li>
+    <li><strong>Layer 2:</strong> Requires all memory answers, a valid PoW nonce, and decrypts the vault using AES-256 with a key derived from both. Seed phrase and hints remain encrypted until everything matches.</li>
+  </ul>
+
+  <p><strong>Security depends on the quality of your questions.</strong> Use obscure, personal, and specific answers—ideally not guessable by friends, public records, or AI scraping tools.</p>
+
+  <h3>Threat Model Ratings</h3>
+  <ul>
+    <li><strong>Casual attacker:</strong> 10/10 — Memory and encryption prevent access</li>
+    <li><strong>Malware during recovery:</strong> 8/10 — Local data is cleared after use; recovery should be done on a clean device</li>
+    <li><strong>Attacker with your vault file:</strong> 9/10 — Vault is encrypted and requires PoW plus full memory reconstruction</li>
+    <li><strong>AI or insider with life knowledge:</strong> Varies — depends on the uniqueness of your questions and answers</li>
+  </ul>
+
+  <h2>Proven Cryptography</h2>
+  <p>Memoro Vault uses AES-256 encryption—the same algorithm approved by the NSA to secure top secret data. It’s also used in Bitcoin wallets, military-grade storage, and privacy-focused applications around the world. Combined with SHA-256 and PBKDF2, your vault’s encryption is as strong as modern cryptography gets.</p>
+
+  <h2>Offline-First Design</h2>
+  <ul>
+    <li>Vault creation is fully offline to prevent network-based attacks or clipboard leaks.</li>
+    <li>Once encrypted, your vault file is safe to store digitally—even in the cloud—because it’s useless without your memory.</li>
+  </ul>
+
+  <h2>Safe Storage After Creation</h2>
+  <ul>
+    <li>Your vault file contains no unencrypted seed or hint data—only encrypted memory-based recovery metadata.</li>
+    <li>It can be backed up on USB drives, SD cards, offline devices, or encrypted cloud backups.</li>
+    <li>Without your answers and a solved PoW, the vault file is cryptographically useless to anyone else.</li>
+  </ul>
+
+  <h2>In Summary</h2>
+  <ul>
+    <li>Memory-based encryption guards your seed—there is no physical secret to find or steal.</li>
+    <li>Two layers of defense: one gated by selected questions, the other by full memory and PoW.</li>
+    <li>All sensitive data remains AES-256 encrypted until all answers and PoW are correct.</li>
+    <li>Offline-first: vault creation is isolated from the internet for maximum safety.</li>
+    <li>Built for long-term security, private inheritance, and decentralized self-custody—without compromise.</li>
+  </ul>
+
+  <div class="button-container">
+    <button class="button" onclick="backToDashboard()">Return to Dashboard</button>
+  </div>
+</div>
+
+<script>
+  function backToDashboard() {
+    window.location.href = "index.html";
+  }
+</script>
+
+</body>
+</html>

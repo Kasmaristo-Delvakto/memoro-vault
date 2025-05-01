@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Building Your Vault - Memoro Vault</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    h1 { font-size: 36px; margin-bottom: 20px; }
+    p { font-size: 20px; color: #aaa; text-align: center; }
+    .button {
+      background-color: #333;
+      color: #eee;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+      text-decoration: none;
+      text-align: center;
+    }
+    .button:hover { background-color: #555; }
+    #downloadBtn, #goToDashboardBtn, #backToAnswersBtn { display: none; }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background-color: #222;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+    .modal-buttons {
+      margin-top: 20px;
+    }
+    .modal-buttons button {
+      background-color: #0066cc;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .modal-buttons button:hover {
+      background-color: #0055aa;
+    }
+    #toast {
+      display: none;
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #28a745;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+      opacity: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>🔐 Building Your Vault...</h1>
+  <p>Please wait while we encrypt your answers and generate your Memory Vault file.</p>
+
+  <a class="button" id="downloadBtn">Download Vault File</a>
+  <a class="button" id="goToDashboardBtn" href="dashboard.html">Return to Dashboard</a>
+  <a class="button" id="backToAnswersBtn" href="answer-questions.html">Back to Answers</a>
+
+  <div id="messageModal" class="modal">
+    <div class="modal-content">
+      <h2 id="messageModalTitle">Notice</h2>
+      <p id="messageModalText">Message here</p>
+      <div class="modal-buttons">
+        <button onclick="closeMessageModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+  <script>
+    let vaultDataBlobUrl = '';
+
+    async function buildVault() {
+  const selectedCrypto = localStorage.getItem('selectedCrypto') || "bitcoin";
+  const userAnswers = JSON.parse(localStorage.getItem('userAnswers')) || [];
+  const userSeeds = JSON.parse(localStorage.getItem('userSeeds')) || [];
+  const unlockQuestionsIndexes = JSON.parse(localStorage.getItem('unlockQuestions')) || [];
+  const savedQuestions = JSON.parse(localStorage.getItem('questions')) || [];
+  const userHints = JSON.parse(localStorage.getItem('userHints')) || {};
+  const finalMessage = localStorage.getItem('finalMessage') || '';
+
+  const numberOfQuestions = selectedCrypto === 'monero' ? 25 :
+                            selectedCrypto === 'monero-polyseed' ? 16 : 24;
+
+  const vaultObject = {
+    vaultMetadata: {
+      cryptoType: selectedCrypto,
+      numberOfWords: numberOfQuestions
+    },
+    questionList: [],
+    finalMessage: finalMessage,
+    note: "This vault contains only encrypted memory-based recovery data."
+  };
+
+  // ✅ Build question list with full metadata
+  for (let i = 0; i < numberOfQuestions; i++) {
+    const answer = (userAnswers[i] || '').trim().toLowerCase();
+    const seed = (userSeeds[i] || '').trim().toLowerCase();
+    if (!answer) {
+      showMessageModal('Missing Answer', `Missing answer for question ${i + 1}`);
+      return;
+    }
+
+    const fullAnswerHash = CryptoJS.SHA256(answer).toString();
+    const spaceIndexes = [...answer].map((c, idx) => c === ' ' ? idx : -1).filter(x => x !== -1);
+    const hintData = userHints[i] || {};
+    const hintLetters = hintData.letters || [];
+    const cleanAnswer = answer.replace(/\s/g, '');
+    const hintValues = hintLetters.map(pos => (pos >= 1 && pos <= cleanAnswer.length) ? cleanAnswer[pos - 1] : '_');
+
+    vaultObject.questionList.push({
+      question: savedQuestions[i] || `Custom Question ${i + 1}`,
+      correctSeedWord: seed,
+      letterRule: hintLetters.length ? "partial reveal" : "full answer",
+      letterHash: fullAnswerHash,
+      expectedLength: answer.length,
+      spaceIndexes,
+      hintLetters,
+      hintValues,
+      custom: hintData.custom || ""
+    });
+  }
+
+  // 🔐 Derive keys for encryption
+  const answer1 = userAnswers[unlockQuestionsIndexes[0]].trim().toLowerCase();
+  const answer2 = userAnswers[unlockQuestionsIndexes[1]].trim().toLowerCase();
+  const allAnswersConcat = userAnswers.map(a => a.trim().toLowerCase()).join('');
+  const powSalt = CryptoJS.SHA256(allAnswersConcat).toString().slice(0, 16);
+
+  const powDifficulty = "000";
+  const powAttemptsBeforeIncrease = 5;
+  const { nonce: powNonce, hash: powTargetHash } = generateValidPoW(powSalt, powDifficulty);
+
+  const unlockSalt = CryptoJS.enc.Utf8.parse('memoro-vault-salt');
+  const fullUnlockInput = answer1 + answer2 + powNonce;
+  const unlockKey = CryptoJS.PBKDF2(fullUnlockInput, unlockSalt, {
+    keySize: 256 / 32, iterations: 100000
+  }).toString();
+  const encryptedVault = CryptoJS.AES.encrypt(JSON.stringify(vaultObject), unlockKey).toString();
+
+  const dashboardKey = CryptoJS.PBKDF2(answer1 + answer2, unlockSalt, {
+    keySize: 256 / 32, iterations: 100000
+  }).toString();
+
+  // ✅ Now preserve full question data for recovery
+  const minimalVault = {
+    unlockQuestionsIndex1: unlockQuestionsIndexes[0],
+    unlockQuestionsIndex2: unlockQuestionsIndexes[1],
+    questionList: vaultObject.questionList,
+    finalMessage: finalMessage,
+    powSalt: powSalt,
+    powTargetHash: powTargetHash,
+    powDifficulty: powDifficulty,
+    powIncreaseEvery: powAttemptsBeforeIncrease
+  };
+
+  const encryptedDashboardData = CryptoJS.AES.encrypt(JSON.stringify(minimalVault), dashboardKey).toString();
+
+  const finalVaultFile = {
+    instructions: "This is a Memoro Vault Recovery File. It does not store seed phrases or private keys directly.",
+    unlockQuestions: {
+      question1: savedQuestions[unlockQuestionsIndexes[0]] || `Question ${unlockQuestionsIndexes[0] + 1}`,
+      question2: savedQuestions[unlockQuestionsIndexes[1]] || `Question ${unlockQuestionsIndexes[1] + 1}`
+    },
+    encryptedDashboardData: encryptedDashboardData,
+    encryptedVault: encryptedVault,
+    powSalt: powSalt,
+    powTargetHash: powTargetHash,
+    powDifficulty: powDifficulty,
+    powIncreaseEvery: powAttemptsBeforeIncrease
+  };
+
+  const vaultBlob = new Blob([JSON.stringify(finalVaultFile, null, 2)], { type: "application/json" });
+  const vaultDataBlobUrl = URL.createObjectURL(vaultBlob);
+
+  document.getElementById('downloadBtn').style.display = 'inline-block';
+  document.getElementById('goToDashboardBtn').style.display = 'inline-block';
+  document.getElementById('backToAnswersBtn').style.display = 'inline-block';
+  document.getElementById('downloadBtn').href = vaultDataBlobUrl;
+  document.getElementById('downloadBtn').download = "memory_vault.json";
+
+  setTimeout(() => {
+    const a = document.createElement('a');
+    a.href = vaultDataBlobUrl;
+    a.download = "memory_vault.json";
+    a.click();
+    securelyClearSensitiveData();
+  }, 500);
+}
+
+    function securelyClearSensitiveData() {
+      localStorage.removeItem('userAnswers');
+      localStorage.removeItem('userSeeds');
+      localStorage.removeItem('userHints');
+      showToast('Sensitive data securely wiped!', 'success');
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.innerText = message;
+      toast.style.backgroundColor = type === 'success' ? '#28a745' : '#f55';
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => { toast.style.display = 'none'; }, 500);
+      }, 5000);
+    }
+
+    function showMessageModal(title, message) {
+      document.getElementById('messageModalTitle').innerText = title;
+      document.getElementById('messageModalText').innerText = message;
+      document.getElementById('messageModal').style.display = 'flex';
+    }
+
+    function closeMessageModal() {
+      document.getElementById('messageModal').style.display = 'none';
+    }
+
+    function generateValidPoW(salt, difficulty) {
+      let nonce = 0;
+      let prefix = '0'.repeat(parseInt(difficulty));
+      while (true) {
+        let hash = CryptoJS.SHA256(salt + nonce).toString();
+        if (hash.startsWith(prefix)) return { nonce: nonce.toString(), hash };
+        nonce++;
+      }
+    }
+
+    window.onload = buildVault;
+  </script>
+</body>
+</html>

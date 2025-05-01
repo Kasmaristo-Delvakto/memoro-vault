@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Recover Your Vault - Memoro Vault</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    .button-container {
+      margin-top: 10px;
+      margin-bottom: 30px;
+      display: flex;
+      gap: 10px;
+    }
+    .button {
+      background-color: #333;
+      color: #eee;
+      border: none;
+      padding: 12px 24px;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .button:hover {
+      background-color: #555;
+    }
+    .recovery-form {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+    }
+    .question-block {
+      background-color: #222;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-size: 16px;
+      margin-bottom: 5px;
+    }
+    input[type="text"] {
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      background-color: #333;
+      color: #eee;
+      font-size: 16px;
+    }
+    .hint-display {
+      margin-top: 5px;
+      font-size: 18px;
+      color: #888;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background-color: #222;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-buttons {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .modal-buttons button {
+      background-color: #0066cc;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .modal-buttons button:hover {
+      background-color: #0055aa;
+    }
+    #toast {
+      display: none;
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #f55;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+      opacity: 0;
+    }
+    #toast.show {
+      display: block;
+      opacity: 1;
+    }
+
+    #powOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 9998;
+      background: rgba(0, 0, 0, 0.9);
+      color: #0f0;
+      font-family: monospace;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    #powTerminal {
+      background-color: #000;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px #0f0;
+      width: 90%;
+      max-width: 800px;
+      height: 300px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+
+    #powMessage {
+      font-size: 20px;
+      margin-bottom: 10px;
+      opacity: 1;
+      transition: opacity 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+  <h1>Recover Your Vault</h1>
+
+  <div class="button-container">
+    <button class="button" onclick="backToDashboard()">Return to Dashboard</button>
+  </div>
+
+  <form class="recovery-form" id="recoveryForm"></form>
+
+  <div class="button-container" style="margin-top: 20px;">
+    <button class="button" onclick="submitRecovery()">Recover Vault</button>
+  </div>
+
+  <div id="seedModal" class="modal">
+    <div class="modal-content">
+      <h2>🎉 Vault Recovered!</h2>
+      <p id="recoveredSeed" style="margin-top: 20px; font-size: 18px; word-break: break-word;"></p>
+      <p id="finalMessage" style="margin-top: 20px; font-size: 16px; color: #bbb;"></p>
+      <div class="modal-buttons">
+        <button onclick="copyRecoveredSeed()">Copy Seed Phrase</button>
+        <button onclick="closeSeedModal()">Return to Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="powOverlay">
+    <div id="powMessage">Checking answers... please wait</div>
+    <div id="powNotice" style="font-size:16px; margin-bottom:10px; color:#0f0;">
+      Proof of work in progress. Difficulty increases every 5 incorrect attempts.
+    </div>    
+    <div id="powTerminal"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+  <script>
+    const vaultData = JSON.parse(localStorage.getItem('decryptedVault')) || {};
+    const savedQuestions = vaultData.questionList || [];
+    const finalNote = vaultData.finalMessage || "";
+    const powSalt = vaultData.powSalt || "";
+    const powConfig = {
+  start: vaultData.powDifficulty || "00",
+  incrementEvery: vaultData.powIncreaseEvery || 5
+};
+
+    let powAttempt = Number(localStorage.getItem("powAttempt") || 1);
+
+    function showTerminalLine(text) {
+      const terminal = document.getElementById("powTerminal");
+      terminal.innerHTML += `> ${text}<br>`;
+      if (terminal.innerHTML.split('<br>').length > 100) {
+        terminal.innerHTML = terminal.innerHTML.split('<br>').slice(-100).join('<br>');
+      }
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function getCurrentDifficulty(attempt) {
+      const base = powConfig.start.length;
+      const step = Math.floor((attempt - 1) / powConfig.incrementEvery);
+      return '0'.repeat(base + step);
+    }
+
+    async function solvePoW(salt, attempt) {
+      return new Promise((resolve) => {
+        const targetPrefix = getCurrentDifficulty(attempt);
+        let nonce = 0;
+        const base = salt + attempt;
+        const overlay = document.getElementById("powOverlay");
+        const message = document.getElementById("powMessage");
+        const terminal = document.getElementById("powTerminal");
+
+        overlay.style.display = "flex";
+        message.style.opacity = "1";
+        terminal.innerHTML = "";
+
+        setTimeout(() => { message.style.opacity = "0"; }, 3000);
+
+        function mine() {
+          const hash = CryptoJS.SHA256(base + nonce).toString();
+          showTerminalLine(`Nonce ${nonce} → ${hash.slice(0, 10)}...`);
+          if (hash.startsWith(targetPrefix)) {
+            showTerminalLine(`✅ Solved at nonce ${nonce}`);
+            setTimeout(() => {
+              overlay.style.opacity = "1";
+              overlay.style.transition = "opacity 1s";
+              overlay.style.opacity = "0";
+              setTimeout(() => { overlay.style.display = "none"; }, 1000);
+              resolve();
+            }, 1500);
+            return;
+          }
+          nonce++;
+          setTimeout(mine, 0);
+        }
+        mine();
+      });
+    }
+
+    function loadQuestions() {
+      const form = document.getElementById('recoveryForm');
+      savedQuestions.forEach((q, i) => {
+        const block = document.createElement('div');
+        block.className = 'question-block';
+        block.innerHTML = `
+          <label for="answer-${i}"><b>${i + 1}.</b> ${q.question}</label>
+          <input type="text" id="answer-${i}" required />
+          <div class="hint-display" id="hint-${i}"></div>`;
+        form.appendChild(block);
+        updateHint(i);
+      });
+    }
+
+    function updateHint(i) {
+      const question = savedQuestions[i];
+      const hintDiv = document.getElementById(`hint-${i}`);
+      let hint = '';
+      let ptr = 0, cleanIndex = 0;
+      for (let j = 0; j < question.expectedLength; j++) {
+        if (question.spaceIndexes.includes(j)) {
+          hint += '\u00A0\u00A0\u00A0';
+        } else {
+          if (question.hintLetters.includes(cleanIndex + 1)) {
+            hint += (question.hintValues[ptr] || '_') + '\u00A0';
+            ptr++;
+          } else {
+            hint += '_\u00A0';
+          }
+          cleanIndex++;
+        }
+      }
+      hintDiv.innerHTML = `<div style="display:flex;gap:10px"><div>${hint.trim()}</div>${question.custom ? `<div style="font-size:14px;color:#bbb;font-style:italic;">Hint: ${question.custom}</div>` : ''}</div>`;
+    }
+
+async function submitRecovery() {
+  // Show terminal overlay every time
+  const overlay = document.getElementById("powOverlay");
+  const message = document.getElementById("powMessage");
+  const terminal = document.getElementById("powTerminal");
+
+  overlay.style.display = "flex";
+  overlay.style.opacity = "1";
+  message.style.opacity = "1";
+  terminal.innerHTML = "";
+  setTimeout(() => { message.style.opacity = "0"; }, 3000);
+
+  await solvePoW(powSalt, powAttempt);
+
+  const inputs = Array.from(document.querySelectorAll('input[id^="answer-"]')).map(i => i.value.trim().toLowerCase());
+  let valid = true;
+  for (let i = 0; i < savedQuestions.length; i++) {
+    const expected = savedQuestions[i].letterHash;
+    const actual = CryptoJS.SHA256(inputs[i]).toString();
+    if (expected !== actual) {
+      valid = false;
+      break;
+    }
+  }
+
+  if (valid) {
+    localStorage.removeItem("powAttempt");
+    const phrase = savedQuestions.map(q => q.correctSeedWord).join(" ");
+    showSeedModal(phrase, finalNote);
+    clearLocalRecoveryData();
+    showToast("Vault recovered!", "success");
+  } else {
+    powAttempt++;
+    localStorage.setItem("powAttempt", powAttempt);
+    const prevDifficulty = getCurrentDifficulty(powAttempt - 1);
+const nextDifficulty = getCurrentDifficulty(powAttempt);
+if (nextDifficulty.length > prevDifficulty.length) {
+  document.getElementById('powNotice').innerText = "⬆ Difficulty increasing... solving may take longer.";
+  setTimeout(() => {
+    document.getElementById('powNotice').innerText = "Proof of work in progress. Difficulty increases every 5 incorrect attempts.";
+  }, 5000);
+}
+    showToast("Incorrect answers. Try again.", "error");
+  }
+}
+
+    function showSeedModal(seed, msg) {
+      const modal = document.getElementById("seedModal");
+      document.getElementById("recoveredSeed").innerText = "Seed Phrase:\n" + seed;
+      document.getElementById("finalMessage").innerText = msg ? "Message:\n" + msg : "";
+      modal.style.display = "flex";
+    }
+
+    function copyRecoveredSeed() {
+      navigator.clipboard.writeText(document.getElementById('recoveredSeed').innerText.replace('Seed Phrase:\n', ''));
+      showToast('Seed copied.', 'success');
+    }
+
+    function closeSeedModal() {
+      window.location.href = "dashboard.html";
+    }
+
+    function backToDashboard() {
+      window.location.href = "dashboard.html";
+    }
+
+    function clearLocalRecoveryData() {
+      localStorage.removeItem('decryptedVault');
+    }
+
+    function showToast(msg, type = 'error') {
+      const toast = document.getElementById("toast");
+      toast.innerText = msg;
+      toast.style.backgroundColor = type === 'success' ? '#28a745' : '#f55';
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    window.onload = loadQuestions;
+  </script>
+</body>
+</html>
