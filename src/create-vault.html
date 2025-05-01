@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create New Vault - Memoro Vault</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+    label {
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    select, button {
+      margin-bottom: 20px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+    }
+    .button {
+      background-color: #333;
+      color: #eee;
+      cursor: pointer;
+      width: 100%;
+    }
+    .button:hover {
+      background-color: #555;
+    }
+    .button-container {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 400px;
+      margin-top: 30px;
+      gap: 10px; /* This will add space between the buttons */
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Create New Vault</h1>
+
+  <label for="crypto">Which cryptocurrency is this vault for?</label>
+  <select id="crypto">
+    <option value="bitcoin">Bitcoin (12/24 words)</option>
+    <option value="ethereum">Ethereum (12/24 words)</option>
+    <option value="monero">Monero (25 words)</option>
+    <option value="monero-polyseed">Monero Polyseed (16 words)</option>
+    <option value="zano">Zano (24 words)</option>
+    <option value="other">Other (custom)</option>
+  </select>
+
+  <div class="button-container">
+    <button class="button" onclick="goBack()">← Back</button>
+    <button class="button" onclick="startVaultSetup()">Next</button>
+  </div>
+
+  <script>
+    // Load the selected crypto if it's already saved
+    window.onload = function() {
+      const savedCrypto = localStorage.getItem('selectedCrypto');
+      if (savedCrypto) {
+        document.getElementById('crypto').value = savedCrypto;
+      }
+    };
+
+    // Save the selected crypto and navigate to the next page
+    function startVaultSetup() {
+      const selectedCrypto = document.getElementById('crypto').value;
+      localStorage.setItem('selectedCrypto', selectedCrypto);
+      window.location.href = "setup-questions.html"; 
+    }
+
+    // Go back to the previous page
+    function goBack() {
+      window.history.back();
+    }
+  </script>
+
+</body>
+</html>

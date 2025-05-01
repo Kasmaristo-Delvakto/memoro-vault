@@ -1,0 +1,23 @@
+# Node.js dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.exe
+*.zip
+*.7z
+*.asar
+
+# Logs
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Environment and local config
+.env
+.vscode/
+*.bak
+.cache/

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Answer Your Questions - Memoro Vault</title>
+  <style>
+    body { background-color: #111; color: #eee; font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    h1 { font-size: 32px; margin-bottom: 10px; }
+    #countdown { font-size: 18px; color: #bbb; margin-bottom: 20px; }
+    .question-form { width: 100%; max-width: 900px; display: flex; flex-direction: column; }
+    .question-block { background-color: #222; padding: 15px; margin-bottom: 15px; border-radius: 8px; display: grid; grid-template-columns: 2fr 1fr 0.5fr; gap: 10px; align-items: center; }
+    label { font-size: 16px; margin-bottom: 5px; }
+    .input-group { display: flex; flex-direction: column; }
+    input[type="text"], textarea, select { padding: 10px; border-radius: 6px; border: none; background-color: #333; color: #eee; font-size: 16px; }
+    .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
+    .button { background-color: #333; color: #eee; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; }
+    .button:hover { background-color: #555; }
+    .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    .modal-content { background-color: #222; padding: 30px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
+    .modal-buttons { margin-top: 20px; display: flex; justify-content: center; gap: 10px; }
+    .modal-buttons button { background-color: #0066cc; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    .modal-buttons button:hover { background-color: #0055aa; }
+    .modal.fade-out { opacity: 0; pointer-events: none; }
+  </style>
+</head>
+
+<body>
+
+<h1>Answer Your Questions and Enter Your Seed</h1>
+<div id="countdown"></div>
+
+<form class="question-form" id="answerForm">
+  <div class="input-group">
+    <label for="bulk-seed">Paste Full Seed Phrase (optional):</label>
+    <textarea id="bulk-seed" rows="3" placeholder="paste your 12/16/24 seed phrase here" oninput="handleSeedPaste()"></textarea>
+  </div>
+</form>
+
+<div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
+  <label for="finalMessage" style="font-size: 18px;">Optional: Final Message for Yourself or Your Family</label>
+  <textarea id="finalMessage" rows="4" placeholder="Example: 'Trust yourself. You have everything you need.'"></textarea>
+  <p style="font-size: 14px; color: #aaa; margin-top: 5px;">This message will be stored securely with your vault.</p>
+</div>
+
+<div class="button-container">
+  <button class="button" type="button" onclick="goBack()">← Back</button>
+  <button class="button" type="button" onclick="submitAnswers()">Create Vault</button>
+  <button class="button" type="button" onclick="startSecurityTimer()">Reset Timer</button>
+</div>
+
+<!-- Modals -->
+<div id="messageModal" class="modal">
+  <div class="modal-content">
+    <h2 id="messageModalTitle">Notice</h2>
+    <p id="messageModalText">Message here</p>
+    <div class="modal-buttons">
+      <button onclick="closeMessageModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="hintModal" class="modal">
+  <div class="modal-content">
+    <h2>Customize Your Hint</h2>
+    <div class="input-group">
+      <label>How many letters to reveal?</label>
+      <select id="numLetters" onchange="buildLetterSelectors()">
+        <option value="0">0 letters (only text hint)</option>
+        <option value="1">1 letter</option>
+        <option value="2">2 letters</option>
+        <option value="3">3 letters</option>
+        <option value="4">4 letters</option>
+      </select>
+    </div>
+    <div id="letterSelectors" class="input-group" style="margin-top: 15px;"></div>
+    <div class="input-group" style="margin-top: 20px;">
+      <label>Optional: Custom Hint Text</label>
+      <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
+    </div>
+    <div class="modal-buttons">
+      <button onclick="saveCustomHint()">Save</button>
+      <button onclick="closeHintModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const savedQuestions = JSON.parse(localStorage.getItem('questions')) || [];
+  let securityTimeout;
+  let remainingTime = 1800; // 30 minutes in seconds
+  
+  function startSecurityTimer() {
+    clearTimeout(securityTimeout);
+    securityTimeout = setInterval(() => {
+      remainingTime--;
+      updateCountdownDisplay();
+      if (remainingTime <= 0) {
+        securelyClearSensitiveData();
+        alert('Session expired for your security. Sensitive data has been cleared.');
+        window.location.href = "dashboard.html";
+      }
+    }, 1000);
+  }
+  
+  function extendTimer() {
+    remainingTime += 5; // Add 5 seconds for any user interaction
+  }
+  
+  // Countdown clock display
+  function updateCountdownDisplay() {
+    const timerElement = document.getElementById('countdown');
+    if (!timerElement) return;
+    const minutes = Math.floor(remainingTime / 60);
+    const seconds = remainingTime % 60;
+    timerElement.textContent = `Sensitive Data Will Be Securely Erased In: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+  
+  const defaultQuestions = [
+    "What was the name of your childhood best friend?",
+    "What was the street name where you grew up?",
+    "What is your oldest sibling’s middle name?",
+    "What was the name of your first pet?",
+    "What city were you born in?",
+    "What is the name of your favorite childhood teacher?",
+    "What was the make of your first car?",
+    "What is the middle name of one of your grandparents?",
+    "What is the title of your favorite childhood book?",
+    "What was the mascot of your high school?",
+    "What was your favorite vacation spot as a kid?",
+    "What was the name of your first boss?",
+    "What was the color of your childhood bedroom walls?",
+    "What was your childhood dream job?",
+    "What’s the first concert you ever attended?",
+    "What’s the name of your favorite stuffed animal or toy?",
+    "What was the first videogame you remember playing?",
+    "What was your childhood nickname?",
+    "What is your mother's mother's maiden name?",
+    "What is the name of the first street you lived on?",
+    "What was your favorite childhood meal?",
+    "What was your favorite cartoon growing up?",
+    "Who was your favorite childhood hero?",
+    "What is a weird family tradition you had growing up?"
+  ];
+  
+  let activeHintIndex = null;
+  let customHints = {};
+  
+  function loadQuestions() {
+    const form = document.getElementById('answerForm');
+    const numberOfQuestions = savedQuestions.length || defaultQuestions.length;
+  
+    for (let i = 0; i < numberOfQuestions; i++) {
+      const questionText = savedQuestions[i] || defaultQuestions[i];
+  
+      const block = document.createElement('div');
+      block.className = 'question-block';
+      block.innerHTML = `
+        <div class="input-group">
+          <label><b>${i + 1}.</b> ${questionText}</label>
+          <input type="text" id="answer-${i}" placeholder="Your answer" required oninput="forceLowercase(this); refreshHintModal();" onpaste="handlePaste(event, ${i})">
+        </div>
+        <div class="input-group">
+          <label>Corresponding Seed Word:</label>
+          <input type="text" id="seed-${i}" placeholder="Seed word" required oninput="forceLowercase(this)">
+        </div>
+        <div class="input-group">
+          <label><input type="checkbox" id="custom-hint-${i}" onchange="openHintModal(${i})"> Custom Hint</label>
+        </div>
+      `;
+      form.appendChild(block);
+    }
+  }
+  
+  function goBack() {
+    window.history.back();
+  }
+  
+  function submitAnswers() {
+    const answers = [];
+    const seeds = [];
+    const answerInputs = document.querySelectorAll('input[id^="answer-"]');
+    const seedInputs = document.querySelectorAll('input[id^="seed-"]');
+    const finalMessage = document.getElementById('finalMessage').value.trim();
+  
+    answerInputs.forEach(input => answers.push(input.value.trim()));
+    seedInputs.forEach(input => seeds.push(input.value.trim()));
+  
+    if (answers.some(a => a === '') || seeds.some(s => s === '')) {
+      showMessageModal('Missing Information', 'Please fill in all answers and all seed words.');
+      return;
+    }
+  
+    localStorage.setItem('userAnswers', JSON.stringify(answers));
+    localStorage.setItem('userSeeds', JSON.stringify(seeds));
+    localStorage.setItem('userHints', JSON.stringify(customHints));
+    localStorage.setItem('finalMessage', JSON.stringify(finalMessage));
+  
+    window.location.href = "build-vault.html";
+  }
+  
+  function forceLowercase(input) {
+    input.value = input.value.toLowerCase();
+  }
+  
+  function handlePaste(event, index) {
+    event.preventDefault();
+    const pasted = (event.clipboardData || window.clipboardData).getData('text');
+    const input = document.getElementById(`answer-${index}`);
+    input.value += pasted.toLowerCase();
+    refreshHintModal();
+  }
+  
+  function handleSeedPaste() {
+    const textarea = document.getElementById('bulk-seed');
+    const seeds = textarea.value.trim().toLowerCase().split(/\s+/);
+  
+    seeds.forEach((word, index) => {
+      const input = document.getElementById(`seed-${index}`);
+      if (input) input.value = word;
+    });
+  }
+  
+  function openHintModal(index) {
+    activeHintIndex = index;
+    document.getElementById('hintModal').style.display = 'flex';
+    buildLetterSelectors();
+  }
+  
+  function closeHintModal() {
+    activeHintIndex = null;
+    document.getElementById('hintModal').style.display = 'none';
+    document.getElementById('letterSelectors').innerHTML = '';
+    document.getElementById('customHintText').value = '';
+    document.getElementById('numLetters').value = '1';
+  }
+  
+  function buildLetterSelectors() {
+    if (activeHintIndex === null) return;
+    const container = document.getElementById('letterSelectors');
+    container.innerHTML = '';
+    const answerInput = document.getElementById(`answer-${activeHintIndex}`);
+    const rawAnswer = answerInput ? answerInput.value.trim() : '';
+    const cleanedAnswer = rawAnswer.replace(/\s+/g, '');
+  
+    let maxHints = Math.max(1, Math.floor(cleanedAnswer.length * 0.50));
+    maxHints = Math.min(maxHints, 4);
+  
+    if (parseInt(document.getElementById('numLetters').value) > maxHints) {
+      showMessageModal('Warning', `You cannot reveal more than 50% of your answer's letters (Max ${maxHints}).`);
+      document.getElementById('numLetters').value = maxHints;
+    }
+  
+    const num = parseInt(document.getElementById('numLetters').value);
+    for (let i = 0; i < num; i++) {
+      const select = document.createElement('select');
+      select.id = `letter-select-${i}`;
+  
+      for (let j = 0; j < cleanedAnswer.length; j++) {
+        const letter = cleanedAnswer[j];
+        const option = document.createElement('option');
+        option.value = j + 1;
+        option.textContent = `${letter} (${j + 1})`;
+        select.appendChild(option);
+      }
+      container.appendChild(select);
+    }
+  }
+  
+  function saveCustomHint() {
+    if (activeHintIndex === null) return;
+    const num = parseInt(document.getElementById('numLetters').value);
+    const indexes = [];
+    const seen = new Set();
+    let duplicateFound = false;
+  
+    for (let i = 0; i < num; i++) {
+      const value = parseInt(document.getElementById(`letter-select-${i}`).value);
+      if (seen.has(value)) {
+        duplicateFound = true;
+        break;
+      }
+      seen.add(value);
+      indexes.push(value);
+    }
+  
+    if (duplicateFound) {
+      showMessageModal('Duplicate Letter Chosen', 'Please choose different letters for your hints.');
+      return;
+    }
+    customHints[activeHintIndex] = {
+      letters: indexes.sort((a, b) => a - b),
+      custom: document.getElementById('customHintText').value.trim()
+    };
+    closeHintModal();
+  }
+  
+  function refreshHintModal() {
+    if (document.getElementById('hintModal').style.display === 'flex') {
+      buildLetterSelectors();
+    }
+  }
+  
+  function showMessageModal(title, message, autoCloseMs) {
+    const modal = document.getElementById('messageModal');
+    modal.classList.remove('fade-out');
+    document.getElementById('messageModalTitle').innerText = title;
+    document.getElementById('messageModalText').innerText = message;
+    modal.style.display = 'flex';
+    if (autoCloseMs) {
+      setTimeout(() => {
+        modal.classList.add('fade-out');
+        setTimeout(closeMessageModal, 500);
+      }, autoCloseMs);
+    }
+  }
+  
+  function closeMessageModal() {
+    const modal = document.getElementById('messageModal');
+    modal.style.display = 'none';
+    modal.classList.remove('fade-out');
+  }
+  
+  function securelyClearSensitiveData() {
+    localStorage.removeItem('userAnswers');
+    localStorage.removeItem('userSeeds');
+    localStorage.removeItem('userHints');
+    localStorage.removeItem('finalMessage');
+  }
+  
+  window.onload = () => {
+    loadQuestions();
+    startSecurityTimer();
+    updateCountdownDisplay();
+  
+    document.addEventListener('click', extendTimer);
+    document.addEventListener('keydown', extendTimer);
+    document.addEventListener('input', extendTimer);
+  };
+  </script>  
+
+</body>
+</html>

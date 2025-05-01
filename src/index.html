@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Memoro Vault</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Fira Code', monospace;
+      background-color: black;
+      color: #00ff99;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    .content {
+      z-index: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 30px 60px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0, 255, 153, 0.2);
+    }
+    p {
+      font-size: 18px;
+      color: #77ffcc;
+      margin-bottom: 30px;
+      max-width: 600px;
+      white-space: pre-line;
+    }
+    button {
+      margin-top: 20px;
+      padding: 12px 28px;
+      font-size: 20px;
+      background-color: #00aa88;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #00775a;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: #111;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      width: 90%;
+      max-width: 450px;
+      box-shadow: 0 4px 12px rgba(0,255,100,0.4);
+    }
+    .modal-content h2 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #00ff99;
+    }
+    .modal-content ul {
+      text-align: left;
+      padding-left: 20px;
+      margin-bottom: 30px;
+      font-size: 18px;
+      color: #aaffee;
+      line-height: 1.6;
+    }
+    .modal-buttons button {
+      background-color: #00cc88;
+      color: #fff;
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .modal-buttons button:hover {
+      background-color: #00996a;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <div class="content">
+    <img src="assets/memoro logo with words.png" alt="Memoro Vault Logo" style="max-width: 300px; height: auto; margin-bottom: 20px;" />
+    <p id="mainText">Your mind. Your memory. Your vault.<br>Let's create your encrypted recovery vault safely.</p>
+    <button onclick="showSafetyModal()" id="startBtn">Begin</button>
+  </div>
+
+  <div id="safetyModal" class="modal">
+    <div class="modal-content">
+      <h2>Before You Begin</h2>
+      <ul>
+        <li>Use a clean, trusted computer.</li>
+        <li>Disconnect from WiFi or turn off internet access.</li>
+        <li>Close unnecessary apps and browsers.</li>
+        <li>Do not use public or shared computers.</li>
+        <li>Ensure no suspicious browser extensions are installed.</li>
+      </ul>
+      <div class="modal-buttons">
+        <button onclick="acceptSafety()">I Understand</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showSafetyModal() {
+      document.getElementById('safetyModal').style.display = 'flex';
+    }
+
+    function typeWriterEffect(text, element, delay = 35, callback = null) {
+      let i = 0;
+      element.innerText = "";
+      function type() {
+        if (i < text.length) {
+          element.innerText += text.charAt(i);
+          i++;
+          setTimeout(type, delay);
+        } else if (callback) {
+          callback();
+        }
+      }
+      type();
+    }
+
+    function acceptSafety() {
+      document.getElementById('safetyModal').style.display = 'none';
+      const p = document.getElementById('mainText');
+      const btn = document.getElementById('startBtn');
+      btn.style.display = 'none';
+
+      const message = `Initializing Security Protocols...\nVerifying local environment.\nLoading offline modules.\nEncrypting memory lanes...`;
+
+      typeWriterEffect(message, p, 30, () => {
+        setTimeout(() => window.location.href = "dashboard.html", 1000);
+      });
+    }
+
+    // Matrix background logic
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    const letters = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%^&*";
+    const fontSize = 14;
+    let columns, drops;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
+    }
+
+    function drawMatrix() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00ff99';
+      ctx.font = fontSize + "px monospace";
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    setInterval(drawMatrix, 33);
+  </script>
+</body>
+</html>
