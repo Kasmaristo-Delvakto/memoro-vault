@@ -1,4 +1,4 @@
-How Memoro Vault Works
+How Memoro Vault Works:
 
 Memoro Vault offers a novel, memory-based approach to cryptographic key storage—eliminating the vulnerabilities of physical backups and enabling a more resilient, decentralized form of digital inheritance.
 

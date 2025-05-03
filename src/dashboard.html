@@ -135,9 +135,9 @@ const loadedVaults = {};
 let currentUnlockVaultId = null;
 let nextAction = null;
 let confirmYesCallback = null;
-let failedAttempts = Number(localStorage.getItem('failedAttempts')) || 0;
-let lockoutUntil = Number(localStorage.getItem('lockoutUntil')) || 0;
 let countdownInterval = null;
+let failedAttempts = 0;
+let lockoutUntil = 0;
 
   // Message Modal
   function showMessageModal(title, message) {
@@ -264,15 +264,33 @@ function closeMessageModal() {
   }
 
   function openUnlockModal(vaultId) {
+  // Always clear the old interval first
+  clearInterval(countdownInterval);
+
   currentUnlockVaultId = vaultId;
   const vault = loadedVaults[vaultId];
   const questions = vault.vaultData.unlockQuestions;
+
   document.getElementById('question1Label').innerText = questions.question1 || "Question 1:";
   document.getElementById('question2Label').innerText = questions.question2 || "Question 2:";
   document.getElementById('answer1Input').value = '';
   document.getElementById('answer2Input').value = '';
+  document.getElementById('answer1Input').disabled = false;
+  document.getElementById('answer2Input').disabled = false;
+
+  // Reset lockout visuals
+  document.getElementById('lockoutSection').style.display = 'none';
+  document.getElementById('lockoutProgress').style.width = '100%';
+  const unlockButton = document.getElementById('unlockButton');
+  unlockButton.disabled = false;
+  unlockButton.textContent = 'Unlock';
+
   document.getElementById('unlockModal').style.display = 'flex';
   setTimeout(() => document.getElementById('answer1Input').focus(), 100);
+
+  // Load vault-specific lockout data
+  failedAttempts = Number(localStorage.getItem(`failedAttempts_${vaultId}`)) || 0;
+  lockoutUntil = Number(localStorage.getItem(`lockoutUntil_${vaultId}`)) || 0;
 
   checkIfLocked();
 }
@@ -310,8 +328,8 @@ async function submitUnlock() {
     if (!plaintext) throw new Error('Invalid decryption.');
 
 // Success!
-localStorage.removeItem('failedAttempts');
-localStorage.removeItem('lockoutUntil');
+localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
+localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
 failedAttempts = 0;
 lockoutUntil = 0;
 clearInterval(countdownInterval);
@@ -323,11 +341,11 @@ window.location.href = "recover.html";
   } catch (error) {
     console.error('Decryption failed:', error);
     failedAttempts++;
-    const baseDelay = 15000; // 15 seconds
+    const baseDelay = 15000; // 5 seconds
     const delay = baseDelay * Math.pow(2, failedAttempts - 1);
     lockoutUntil = Date.now() + delay;
-    localStorage.setItem('failedAttempts', failedAttempts);
-    localStorage.setItem('lockoutUntil', lockoutUntil);
+    localStorage.setItem(`failedAttempts_${currentUnlockVaultId}`, failedAttempts);
+    localStorage.setItem(`lockoutUntil_${currentUnlockVaultId}`, lockoutUntil);
     showMessageModal('Unlock Failed', `Failed to unlock vault. Attempts: ${failedAttempts}`);
     startCountdown();
   }
