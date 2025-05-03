@@ -30,10 +30,10 @@
 <div id="countdown"></div>
 
 <form class="question-form" id="answerForm">
-  <div class="input-group">
+  <div class="input-group seed-fields">
     <label for="bulk-seed">Paste Full Seed Phrase (optional):</label>
     <textarea id="bulk-seed" rows="3" placeholder="paste your 12/16/24 seed phrase here" oninput="handleSeedPaste()"></textarea>
-  </div>
+  </div>  
 </form>
 
 <div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
@@ -147,7 +147,7 @@
   
   function loadQuestions() {
     const form = document.getElementById('answerForm');
-    const numberOfQuestions = savedQuestions.length || defaultQuestions.length;
+    const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
   
     for (let i = 0; i < numberOfQuestions; i++) {
       const questionText = savedQuestions[i] || defaultQuestions[i];
@@ -159,10 +159,10 @@
           <label><b>${i + 1}.</b> ${questionText}</label>
           <input type="text" id="answer-${i}" placeholder="Your answer" required oninput="forceLowercase(this); refreshHintModal();" onpaste="handlePaste(event, ${i})">
         </div>
-        <div class="input-group">
-          <label>Corresponding Seed Word:</label>
-          <input type="text" id="seed-${i}" placeholder="Seed word" required oninput="forceLowercase(this)">
-        </div>
+        <div class="input-group seed-fields">
+  <label>Corresponding Seed Word:</label>
+  <input type="text" id="seed-${i}" placeholder="Seed word" required oninput="forceLowercase(this)">
+</div>
         <div class="input-group">
           <label><input type="checkbox" id="custom-hint-${i}" onchange="openHintModal(${i})"> Custom Hint</label>
         </div>
@@ -185,10 +185,13 @@
     answerInputs.forEach(input => answers.push(input.value.trim()));
     seedInputs.forEach(input => seeds.push(input.value.trim()));
   
-    if (answers.some(a => a === '') || seeds.some(s => s === '')) {
-      showMessageModal('Missing Information', 'Please fill in all answers and all seed words.');
-      return;
-    }
+    const vaultType = localStorage.getItem('selectedVaultType');
+const isCryptoVault = !(vaultType === 'docs-only' || vaultType === 'crypto-docs');
+
+if (answers.some(a => a === '') || (isCryptoVault && seeds.some(s => s === ''))) {
+  showMessageModal('Missing Information', 'Please fill in all answers' + (isCryptoVault ? ' and all seed words.' : '.'));
+  return;
+}
   
     localStorage.setItem('userAnswers', JSON.stringify(answers));
     localStorage.setItem('userSeeds', JSON.stringify(seeds));
@@ -328,14 +331,21 @@
   }
   
   window.onload = () => {
-    loadQuestions();
-    startSecurityTimer();
-    updateCountdownDisplay();
-  
-    document.addEventListener('click', extendTimer);
-    document.addEventListener('keydown', extendTimer);
-    document.addEventListener('input', extendTimer);
-  };
+  loadQuestions();
+  startSecurityTimer();
+  updateCountdownDisplay();
+
+  const vaultType = localStorage.getItem('selectedVaultType');
+  if (vaultType === 'docs-only') {
+    document.querySelectorAll('.seed-fields').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+
+  document.addEventListener('click', extendTimer);
+  document.addEventListener('keydown', extendTimer);
+  document.addEventListener('input', extendTimer);
+};
   </script>  
 
 </body>

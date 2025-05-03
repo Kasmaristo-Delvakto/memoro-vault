@@ -325,8 +325,11 @@ async function submitRecovery() {
 
   if (valid) {
     localStorage.removeItem("powAttempt");
-    const phrase = savedQuestions.map(q => q.correctSeedWord).join(" ");
-    showSeedModal(phrase, finalNote);
+    const phrase = savedQuestions.every(q => q.correctSeedWord)
+  ? savedQuestions.map(q => q.correctSeedWord).join(" ")
+  : null;
+
+showSeedModal(phrase, finalNote);
     clearLocalRecoveryData();
     showToast("Vault recovered!", "success");
   } else {
@@ -346,7 +349,9 @@ if (nextDifficulty.length > prevDifficulty.length) {
 
     function showSeedModal(seed, msg) {
       const modal = document.getElementById("seedModal");
-      document.getElementById("recoveredSeed").innerText = "Seed Phrase:\n" + seed;
+      document.getElementById("recoveredSeed").innerText = seed
+  ? "Seed Phrase:\n" + seed
+  : "No seed phrase required for this vault.";
       document.getElementById("finalMessage").innerText = msg ? "Message:\n" + msg : "";
       modal.style.display = "flex";
     }

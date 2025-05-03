@@ -111,13 +111,14 @@
   const selectedCrypto = localStorage.getItem('selectedCrypto') || "bitcoin";
   const userAnswers = JSON.parse(localStorage.getItem('userAnswers')) || [];
   const userSeeds = JSON.parse(localStorage.getItem('userSeeds')) || [];
+  const vaultType = localStorage.getItem('selectedVaultType');
+  const isCryptoVault = !(vaultType === 'docs-only');
   const unlockQuestionsIndexes = JSON.parse(localStorage.getItem('unlockQuestions')) || [];
   const savedQuestions = JSON.parse(localStorage.getItem('questions')) || [];
   const userHints = JSON.parse(localStorage.getItem('userHints')) || {};
   const finalMessage = localStorage.getItem('finalMessage') || '';
 
-  const numberOfQuestions = selectedCrypto === 'monero' ? 25 :
-                            selectedCrypto === 'monero-polyseed' ? 16 : 24;
+  const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
 
   const vaultObject = {
     vaultMetadata: {
@@ -133,6 +134,10 @@
   for (let i = 0; i < numberOfQuestions; i++) {
     const answer = (userAnswers[i] || '').trim().toLowerCase();
     const seed = (userSeeds[i] || '').trim().toLowerCase();
+    if (isCryptoVault && !seed) {
+  showMessageModal('Missing Seed Word', `Missing seed word for question ${i + 1}`);
+  return;
+}
     if (!answer) {
       showMessageModal('Missing Answer', `Missing answer for question ${i + 1}`);
       return;

@@ -22,7 +22,7 @@
       margin-bottom: 10px;
       font-size: 18px;
     }
-    select, button {
+    select, button, input[type="range"] {
       margin-bottom: 20px;
       padding: 10px;
       font-size: 16px;
@@ -44,23 +44,83 @@
       width: 100%;
       max-width: 400px;
       margin-top: 30px;
-      gap: 10px; /* This will add space between the buttons */
+      gap: 10px;
+    }
+    .custom-options {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 400px;
+    }
+    .range-label {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    #introModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0,0,0,0.85);
+      color: #00ff99;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      font-family: 'Fira Code', monospace;
+    }
+    #introModal .content {
+      background-color: #111;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px #00ff99;
+      max-width: 500px;
+      text-align: center;
+    }
+    #introModal button {
+      background-color: #00ff99;
+      color: #111;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
+  <!-- Intro Modal -->
+  <div id="introModal">
+    <div class="content">
+      <h2 style="margin-top: 0;">Welcome to Memoro Vault</h2>
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        You can store <strong>crypto seed phrases</strong>, <strong>passwords</strong>, <strong>documents</strong>, or <strong>combine them all</strong> in the same secure vault.<br><br>
+        If you're storing a crypto seed phrase, the number of questions must match the number of seed words (e.g., 12, 16, or 25).<br><br>
+        Choose your vault type and set your preferred security level.
+      </p>
+      <button onclick="closeIntroModal()">Got it</button>
+    </div>
+  </div>
+
   <h1>Create New Vault</h1>
 
-  <label for="crypto">Which cryptocurrency is this vault for?</label>
-  <select id="crypto">
+  <label for="vaultType">What kind of vault do you want to create?</label>
+  <select id="vaultType" onchange="handleVaultTypeChange()">
+    <option value="monero">Monero (16/25 words)</option>
     <option value="bitcoin">Bitcoin (12/24 words)</option>
-    <option value="ethereum">Ethereum (12/24 words)</option>
-    <option value="monero">Monero (25 words)</option>
-    <option value="monero-polyseed">Monero Polyseed (16 words)</option>
-    <option value="zano">Zano (24 words)</option>
-    <option value="other">Other (custom)</option>
+    <option value="crypto-docs">Crypto + Sensitive Documents</option>
+    <option value="crypto-only">Crypto Only</option>
+    <option value="docs-only">Sensitive Documents Only</option>
   </select>
+
+  <div class="custom-options" id="customOptions">
+    <div class="range-label">How many memory-based questions? (<span id="questionCount">12</span>)</div>
+    <input type="range" id="questionSlider" min="8" max="25" value="12" step="1" oninput="updateQuestionCount()">
+  </div>
 
   <div class="button-container">
     <button class="button" onclick="goBack()">← Back</button>
@@ -68,22 +128,79 @@
   </div>
 
   <script>
-    // Load the selected crypto if it's already saved
-    window.onload = function() {
-      const savedCrypto = localStorage.getItem('selectedCrypto');
-      if (savedCrypto) {
-        document.getElementById('crypto').value = savedCrypto;
+    window.onload = function () {
+      const savedType = localStorage.getItem('selectedVaultType');
+      const savedQuestions = localStorage.getItem('customQuestionCount');
+
+      if (savedType) {
+        document.getElementById('vaultType').value = savedType;
+      }
+
+      if (!localStorage.getItem('introShown')) {
+        document.getElementById('introModal').style.display = 'flex';
+        localStorage.setItem('introShown', 'true');
+      }
+
+      handleVaultTypeChange();
+
+      if (savedQuestions) {
+        document.getElementById('questionSlider').value = savedQuestions;
+        updateQuestionCount();
       }
     };
 
-    // Save the selected crypto and navigate to the next page
-    function startVaultSetup() {
-      const selectedCrypto = document.getElementById('crypto').value;
-      localStorage.setItem('selectedCrypto', selectedCrypto);
-      window.location.href = "setup-questions.html"; 
+    function closeIntroModal() {
+      document.getElementById('introModal').style.display = 'none';
     }
 
-    // Go back to the previous page
+    function handleVaultTypeChange() {
+      const vaultType = document.getElementById('vaultType').value;
+      const slider = document.getElementById('questionSlider');
+
+      if (vaultType === 'monero') {
+        slider.min = 16;
+        slider.max = 25;
+        slider.step = 9; // jump from 16 to 25
+        slider.value = 16;
+      } else if (vaultType === 'bitcoin') {
+        slider.min = 12;
+        slider.max = 24;
+        slider.step = 12; // jump from 12 to 24
+        slider.value = 12;
+      } else {
+        slider.min = 8;
+        slider.max = 25;
+        slider.step = 1;
+        slider.value = 12;
+      }
+
+      updateQuestionCount();
+      document.getElementById('customOptions').style.display = 'flex';
+    }
+
+    function updateQuestionCount() {
+      const slider = document.getElementById('questionSlider');
+      document.getElementById('questionCount').textContent = slider.value;
+    }
+
+    function startVaultSetup() {
+  let selectedType = document.getElementById('vaultType').value;
+  const questionCount = document.getElementById('questionSlider').value;
+
+  // Override for monero or bitcoin types based on slider
+  if (selectedType === 'monero') {
+    selectedType = questionCount === '25' ? 'monero' : 'monero-polyseed';
+  } else if (selectedType === 'bitcoin') {
+    selectedType = questionCount === '24' ? 'bitcoin' : 'bitcoin-legacy';
+  }
+
+  localStorage.setItem('selectedVaultType', selectedType);
+  localStorage.setItem('customQuestionCount', questionCount);
+
+  window.location.href = "setup-questions.html";
+}
+
+
     function goBack() {
       window.history.back();
     }
