@@ -37,8 +37,16 @@
 </form>
 
 <div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
+  <label for="fileUpload" style="font-size: 18px;">Optional: Upload Documents to Include in Your Vault</label>
+  <input type="file" id="fileUpload" multiple />
+  <p style="font-size: 14px; color: #aaa; margin-top: 5px;">You can upload files like text notes, images, or scanned documents (up to 250MB total).</p>
+</div>
+
+<div id="uploadedFileList" style="margin-top: 20px; width: 100%; max-width: 900px;"></div>
+
+<div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
   <label for="finalMessage" style="font-size: 18px;">Optional: Final Message for Yourself or Your Family</label>
-  <textarea id="finalMessage" rows="4" placeholder="Example: 'Trust yourself. You have everything you need.'"></textarea>
+  <textarea id="finalMessage" rows="4" placeholder="Example: 'Looks like someone was ACTUALLY listening to all those rants I gave at family dinner. Congratulations!'"></textarea>
   <p style="font-size: 14px; color: #aaa; margin-top: 5px;">This message will be stored securely with your vault.</p>
 </div>
 
@@ -85,6 +93,118 @@
 </div>
 
 <script>
+
+async function handleFileStorageUpload(event) {
+  const newFiles = Array.from(event.target.files);
+  if (newFiles.length === 0) return;
+
+  let existingMeta = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
+  const combinedMeta = [...existingMeta];
+
+  // Step 1: Convert all new files to {id, meta, arrayBuffer}
+  const processedFiles = [];
+  for (const file of newFiles) {
+    if (combinedMeta.some(f => f.name === file.name)) continue;
+    const id = crypto.randomUUID();
+    const arrayBuffer = await file.arrayBuffer();
+    processedFiles.push({
+      id,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      raw: arrayBuffer
+    });
+    combinedMeta.push({ id, name: file.name, size: file.size, type: file.type });
+  }
+
+  // Step 2: Open the database and write
+  const req = indexedDB.open('memoroVaultDB', 2);
+
+  req.onupgradeneeded = function (event) {
+    const db = event.target.result;
+    if (!db.objectStoreNames.contains('vaultFiles')) {
+      db.createObjectStore('vaultFiles', { keyPath: 'id' });
+    }
+  };
+
+  req.onsuccess = function () {
+    const db = req.result;
+    const tx = db.transaction('vaultFiles', 'readwrite');
+    const store = tx.objectStore('vaultFiles');
+
+    for (const file of processedFiles) {
+      store.put(file);
+    }
+
+    tx.oncomplete = () => {
+      db.close();
+      localStorage.setItem('uploadedFileMeta', JSON.stringify(combinedMeta));
+      displayUploadedFiles(); // Refresh UI
+    };
+  };
+
+  req.onerror = function () {
+    showMessageModal("IndexedDB Error", "Failed to open file storage.");
+  };
+}
+
+function displayUploadedFiles() {
+  const container = document.getElementById('uploadedFileList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const storedFiles = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
+
+  storedFiles.forEach(file => {
+    const entry = document.createElement('div');
+    entry.style.display = 'flex';
+    entry.style.justifyContent = 'space-between';
+    entry.style.alignItems = 'center';
+    entry.style.marginBottom = '6px';
+
+    const fileLabel = document.createElement('span');
+    fileLabel.textContent = `📄 ${file.name} (${Math.round(file.size / 1024)} KB)`;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.marginLeft = '10px';
+    removeBtn.style.padding = '4px 8px';
+    removeBtn.style.backgroundColor = '#550000';
+    removeBtn.style.color = '#fff';
+    removeBtn.style.border = 'none';
+    removeBtn.style.borderRadius = '4px';
+    removeBtn.style.cursor = 'pointer';
+
+    removeBtn.onclick = () => {
+      const updatedMeta = storedFiles.filter(f => f.id !== file.id);
+      localStorage.setItem('uploadedFileMeta', JSON.stringify(updatedMeta));
+
+      const req = indexedDB.open('memoroVaultDB');
+      req.onsuccess = function () {
+        const db = req.result;
+        const tx = db.transaction('vaultFiles', 'readwrite');
+        const store = tx.objectStore('vaultFiles');
+        store.delete(file.id);
+        tx.oncomplete = () => {
+          db.close();
+          displayUploadedFiles();
+        };
+      };
+    };
+
+    entry.appendChild(fileLabel);
+    entry.appendChild(removeBtn);
+    container.appendChild(entry);
+  });
+}
+
+// Add this to your onload:
+window.addEventListener('DOMContentLoaded', () => {
+  const fileUpload = document.getElementById('fileUpload');
+  if (fileUpload) fileUpload.addEventListener('change', handleFileStorageUpload);
+  displayUploadedFiles();
+});
+
   const savedQuestions = JSON.parse(localStorage.getItem('questions')) || [];
   let securityTimeout;
   let remainingTime = 1800; // 30 minutes in seconds
@@ -97,6 +217,12 @@
       if (remainingTime <= 0) {
         securelyClearSensitiveData();
         alert('Session expired for your security. Sensitive data has been cleared.');
+        localStorage.setItem('userAnswers', JSON.stringify(answers));
+localStorage.setItem('userSeeds', JSON.stringify(seeds));
+localStorage.setItem('userHints', JSON.stringify(customHints));
+localStorage.setItem('finalMessage', finalMessage);
+localStorage.setItem('unlockQuestions', JSON.stringify([0, 1])); // fallback if not user-selected
+
         window.location.href = "dashboard.html";
       }
     }, 1000);

@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>Memoro Vault - Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.34/dist/zip.min.js"></script>
+
   <style>
     body {
       background-color: #111;
@@ -45,7 +47,7 @@
 </head>
 
 <body>
-
+  <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
 <h1>Memoro Vault</h1>
 <p>Your mind. Your memory. Your vault.</p>
 
@@ -54,8 +56,6 @@
   <button class="button" onclick="promptOfflineWarning('load')">📂 Load Vault File</button>
   <button class="button" onclick="goToHowItWorks()">How Memoro Works</button>
 </div>
-
-<input type="file" id="vaultFileInput" accept=".json" onchange="handleVaultFile(event)" style="display:none;" aria-hidden="true">
 
 <div class="vault-list" id="vaultList"></div>
 
@@ -301,8 +301,9 @@ function cancelUnlock() {
   clearInterval(countdownInterval);
 }
 
+
 async function submitUnlock() {
-  if (Date.now() < lockoutUntil) return; // prevent unlocking during lockout
+  if (Date.now() < lockoutUntil) return;
 
   const answer1 = document.getElementById('answer1Input').value.trim();
   const answer2 = document.getElementById('answer2Input').value.trim();
@@ -327,22 +328,40 @@ async function submitUnlock() {
     const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
     if (!plaintext) throw new Error('Invalid decryption.');
 
-// Success!
-localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
-localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
-failedAttempts = 0;
-lockoutUntil = 0;
-clearInterval(countdownInterval);
+    // ✅ Serialize and send to sessionStorage
+    const unlockedVault = JSON.parse(plaintext);
+    const fileMap = vault.fileMap || {};
+    const serializedFiles = {};
 
-const unlockedVault = JSON.parse(plaintext);
-localStorage.setItem('decryptedVault', JSON.stringify(unlockedVault));
-window.location.href = "recover.html";
+    const readerPromises = Object.entries(fileMap).map(([filename, file]) => {
+      return new Promise((resolve) => {
+        const r = new FileReader();
+        r.onload = e => {
+          serializedFiles[filename] = btoa(e.target.result); // binary to base64
+          resolve();
+        };
+        r.readAsBinaryString(file);
+      });
+    });
+
+    await Promise.all(readerPromises);
+
+    const transferObject = {
+      vaultData: unlockedVault,
+      encryptedFiles: serializedFiles
+    };
+    sessionStorage.setItem('memoroTransfer', JSON.stringify(transferObject));
+
+    localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
+    localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
+    clearInterval(countdownInterval);
+
+    window.location.href = "recover.html";
 
   } catch (error) {
     console.error('Decryption failed:', error);
     failedAttempts++;
-    const baseDelay = 15000; // 5 seconds
-    const delay = baseDelay * Math.pow(2, failedAttempts - 1);
+    const delay = 15000 * Math.pow(2, failedAttempts - 1);
     lockoutUntil = Date.now() + delay;
     localStorage.setItem(`failedAttempts_${currentUnlockVaultId}`, failedAttempts);
     localStorage.setItem(`lockoutUntil_${currentUnlockVaultId}`, lockoutUntil);
@@ -400,14 +419,14 @@ function startCountdown() {
   }
 
   function proceedAfterOfflineWarning() {
-    document.getElementById('offlineWarning').style.display = 'none';
-    if (nextAction === 'create') {
-      window.location.href = "create-vault.html";
-    } else if (nextAction === 'load') {
-      document.getElementById('vaultFileInput').click();
-    }
-    nextAction = null;
+  document.getElementById('offlineWarning').style.display = 'none';
+  if (nextAction === 'create') {
+    window.location.href = "create-vault.html";
+  } else if (nextAction === 'load') {
+    document.getElementById('vaultZipInput').click(); // ✅ THIS IS MISSING
   }
+  nextAction = null;
+}
 
   function cancelOfflineWarning() {
     document.getElementById('offlineWarning').style.display = 'none';
@@ -418,37 +437,53 @@ function startCountdown() {
     window.location.href = "how-it-works.html";
   }
 
-  function handleVaultFile(event) {
-    const file = event.target.files[0];
-    if (!file) {
-      showMessageModal('No File Selected', 'Please select a file to load.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const vaultData = JSON.parse(e.target.result);
-        const vaultId = 'vault-' + Date.now();
-        const fileName = file.name.replace(/\.[^/.]+$/, "");
-        loadedVaults[vaultId] = { fileName, vaultData };
-        addVaultToList(vaultId, fileName, vaultData);
-        showMessageModal('Success', '✅ Vault imported successfully!');
-      } catch (err) {
-        console.error('Failed to parse vault file:', err);
-        showMessageModal('Import Failed', '❌ Failed to import vault. Please check the file.');
-      }
-    };
-    reader.onerror = function() {
-      console.error('Error reading file:', reader.error);
-      showMessageModal('Error', '❌ Error reading file.');
-    };
-    reader.readAsText(file);
+  async function handleVaultZip(event) {
+  const file = event.target.files[0];
+  if (!file || !file.name.endsWith('.zip')) {
+    showMessageModal('Invalid File', 'Please select a valid .zip vault file.');
+    return;
   }
+
+  try {
+    const zipReader = new zip.ZipReader(new zip.BlobReader(file));
+    const entries = await zipReader.getEntries();
+
+    const fileMap = {};
+    for (const entry of entries) {
+      const blob = await entry.getData(new zip.BlobWriter());
+      fileMap[entry.filename.toLowerCase()] = blob;
+    }
+
+    const vaultJson = fileMap['vault.json'];
+    if (!vaultJson) throw new Error("Missing vault.json in ZIP");
+
+    const text = await vaultJson.text();
+    const vaultData = JSON.parse(text);
+
+    const vaultId = 'vault-' + Date.now();
+    const fileName = file.name.replace(/\.zip$/, '');
+
+    loadedVaults[vaultId] = {
+      fileName,
+      vaultData,
+      fileMap
+    };
+
+    addVaultToList(vaultId, fileName, vaultData);
+    saveVaultsToLocalStorage();
+    showMessageModal('Success', '✅ Vault imported successfully!');
+
+    await zipReader.close();
+  } catch (err) {
+    console.error("ZIP Load Error:", err);
+    showMessageModal('Load Failed', '❌ Could not load the vault ZIP file.');
+  }
+}
 
   // Load saved vaults at startup
   loadVaultsFromLocalStorage();
+  
 </script>
-
 
 </body>
 </html>
