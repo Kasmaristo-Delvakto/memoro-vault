@@ -1,6 +1,6 @@
 {
   "name": "memoro-vault",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A private, offline memory-based vault for securing digital assets.",
   "main": "main.js",
 "scripts": {

@@ -132,22 +132,10 @@ const defaultQuestions = [
 ];
 
 function loadQuestions() {
-  const vaultType = localStorage.getItem('selectedVaultType');
-let numberOfQuestions;
-
-// Handle Monero and Bitcoin variants
-if (vaultType === 'monero') numberOfQuestions = 25;
-else if (vaultType === 'monero-polyseed') numberOfQuestions = 16;
-else if (vaultType === 'bitcoin') numberOfQuestions = 24;
-else if (vaultType === 'bitcoin-legacy') numberOfQuestions = 12;
-else {
-  const customCount = parseInt(localStorage.getItem('customQuestionCount'));
-  numberOfQuestions = isNaN(customCount) ? 12 : customCount;
-}
-
-
-  // Save it again just to ensure continuity
-  localStorage.setItem('questionCount', numberOfQuestions);
+  const selectedCrypto = localStorage.getItem('selectedCrypto');
+  let numberOfQuestions = 24;
+  if (selectedCrypto === 'monero') numberOfQuestions = 25;
+  else if (selectedCrypto === 'monero-polyseed') numberOfQuestions = 16;
 
   const savedQuestions = JSON.parse(localStorage.getItem('questions'));
   questions = (savedQuestions && savedQuestions.length >= numberOfQuestions)
@@ -303,6 +291,32 @@ const defaultQuestions = [
   "Who was your favorite childhood hero?",
   "What is a weird family tradition you had growing up?"
 ];
+
+function loadQuestions() {
+  const selectedCrypto = localStorage.getItem('selectedCrypto');
+  let numberOfQuestions = 24;
+  if (selectedCrypto === 'monero') numberOfQuestions = 25;
+  else if (selectedCrypto === 'monero-polyseed') numberOfQuestions = 16;
+
+  const savedQuestions = JSON.parse(localStorage.getItem('questions'));
+  questions = (savedQuestions && savedQuestions.length >= numberOfQuestions)
+    ? savedQuestions.slice(0, numberOfQuestions)
+    : defaultQuestions.slice(0, numberOfQuestions);
+
+  const questionList = document.getElementById('questionList');
+  questionList.innerHTML = "";
+
+  for (let i = 0; i < numberOfQuestions; i++) {
+    const div = document.createElement('div');
+    div.className = 'question-item';
+    div.innerHTML = `
+      <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${questions[i]}</div>
+      <button class="edit-button" onclick="openModal(${i})">✏️ Edit</button>
+      <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
+    `;
+    questionList.appendChild(div);
+  }
+}
 
 function openModal(index) {
   currentEditIndex = index;
@@ -573,6 +587,10 @@ window.onload = loadQuestions;
 ],
   };
   
+  function populateSuggestions() {
+    const category = document.getElementById('categoryDropdown').value;
+    const listDiv = document.getElementById('suggestionsList');
+    listDiv.innerHTML = '';
   
     if (category && suggestionBank[category]) {
       suggestionBank[category].forEach(q => {
