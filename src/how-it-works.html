@@ -5,138 +5,195 @@
   <title>How Memoro Vault Works</title>
   <style>
     body {
-      background-color: #111;
-      color: #eee;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
-      padding: 40px;
-      line-height: 1.6;
+      font-family: 'Fira Code', monospace;
+      background-color: #000;
+      color: #00ff99;
+      overflow-x: hidden;
     }
-    h1, h2 {
-      color: #00aaff;
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: -2;
     }
-    a {
-      color: #00aaff;
-      text-decoration: none;
+
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.75);
+      z-index: -1;
     }
+
     .content {
       max-width: 900px;
       margin: auto;
+      padding: 60px 30px;
     }
+
+    h1 {
+      color: #00ff99;
+      font-size: 32px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      font-size: 24px;
+      color: #00ff99;
+      margin-top: 40px;
+      margin-bottom: 15px;
+    }
+
+    p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #ccffcc;
+      margin-bottom: 20px;
+    }
+
     ul {
       list-style: none;
       padding-left: 0;
-      margin-top: 15px;
-      margin-bottom: 30px;
+      margin: 20px 0 30px;
     }
+
     ul li {
       position: relative;
-      padding-left: 25px;
-      margin-bottom: 12px;
+      padding-left: 24px;
+      margin-bottom: 10px;
+      color: #bbffcc;
     }
+
     ul li::before {
-      content: "\2022";
+      content: "\25B8";
       position: absolute;
       left: 0;
-      color: #00aaff;
-      font-size: 20px;
-      line-height: 1;
+      color: #00ff99;
     }
+
     .button-container {
-      margin-top: 40px;
       text-align: center;
+      margin-top: 50px;
     }
+
     .button {
-      background-color: #333;
-      color: #eee;
-      padding: 12px 24px;
-      border-radius: 8px;
-      border: none;
-      font-size: 18px;
+      background-color: #002611;
+      color: #00ff99;
+      padding: 14px 30px;
+      border-radius: 10px;
+      border: 1px solid #00ff99;
+      font-size: 16px;
       cursor: pointer;
-      transition: background-color 0.3s;
+      transition: background-color 0.3s, transform 0.2s;
     }
+
     .button:hover {
-      background-color: #555;
+      background-color: #004422;
+      transform: translateY(-2px);
     }
   </style>
 </head>
 <body>
+<canvas id="matrixCanvas"></canvas>
+<div class="overlay"></div>
 
 <div class="content">
   <h1>How Memoro Vault Works</h1>
 
-  <p><strong>Memoro Vault</strong> protects your crypto seed phrase using memory-based encryption instead of fragile physical backups.</p>
+  <p><strong>Memoro Vault is a digital safe designed for real people—not just the wealthy.</strong><br>
+  It helps you store your most important files, secrets, and instructions in encrypted form—then lock access behind memory-based questions that only you or your chosen inner circle can answer.</p>
 
-  <h2>The Problem with Traditional Storage</h2>
-  <p>Paper, metal plates, and hardware wallets all have one weakness: if discovered, your seed can be stolen. Memoro Vault eliminates that single point of failure by relying on what only you know—your mind.</p>
-
-  <h2>Designed for Decentralized Inheritance</h2>
-  <p>Memoro Vault isn’t just about security—it’s also a decentralized wealth transfer tool. You can design your vault so that no single family member knows all the answers, but several working together can unlock it. This enables secure estate access without lawyers or custodians.</p>
-  <p>If you can’t trust anyone in your life to carry part of your legacy, you have deeper issues than seed storage. Memoro Vault is built for real-world family dynamics—resilient, flexible, and trust-aware.</p>
-
-  <h2>Why Seeds Get Lost</h2>
-  <p>It's estimated that 20% of all Bitcoin is permanently lost—largely due to forgotten or misplaced seed phrases. Memoro Vault helps mitigate that risk by anchoring recovery to personal memory and relationships, not fragile metal or paper. Most people who find your vault file won’t even know what it is. And the people who would know what to do with it (hackers) probably don’t know you personally. This makes targeted attacks extremely unlikely.</p>
-
-  <h2>Two Independent Layers of Security</h2>
-  <ul>
-    <li><strong>Layer 1: Vault Unlock</strong> — Two memory questions must be answered without hints. These unlock the dashboard only—no sensitive data is revealed. Incorrect attempts trigger increasing delays.</li>
-    <li><strong>Layer 2: Full Seed Recovery</strong> — 16–25 additional memory questions must be answered correctly. Character counts (underscores) are shown to assist memory. A dynamic proof-of-work (PoW) puzzle must also be solved. Each incorrect attempt increases PoW difficulty.</li>
-  </ul>
-
-  <h2>Security Grade: How Safe Is It Really?</h2>
-  <p>Memoro Vault is built for resilience against brute force, AI attacks, and physical discovery. It combines strong encryption, knowledge-based authentication, and PoW to frustrate even persistent attackers.</p>
+  <p>Where the rich use trusts, lawyers, and family offices to pass on wealth, most people are left with nothing but hope—and a will that often gets buried in a drawer.</p>
 
   <ul>
-    <li><strong>Layer 1:</strong> AES-256 encrypted dashboard data using PBKDF2 (100,000 iterations). Reveals only question metadata, not seeds or hints.</li>
-    <li><strong>Layer 2:</strong> Requires all memory answers, a valid PoW nonce, and decrypts the vault using AES-256 with a key derived from both. Seed phrase and hints remain encrypted until everything matches.</li>
+    <li>67% of Americans have no estate plan.</li>
+    <li>Probate eats up 3–8% of your estate.</li>
+    <li>Inheritance taxes can claim up to 40% depending on your state.</li>
+    <li>Millions in crypto, passwords, or account data are lost every year—forever.</li>
   </ul>
 
-  <p><strong>Security depends on the quality of your questions.</strong> Use obscure, personal, and specific answers—ideally not guessable by friends, public records, or AI scraping tools.</p>
+  <p>With Memoro Vault, you control who gets access and when.<br>
+  You can split knowledge between family members, so no single person can unlock the vault alone. Or you can leave everything to someone you trust, encrypted and locked behind answers only they would know.</p>
 
-  <h3>Threat Model Ratings</h3>
+  <p><strong>It's estate planning without paperwork. Inheritance without lawyers.<br>
+  Private. Offline. Yours.</strong></p>
+
+  <h2>How Memoro Vault Works</h2>
+
+  <p>Memoro Vault protects your data using a two-phase encryption system built entirely around memory. There are no passwords, no logins, no server dependencies—just your mind and a self-contained encrypted file.</p>
+
+  <h2>Memory-Based Encryption</h2>
+  <p>When you create your vault, you define between <strong>4 and 25 custom memory questions</strong>. These can be highly specific, obscure, or deeply personal—anything from childhood details to inside references no outsider would ever guess. Each answer contributes to the cryptographic key used to encrypt your vault.</p>
+
+  <p>These answers are never stored or saved. Instead, Memoro uses them to derive a secure encryption key using <strong>PBKDF2</strong> with <strong>AES-256</strong>, the same algorithms trusted in high-security systems worldwide.</p>
+
+  <h2>Layered Access Control</h2>
+  <p>Memoro Vault applies your answers in two distinct layers of protection:</p>
+
+  <p><strong>Initial Unlock Phase:</strong><br>
+  The first two answers you provide act as a gatekeeper. Without getting both exactly right, no one can access or even begin attempting full recovery. To defend against guessing, Memoro imposes escalating delays with each incorrect attempt—making brute-force attempts slow, expensive, and detectable.</p>
+
+  <p><strong>Final Recovery Phase:</strong><br>
+  If the vault is successfully unlocked, the full decryption process begins. This stage requires all 4–25 answers you originally defined, entered exactly as saved. But it also includes an added layer: a <strong>proof-of-work challenge</strong>.</p>
+
+  <p>This dynamic PoW puzzle binds access to both time and knowledge. It must be solved fresh at the time of recovery, preventing attackers from reusing or pre-mining shortcuts. The correct answers and valid PoW together generate the final decryption key.</p>
+
+  <h2>File Security</h2>
   <ul>
-    <li><strong>Casual attacker:</strong> 10/10 — Memory and encryption prevent access</li>
-    <li><strong>Malware during recovery:</strong> 8/10 — Local data is cleared after use; recovery should be done on a clean device</li>
-    <li><strong>Attacker with your vault file:</strong> 9/10 — Vault is encrypted and requires PoW plus full memory reconstruction</li>
-    <li><strong>AI or insider with life knowledge:</strong> Varies — depends on the uniqueness of your questions and answers</li>
+    <li>All files are encrypted individually with AES-256</li>
+    <li>Metadata, filenames, and messages are also encrypted</li>
+    <li>Final output is a portable ZIP archive or container you can store anywhere</li>
   </ul>
 
-  <h2>Proven Cryptography</h2>
-  <p>Memoro Vault uses AES-256 encryption—the same algorithm approved by the NSA to secure top secret data. It’s also used in Bitcoin wallets, military-grade storage, and privacy-focused applications around the world. Combined with SHA-256 and PBKDF2, your vault’s encryption is as strong as modern cryptography gets.</p>
+  <h2>Designed for Distribution</h2>
+  <p>Memoro supports flexible access models:<br>
+  - Store everything yourself and rely on memory<br>
+  - Split questions across multiple people to require collaboration<br>
+  - Leave instructions in your will pointing trusted heirs to their piece of the puzzle</p>
 
-  <h2>Offline-First Design</h2>
-  <ul>
-    <li>Vault creation is fully offline to prevent network-based attacks or clipboard leaks.</li>
-    <li>Once encrypted, your vault file is safe to store digitally—even in the cloud—because it’s useless without your memory.</li>
-  </ul>
-
-  <h2>Safe Storage After Creation</h2>
-  <ul>
-    <li>Your vault file contains no unencrypted seed or hint data—only encrypted memory-based recovery metadata.</li>
-    <li>It can be backed up on USB drives, SD cards, offline devices, or encrypted cloud backups.</li>
-    <li>Without your answers and a solved PoW, the vault file is cryptographically useless to anyone else.</li>
-  </ul>
-
-  <h2>In Summary</h2>
-  <ul>
-    <li>Memory-based encryption guards your seed—there is no physical secret to find or steal.</li>
-    <li>Two layers of defense: one gated by selected questions, the other by full memory and PoW.</li>
-    <li>All sensitive data remains AES-256 encrypted until all answers and PoW are correct.</li>
-    <li>Offline-first: vault creation is isolated from the internet for maximum safety.</li>
-    <li>Built for long-term security, private inheritance, and decentralized self-custody—without compromise.</li>
-  </ul>
+  <p>You can store the final encrypted file on a USB stick, SD card, backup drive, or even in the cloud. Without the correct answers and valid proof-of-work, it's useless to everyone but you—and those you’ve chosen.</p>
 
   <div class="button-container">
-    <button class="button" onclick="backToDashboard()">Return to Dashboard</button>
+    <button class="button" onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
   </div>
 </div>
 
 <script>
-  function backToDashboard() {
-    window.location.href = "index.html";
-  }
-</script>
+  const canvas = document.getElementById('matrixCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+  const fontSize = 14;
+  const columns = Math.floor(canvas.width / fontSize);
+  const drops = Array(columns).fill(0);
 
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00ff99';
+    ctx.font = `${fontSize}px monospace`;
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = letters[Math.floor(Math.random() * letters.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+      drops[i]++;
+      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+    }
+  }
+
+  setInterval(drawMatrix, 66);
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+</script>
 </body>
 </html>

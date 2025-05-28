@@ -1,295 +1,1205 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Recover Your Vault - Memoro Vault</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
-  <script src="https://unpkg.com/@zip.js/zip.js@2.6.60/dist/zip.min.js"></script>
   <style>
-    body {
-      background-color: #000;
-      color: #0f0;
-      font-family: 'Fira Code', monospace;
-      padding: 40px;
-    }
-    h1 {
-      font-size: 28px;
-      color: #0f0;
-      margin-bottom: 20px;
-    }
-    .question-block {
-      background: #111;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      border: 1px solid #333;
-    }
-    .question-block label {
-      display: block;
-      margin-bottom: 8px;
-      color: #0f0;
-    }
-    .question-block input {
-      width: 100%;
-      padding: 8px;
-      font-size: 16px;
-      background: #000;
-      color: #0f0;
-      border: 1px solid #444;
-      border-radius: 6px;
-    }
-    #recoverForm button {
-      margin-top: 30px;
-      background: #0f0;
-      color: #000;
-      border: none;
-      padding: 12px 24px;
-      font-size: 16px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    #terminalOverlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: #000;
-      color: #0f0;
-      font-family: 'Fira Code', monospace;
-      font-size: 16px;
-      padding: 40px;
-      overflow-y: auto;
-      z-index: 9999;
-      white-space: pre-wrap;
-    }
-  </style>
+  body {
+    background-color: #000;
+    color: #00ff99;
+    font-family: 'Fira Code', monospace;
+    margin: 0;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -2;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: -1;
+  }
+
+  h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+    color: #00ff99;
+  }
+
+  .button-container {
+    margin: 20px 0;
+  }
+
+  .button {
+    background-color: #002611;
+    color: #00ff99;
+    border: 1px solid #00ff99;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 10px;
+    font-family: 'Fira Code', monospace;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+
+  .button:hover {
+    background-color: #004422;
+    transform: translateY(-2px);
+  }
+
+  .recovery-form {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+  }
+
+  .question-block {
+    background-color: #111;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #00ff99;
+    box-shadow: 0 0 10px #00ff99;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .question-block label {
+    font-size: 16px;
+    font-weight: bold;
+    color: #00ff99;
+  }
+
+  .question-block input[type="text"] {
+    background-color: #000;
+    border: 1px solid #00ff99;
+    border-radius: 8px;
+    padding: 10px;
+    color: #0f0;
+    font-size: 16px;
+    font-family: 'Fira Code', monospace;
+    width: 100%;
+  }
+
+  .question-block input[type="text"]:focus {
+    outline: none;
+    box-shadow: 0 0 6px #00ff99;
+  }
+
+  .hint-display {
+    font-size: 16px;
+    color: #88ff88;
+    font-style: italic;
+  }
+
+  /* Toast Message */
+  #toast {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f55;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 18px;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
+  #toast.show {
+    display: block;
+    opacity: 1;
+  }
+
+  /* Modal */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+  }
+
+  @keyframes pulseGlow {
+  0%   { box-shadow: 0 0 12px #00ff99; }
+  50%  { box-shadow: 0 0 24px #00ff99; }
+  100% { box-shadow: 0 0 12px #00ff99; }
+}
+
+.modal-content {
+  background-color: #111;
+  color: #eee;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid #00ff99;
+  box-shadow: 0 0 12px #00ff99;
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}
+
+
+  .modal-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .modal-buttons button {
+    background-color: #003322;
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: 'Fira Code', monospace;
+  }
+
+  .modal-buttons button:hover {
+    background-color: #005544;
+  }
+
+  /* Proof-of-Work Overlay */
+  #powOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9998;
+    background: rgba(0, 0, 0, 0.9);
+    color: #0f0;
+    font-family: monospace;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+
+  #powTerminal {
+    background-color: #000;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #0f0;
+    width: 90%;
+    max-width: 800px;
+    height: 300px;
+    overflow-y: auto;
+    font-size: 14px;
+  }
+
+  #powMessage {
+    font-size: 20px;
+    margin-bottom: 10px;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+  }
+
+  @keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal.show {
+  display: flex !important;
+  animation: fadeInModal 4s ease-out forwards;
+}
+
+@keyframes screenShake {
+  0% { transform: translate(0px, 0px); }
+  25% { transform: translate(3px, -3px); }
+  50% { transform: translate(-3px, 3px); }
+  75% { transform: translate(3px, 3px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+@keyframes crackFlash {
+  0% { background-color: rgba(255,255,255,0); }
+  50% { background-color: rgba(255,255,255,0.9); }
+  100% { background-color: rgba(255,255,255,0); }
+}
+
+@keyframes vaultDust {
+  0% { opacity: 0; transform: scale(1.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+#crackOverlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background-color: transparent;
+  z-index: 9998;
+  pointer-events: none;
+  transition: opacity 0.4s ease-out;
+}
+
+#burstFlash {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background-color: white;
+  opacity: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+</style>
+
 </head>
 <body>
-  <h1>🧠 Memoro Vault Recovery</h1>
+  <h1>Recover Your Vault</h1>
 
-  <form id="recoverForm" style="display: none;">
-    <div id="questionContainer"></div>
-    <button type="submit">Recover Vault</button>
-  </form>
+  <div class="button-container">
+    <button class="button" onclick="backToDashboard()">Return to Dashboard</button> 
+  </div>
 
-  <div id="terminalOverlay"><div id="terminalText">Initializing recovery engine...</div></div>
+  <form class="recovery-form" id="recoveryForm"></form>
 
+  <div class="button-container" style="margin-top: 20px;">
+    <button class="button" onclick="submitRecovery()">Recover Vault</button>
+  </div>
+
+  <div id="seedModal" class="modal">
+  <div class="modal-content">
+    <img src="assets/Screenshot (691).png" alt="Donate Monero"
+         style="max-width: 180px; margin-bottom: 10px; border: 2px solid #0f0; border-radius: 8px;" />
+    <p style="margin-top: 0px; margin-bottom: 20px; font-size: 14px; color: #88ff88;">
+      💚 Thanks for using Memoro Vault. If you found it useful, consider sending a small Monero donation.
+    </p>
+
+    <h2>Vault Recovered!</h2>
+    <pre id="recoveredSeed" style="white-space: pre-wrap; color: #0f0; margin-top: 15px;"></pre>
+    <pre id="finalMessage" style="white-space: pre-wrap; color: #88ff88; margin-top: 15px;"></pre>
+    <div class="modal-buttons">
+      <button onclick="closeSeedModal()">Return to Dashboard</button>
+    </div>
+  </div>
+</div>
+
+
+  <div id="previewModal" class="modal">
+    <div class="modal-content" style="max-width: 90vw; max-height: 90vh; overflow: auto;">
+      <h2>File Preview</h2>
+      <div id="previewContent" style="margin-top: 20px;"></div>
+      <div class="modal-buttons">
+        <button onclick="closePreview()">Close</button>
+      </div>
+    </div>
+  </div>
+  
+
+  <div id="powOverlay">
+    <div id="powMessage">Checking answers... please wait</div>
+    <div id="powNotice" style="font-size:16px; margin-bottom:10px; color:#0f0;">
+      Proof of work in progress. Difficulty increases every 5 incorrect attempts.
+    </div>    
+    <div id="powTerminal"></div>
+  </div>
+
+  <div id="toast"></div>
+  
+  <script src="https://unpkg.com/@zip.js/zip.js@2.7.34/dist/zip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
   <script>
-    const questionContainer = document.getElementById('questionContainer');
-    const recoverForm = document.getElementById('recoverForm');
-    const terminal = document.getElementById('terminalOverlay');
-    const terminalText = document.getElementById('terminalText');
+  
+  const terminal = document.getElementById("powTerminal");
 
-    let vaultJson = null;
-    let vaultMetaEncrypted = null;
-    let finalMessageEncrypted = null;
-    let encryptedFilesMap = {};
-    window.flatZipFileMap = {};
-
-    // Load ZIP from sessionStorage
-    window.onload = async () => {
-      const transfer = sessionStorage.getItem('memoroTransfer');
-      if (!transfer) return;
-
-      try {
-        const { vaultData, encryptedFiles } = JSON.parse(transfer);
-        vaultJson = vaultData;
-
-        for (const [filename, b64] of Object.entries(encryptedFiles)) {
-          const blob = new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))]);
-          if (filename.endsWith('.vaultdoc')) {
-            encryptedFilesMap[filename] = blob;
-          } else if (filename === 'vault.meta') {
-            vaultMetaEncrypted = await blob.text();
-          } else if (filename === 'final_message.txt') {
-            finalMessageEncrypted = await blob.text();
-          }
-        }
-
-        renderRecoveryQuestions();
-      } catch (err) {
-        console.error("Failed to load transfer:", err);
+function printLineSlow(line, delay = 30) {
+  return new Promise(resolve => {
+    let i = 0;
+    const interval = setInterval(() => {
+      terminal.innerHTML += line[i] || '';
+      terminal.scrollTop = terminal.scrollHeight;
+      i++;
+      if (i >= line.length) {
+        clearInterval(interval);
+        terminal.innerHTML += '<br>';
+        resolve();
       }
-    };
+    }, delay);
+  });
+}
 
-    function renderRecoveryQuestions() {
-      if (!vaultJson || !vaultJson.questionList) return;
-      questionContainer.innerHTML = '';
-      vaultJson.questionList.forEach((q, i) => {
+function printLineFast(line) {
+  terminal.innerHTML += line + '<br>';
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+async function flushBatch(lines) {
+  const terminal = document.getElementById("powTerminal");
+
+  // Append the new lines
+  const output = lines.map(l => `<div>${l}</div>`).join('');
+  terminal.insertAdjacentHTML('beforeend', output);
+
+  // Trim to last 50 lines max
+  const children = terminal.children;
+  while (children.length > 50) {
+    terminal.removeChild(children[0]);
+  }
+
+  terminal.scrollTop = terminal.scrollHeight;
+  await new Promise(resolve => setTimeout(resolve, 0)); // Let DOM render
+}
+
+  async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
+  const fullConcat = userAnswers.map(a => a.trim().toLowerCase()).join("");
+  const baseInput = vaultJson.powSalt + vaultJson.powChallengeSalt + fullConcat;
+  const bakedNonce = vaultJson.powNonce;
+  const bakedDifficulty = vaultJson.powDifficulty;
+  const bakedHash = CryptoJS.SHA256(baseInput + bakedNonce).toString();
+  const attempt = window.powAttempt || 1;
+  const dynamicDifficulty = getCurrentDifficulty(attempt);
+
+  await printLineSlow(`[*] Verifying proof-of-work...`);
+  await printLineSlow(`[⛏] Starting Proof of Work... Difficulty: '${dynamicDifficulty}'`);
+  await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second pause
+
+  let solved = false;
+  let valid = bakedHash.startsWith(bakedDifficulty);
+  let nonce = 0;
+  let verifiedNonce = null;
+  let batch = [];
+
+  while (!solved) {
+    const currentNonce = nonce.toString();
+    const hash = CryptoJS.SHA256(baseInput + currentNonce).toString();
+
+    batch.push(`Nonce ${nonce} → ${hash.slice(0, 16)}...`);
+
+    if (!verifiedNonce && hash.startsWith(dynamicDifficulty)) {
+      verifiedNonce = currentNonce;
+      if (valid) {
+        await flushBatch(batch);
+        await printLineSlow(`✅ Found matching hash. Using vault nonce ${bakedNonce}`);
+        vaultJson.powNonce = bakedNonce;
+      } else {
+        await flushBatch(batch);
+        await printLineSlow(`✅ Solved PoW with nonce ${verifiedNonce}, hash: ${hash.slice(0, 16)}...`);
+        vaultJson.powNonce = verifiedNonce;
+      }
+      solved = true;
+    }
+
+    nonce++;
+
+    if (batch.length === 500) {
+      await flushBatch(batch);
+      batch = [];
+    }
+  }
+
+  if (batch.length > 0) {
+    await flushBatch(batch);
+  }
+
+  await printLineSlow(`[✓] PoW verification complete.`);
+}
+
+async function safeUint8ArrayFromBlob(blob) {
+  const buffer = await blob.arrayBuffer();
+  if (!buffer || buffer.byteLength < 12) throw new Error("Encrypted data too short to be valid.");
+  return new Uint8Array(buffer);
+}
+
+
+    function showTerminalLine(text) {
+      const terminal = document.getElementById("powTerminal");
+      terminal.innerHTML += `> ${text}<br>`;
+      if (terminal.innerHTML.split('<br>').length > 100) {
+        terminal.innerHTML = terminal.innerHTML.split('<br>').slice(-100).join('<br>');
+      }
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function getCurrentDifficulty(attempt) {
+      const base = powConfig.start.length;
+      const step = Math.floor((attempt - 1) / powConfig.incrementEvery);
+      return '0'.repeat(base + step);
+    }
+
+    async function solvePoW(salt, attempt) {
+      return new Promise((resolve) => {
+        const targetPrefix = getCurrentDifficulty(attempt);
+        let nonce = 0;
+        const base = salt + vaultData.powChallengeSalt + attempt;
+        const overlay = document.getElementById("powOverlay");
+        const message = document.getElementById("powMessage");
+        const terminal = document.getElementById("powTerminal");
+
+        overlay.style.display = "flex";
+        message.style.opacity = "1";
+        terminal.innerHTML = "";
+
+        setTimeout(() => { message.style.opacity = "0"; }, 3000);
+
+        function mine() {
+          const hash = CryptoJS.SHA256(base + nonce).toString();
+          showTerminalLine(`Nonce ${nonce} → ${hash.slice(0, 10)}...`);
+          if (hash.startsWith(targetPrefix)) {
+            showTerminalLine(`✅ Solved at nonce ${nonce}`);
+            setTimeout(() => {
+              overlay.style.opacity = "1";
+              overlay.style.transition = "opacity 1s";
+              overlay.style.opacity = "0";
+              setTimeout(() => { overlay.style.display = "none"; }, 1000);
+              resolve(nonce);
+            }, 1500);
+            return;
+          }
+          nonce++;
+          setTimeout(mine, 0);
+        }
+        mine();
+      });
+    }
+
+    function loadQuestions() {
+      const form = document.getElementById('recoveryForm');
+      savedQuestions.forEach((q, i) => {
         const block = document.createElement('div');
         block.className = 'question-block';
         block.innerHTML = `
-          <label for="answer${i}">Q${i + 1}: ${q.question}</label>
-          <input type="text" id="answer${i}" name="answer${i}" required>
-        `;
-        questionContainer.appendChild(block);
+          <label for="answer-${i}"><b>${i + 1}.</b> ${q.question}</label>
+          <input type="text" id="answer-${i}" required />
+          <div class="hint-display" id="hint-${i}"></div>`;
+        form.appendChild(block);
+        updateHint(i);
       });
-      recoverForm.style.display = 'block';
     }
 
-    recoverForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      terminal.style.display = 'flex';
-      terminalText.textContent = '🧠 Starting vault recovery...\n';
-
-      setTimeout(() => {
-        startPoWSolver(); // You'll define this
-      }, 800);
-    });
-
-    function logToTerminal(text) {
-      terminalText.textContent += text + '\n';
-    }
-  </script>
-
-<script>
-  async function startPoWSolver() {
-    const userAnswers = [];
-    for (let i = 0; i < vaultJson.questionList.length; i++) {
-      const input = document.getElementById(`answer${i}`);
-      userAnswers.push(input.value.trim().toLowerCase());
+    function updateHint(i) {
+      const question = savedQuestions[i];
+      const hintDiv = document.getElementById(`hint-${i}`);
+      let hint = '';
+      let ptr = 0, cleanIndex = 0;
+      for (let j = 0; j < question.expectedLength; j++) {
+        if (question.spaceIndexes.includes(j)) {
+          hint += '\u00A0\u00A0\u00A0';
+        } else {
+          if (question.hintLetters.includes(cleanIndex + 1)) {
+            hint += (question.hintValues[ptr] || '_') + '\u00A0';
+            ptr++;
+          } else {
+            hint += '_\u00A0';
+          }
+          cleanIndex++;
+        }
+      }
+      hintDiv.innerHTML = `<div style="display:flex;gap:10px"><div>${hint.trim()}</div>${question.custom ? `<div style="font-size:14px;color:#bbb;font-style:italic;">Hint: ${question.custom}</div>` : ''}</div>`;
     }
 
-    const salt = vaultJson.powSalt || 'fallback-salt';
-    const difficulty = vaultJson.powDifficulty || '00';
-    const answerConcat = userAnswers.join('|');
-    const targetPrefix = difficulty;
-
-    logToTerminal(`🔐 Computing PoW... target prefix: ${targetPrefix}`);
-
-    let nonce = 0;
-    let hash = '';
-    const start = Date.now();
-
-    while (true) {
-      const input = answerConcat + salt + nonce;
-      hash = CryptoJS.SHA256(input).toString();
-      if (hash.startsWith(targetPrefix)) break;
-      if (nonce % 50000 === 0) logToTerminal(`... still working (nonce ${nonce})`);
-      nonce++;
-    }
-
-    const duration = ((Date.now() - start) / 1000).toFixed(2);
-    logToTerminal(`✅ PoW solved with nonce ${nonce} in ${duration}s`);
-    finalizeRecovery(userAnswers);
-  }
-
-
-  async function finalizeRecovery(userAnswers) {
-  const fullKeyInput = userAnswers.join('|') + vaultJson.powSalt;
-  const unlockKey = CryptoJS.SHA256(fullKeyInput).toString();
-  const keyHex = CryptoJS.enc.Hex.parse(unlockKey);
-  const iv = CryptoJS.enc.Hex.parse("00000000000000000000000000000000");
+    async function submitRecovery() {
+  const overlay = document.getElementById("powOverlay");
+  const message = document.getElementById("powMessage");
+  const terminalDiv = document.getElementById("powTerminal");
 
   try {
-    // Debug vault.meta decryption
-    let metaDecrypted;
-    try {
-      metaDecrypted = CryptoJS.AES.decrypt(
-        { ciphertext: CryptoJS.enc.Base64.parse(vaultMetaEncrypted) },
-        keyHex,
-        { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
-      ).toString(CryptoJS.enc.Utf8);
-      console.log("✅ vault.meta successfully decrypted");
-    } catch (err) {
-      console.error("❌ vault.meta decryption failed:", err.message);
-      throw err;
+    // Reset overlay and terminal
+    overlay.style.display = "flex";
+    overlay.style.opacity = "1";
+    overlay.style.transition = "none";
+    message.innerText = "Verifying proof-of-work...";
+    terminalDiv.innerHTML = "";
+
+    await printLineSlow("[*] Validating answers...");
+
+    const vaultData = window.vaultData;
+    const requiredCorrect = window.requiredCorrectAnswers || 0;
+
+    const inputs = [];
+    for (let i = 0; i < window.savedQuestions.length; i++) {
+      const val = document.getElementById(`answer-${i}`).value.trim().toLowerCase();
+      inputs.push(val);
     }
 
-    const metaObj = JSON.parse(metaDecrypted);
-    const fileMetaList = metaObj.files || [];
-
-    // Debug final_message.txt decryption
-    let messageDecrypted;
-    try {
-      messageDecrypted = CryptoJS.AES.decrypt(
-        { ciphertext: CryptoJS.enc.Base64.parse(finalMessageEncrypted) },
-        keyHex,
-        { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
-      ).toString(CryptoJS.enc.Utf8);
-      console.log("✅ final_message.txt successfully decrypted");
-    } catch (err) {
-      console.error("❌ final_message.txt decryption failed:", err.message);
-      throw err;
+    // Validate answer hashes
+    let correct = 0;
+    for (let i = 0; i < inputs.length; i++) {
+      const encoded = new TextEncoder().encode(inputs[i]);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+      const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hashHex === vaultData.questionList[i].hash) correct++;
     }
 
-    logToTerminal('\n🎉 Vault successfully recovered!');
-    logToTerminal('📩 Final Message:\n' + messageDecrypted);
-
-    for (const fileMeta of fileMetaList) {
-      const { filename, salt, iv: fileIV, originalName, mimeType } = fileMeta;
-      const blob = encryptedFilesMap[filename.toLowerCase()];
-      if (!blob) continue;
-
-      const encryptedBase64 = await blob.text();
-      const derivedKey = CryptoJS.PBKDF2(unlockKey + filename.replace('.vaultdoc', ''), salt, {
-        keySize: 256 / 32,
-        iterations: 150000
-      });
-
-      const decryptedWordArray = CryptoJS.AES.decrypt(
-        { ciphertext: CryptoJS.enc.Base64.parse(encryptedBase64) },
-        CryptoJS.enc.Hex.parse(derivedKey.toString()),
-        {
-          iv: CryptoJS.enc.Hex.parse(fileIV),
-          mode: CryptoJS.mode.CBC,
-          padding: CryptoJS.pad.Pkcs7
-        }
-      );
-
-      const byteArray = Uint8Array.from(
-        decryptedWordArray.words.flatMap(word => [
-          (word >> 24) & 0xff,
-          (word >> 16) & 0xff,
-          (word >> 8) & 0xff,
-          word & 0xff
-        ]).slice(0, decryptedWordArray.sigBytes)
-      );
-
-      const fileBlob = new Blob([byteArray], { type: mimeType || 'application/octet-stream' });
-      const url = URL.createObjectURL(fileBlob);
-      const fileLabel = originalName || filename;
-
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileLabel;
-      link.textContent = '⬇️ Download ' + fileLabel;
-      link.style.color = '#0f0';
-      link.style.display = 'block';
-      terminalText.appendChild(link);
-
-      if (mimeType?.startsWith('image/')) {
-        const img = document.createElement('img');
-        img.src = url;
-        img.style.maxWidth = '100%';
-        img.style.marginTop = '10px';
-        terminalText.appendChild(img);
-      } else if (mimeType === 'application/pdf') {
-        const pdf = document.createElement('embed');
-        pdf.src = url;
-        pdf.type = 'application/pdf';
-        pdf.width = '100%';
-        pdf.height = '600px';
-        pdf.style.border = '1px solid #0f0';
-        pdf.style.marginTop = '10px';
-        terminalText.appendChild(pdf);
-      } else if (mimeType?.startsWith('text/')) {
-        const text = await fileBlob.text();
-        const pre = document.createElement('pre');
-        pre.textContent = text;
-        pre.style.background = '#111';
-        pre.style.padding = '10px';
-        pre.style.border = '1px solid #333';
-        pre.style.color = '#0f0';
-        terminalText.appendChild(pre);
-      }
+    if (correct < requiredCorrect) {
+      throw new Error(`Only ${correct}/${requiredCorrect} answers correct.`);
     }
+
+    await validateProofOfWorkWithAnswers(vaultData, inputs);
+    await printLineSlow("[+] Answers verified. Deriving decryption key...");
+
+    const powNonce = vaultData.powNonce;
+    const fullConcat = inputs.join("");
+    const fullKeyMaterial = vaultData.powSalt + vaultData.powChallengeSalt + fullConcat + powNonce;
+    const fullKey = await deriveKey(fullKeyMaterial);
+    window.fullKeyMaterial = fullKeyMaterial;
+
+    // Fingerprint check
+    const checkHash = CryptoJS.SHA256(fullKeyMaterial).toString();
+    if (vaultData.vaultHash && checkHash !== vaultData.vaultHash) {
+      await printLineSlow("[!] Warning: Vault fingerprint mismatch. Vault may be corrupted or tampered.");
+    } else {
+      await printLineSlow(`[✓] Vault fingerprint verified: ${checkHash.slice(0, 16)}...`);
+    }
+
+    await printLineSlow("[*] Decrypting vault metadata...");
+    const decryptedMeta = await decryptVaultMeta(fullKey);
+    await printLineSlow("[*] Decrypting final message...");
+    const finalMessage = await decryptFinalMessage(fullKey, decryptedMeta.files);
+    await printLineSlow("[*] Decrypting vault documents...");
+    const decryptedFiles = await decryptVaultDocs(fullKey, decryptedMeta.files);
+
+    // ✅ Reset PoW counter on success
+    const vaultId = vaultData.vaultId || vaultData.vaultHash || "default";
+    localStorage.removeItem(`powAttempt_${vaultId}`);
+
+    await showRecoveryModal(finalMessage, decryptedFiles);
+
   } catch (err) {
-    logToTerminal('❌ Decryption failed. Invalid answers or corrupted vault.');
-    console.error(err);
+  overlay.style.transition = "opacity 0.5s";
+  overlay.style.opacity = "0";
+  setTimeout(() => {
+    overlay.style.display = "none";
+    overlay.style.opacity = "1";
+  }, 500);
+
+  // ❌ Track failed PoW attempt safely
+  const vaultData = window.vaultData;
+  const vaultId = vaultData?.vaultId || vaultData?.vaultHash || "default";
+  const key = `powAttempt_${vaultId}`;
+  window.powAttempt = (parseInt(localStorage.getItem(key)) || 1) + 1;
+  localStorage.setItem(key, window.powAttempt);
+
+  console.error("❌ Recovery failed:", err);
+  await printLineSlow(`[!] Recovery failed: ${err.message || err}`);
+  showToast(err.message || "Wrong answer. Try again...or don't.");
+
+  // ✅ Force full memory reset to avoid stale state bugs
+  setTimeout(() => {
+  window.location.reload();
+}, 4000);
+
+}
+
+}
+
+    function showSeedModal() {
+  const modal = document.getElementById("seedModal");
+  modal.classList.add("show");
+}
+
+    function copyRecoveredSeed() {
+      navigator.clipboard.writeText(document.getElementById('recoveredSeed').innerText.replace('Seed Phrase:\n', ''));
+      showToast('Seed copied.', 'success');
+    }
+
+    async function decryptFinalMessage(fullKey, filesMeta) {
+  const finalMeta = filesMeta.find(f => f.originalName === "final_message.txt");
+  if (!finalMeta) {
+    await printLineFast("[*] No final message to decrypt.");
+    return "";
+  }
+
+  const blob = fileMap[finalMeta.filename];
+  if (!blob) throw new Error("Missing final message file");
+
+  await printLineFast(`[+] Found final message file: ${finalMeta.filename}`);
+
+  const encrypted = await safeUint8ArrayFromBlob(blob);
+
+  const fullConcat = savedQuestions.map((q, i) => {
+    const input = document.getElementById(`answer-${i}`);
+    return (input?.value || "").trim().toLowerCase();
+  }).join("");
+
+  const fakeId = finalMeta.filename.replace(".vaultdoc", "");
+  const derivedKeyInput = fullConcat + fakeId;
+  await printLineFast(`[+] Deriving key from: ${derivedKeyInput.slice(0, 12)}...`);
+
+  const fileKey = await deriveKey(derivedKeyInput);
+  const iv = new Uint8Array(finalMeta.iv);
+
+  try {
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, fileKey, encrypted);
+    return new TextDecoder().decode(decrypted);
+  } catch (err) {
+    console.error("❌ Final message decryption failed", err);
+    await printLineFast(`[!] Final message decryption failed: ${err.message || err}`);
+    throw new Error("Final message could not be decrypted (wrong answers or corrupted file).");
   }
 }
+
+async function decryptVaultDocs(fullKey, filesMeta) {
+  const decrypted = [];
+  const answerConcat = savedQuestions.map((q, i) => {
+    const input = document.getElementById(`answer-${i}`);
+    return (input?.value || "").trim().toLowerCase();
+  }).join("");
+
+  for (const file of filesMeta) {
+    const blob = fileMap[file.filename];
+    if (!blob) continue;
+
+    try {
+      const encrypted = await safeUint8ArrayFromBlob(blob);
+      const fileKey = await deriveKey(answerConcat + file.filename.replace(".vaultdoc", ""));
+      const iv = new Uint8Array(file.iv);
+
+      const decryptedBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, fileKey, encrypted);
+
+      const hash = await crypto.subtle.digest("SHA-256", decryptedBuffer);
+      const hashHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hashHex !== file.sha256) {
+        console.warn(`⚠️ Hash mismatch for: ${file.originalName}`);
+        continue;
+      }
+
+      decrypted.push({
+        name: file.originalName,
+        blob: new Blob([decryptedBuffer], { type: file.mimeType || "application/octet-stream" })
+      });
+
+    } catch (err) {
+      console.warn(`❌ Failed to decrypt: ${file.originalName}`, err);
+    }
+  }
+
+  return decrypted;
+}
+
+    async function decryptVaultMeta(fullKey) {
+  const metaBlob = fileMap["vault.meta"];
+  if (!metaBlob) throw new Error("vault.meta is missing");
+  if (!vaultData.vaultMetaIv) throw new Error("Missing IV for vault.meta");
+
+  const encryptedMeta = await safeUint8ArrayFromBlob(metaBlob);
+  const metaIv = new Uint8Array(vaultData.vaultMetaIv);
+
+  const decryptedMeta = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: metaIv },
+    fullKey,
+    encryptedMeta
+  );
+
+  return JSON.parse(new TextDecoder().decode(decryptedMeta));
+}
+
+async function decryptVaultFiles() {
+  try {
+    const metaBlob = fileMap["vault.meta"];
+    if (!metaBlob) throw new Error("vault.meta is missing");
+    if (!vaultData.vaultMetaIv) throw new Error("Missing IV for vault.meta");
+
+    const encryptedMeta = await safeUint8ArrayFromBlob(metaBlob);
+    const metaIv = new Uint8Array(vaultData.vaultMetaIv);
+
+    const decryptedMeta = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: metaIv },
+      unlockKey,
+      encryptedMeta
+    );
+
+    const metaData = JSON.parse(new TextDecoder().decode(decryptedMeta));
+    const fileLinks = document.createElement("div");
+    fileLinks.style.marginTop = "20px";
+    fileLinks.innerHTML = "<h3>📁 Download Files:</h3>";
+
+    const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
+    const answerConcat = savedQuestions.map(q => (q.answer || "").trim().toLowerCase()).join("");
+
+    const seenNames = new Set();
+    function getUniqueFilename(name) {
+      let base = name;
+      let ext = "";
+      const dotIdx = name.lastIndexOf(".");
+      if (dotIdx !== -1) {
+        base = name.substring(0, dotIdx);
+        ext = name.substring(dotIdx);
+      }
+      let counter = 1;
+      let finalName = name;
+      while (seenNames.has(finalName)) {
+        finalName = `${base}_${counter++}${ext}`;
+      }
+      seenNames.add(finalName);
+      return finalName;
+    }
+
+    for (const file of metaData.files) {
+      const encBlob = fileMap[file.filename];
+      if (!encBlob) continue;
+
+      const encryptedFile = await safeUint8ArrayFromBlob(encBlob);
+      const fileKey = await deriveKey(answerConcat + file.filename.replace(".vaultdoc", ""));
+
+      let decryptedFile;
+      try {
+        decryptedFile = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: new Uint8Array(file.iv) },
+          fileKey,
+          encryptedFile
+        );
+      } catch (err) {
+        console.warn(`❌ Decryption failed: ${file.originalName}`);
+        continue;
+      }
+
+      const hash = await crypto.subtle.digest("SHA-256", decryptedFile);
+      const actualHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (actualHex !== file.sha256) {
+        console.warn(`⚠️ Hash mismatch: ${file.originalName}`);
+        continue;
+      }
+
+      const finalBlob = new Blob([decryptedFile], { type: file.mimeType || "application/octet-stream" });
+      const finalName = getUniqueFilename(file.originalName || file.filename);
+
+      await zipWriter.add(finalName, new zip.BlobReader(finalBlob));
+
+      const fileEntry = document.createElement("div");
+      fileEntry.style.marginBottom = "10px";
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(finalBlob);
+      link.download = finalName;
+      link.innerText = `📎 ${finalName}`;
+      link.style.display = "inline-block";
+      link.style.color = "#0f0";
+
+      const previewBtn = document.createElement("button");
+      previewBtn.innerText = "Preview";
+      previewBtn.style.marginLeft = "10px";
+      previewBtn.onclick = () => previewFile(finalBlob, file.mimeType);
+
+      fileEntry.appendChild(link);
+      fileEntry.appendChild(previewBtn);
+      fileLinks.appendChild(fileEntry);
+    }
+
+    const btnRow = document.createElement("div");
+    btnRow.style.display = "flex";
+    btnRow.style.justifyContent = "center";
+    btnRow.style.gap = "10px";
+    btnRow.style.marginTop = "20px";
+
+    const zipAllBtn = document.createElement("button");
+    zipAllBtn.innerText = "Download All as ZIP";
+    zipAllBtn.className = "button";
+    zipAllBtn.onclick = async () => {
+      const zippedBlob = await zipWriter.close();
+      const url = URL.createObjectURL(zippedBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Memoro_Recovered_Files.zip";
+      a.click();
+    };
+
+    const wipeBtn = document.createElement("button");
+    wipeBtn.innerText = "Securely Wipe & Exit";
+    wipeBtn.className = "button";
+    wipeBtn.onclick = secureExit;
+
+    btnRow.appendChild(zipAllBtn);
+    btnRow.appendChild(wipeBtn);
+    fileLinks.appendChild(btnRow);
+
+    document.querySelector("#seedModal .modal-content").appendChild(fileLinks);
+  } catch (err) {
+    console.error("❌ Failed to decrypt vault files:", err);
+  }
+}
+
+    function closeSeedModal() {
+  secureExit();
+}
+
+    function backToDashboard() {
+      window.location.href = "dashboard.html";
+    }
+
+    function clearLocalRecoveryData() {
+      localStorage.removeItem('decryptedVault');
+    }
+
+    function showToast(msg, type = 'error') {
+      const toast = document.getElementById("toast");
+      toast.innerText = msg;
+      toast.style.backgroundColor = type === 'success' ? '#28a745' : '#f55';
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+    async function deriveKey(password) {
+  const enc = new TextEncoder();
+  const salt = await crypto.subtle.digest("SHA-256", enc.encode(password));
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({
+    name: "PBKDF2",
+    salt,
+    iterations: 150000,
+    hash: "SHA-256"
+  }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+function previewFile(blob, mimeType) {
+  const modal = document.getElementById("previewModal");
+  const container = document.getElementById("previewContent");
+
+  container.innerHTML = ""; // Clear previous content
+
+  if (mimeType.startsWith("image/")) {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(blob);
+    img.style.maxWidth = "100%";
+    container.appendChild(img);
+  } else if (mimeType.startsWith("text/") || mimeType === "application/json") {
+    blob.text().then(text => {
+      const pre = document.createElement("pre");
+      pre.style.whiteSpace = "pre-wrap";
+      pre.style.textAlign = "left";
+      pre.textContent = text;
+      container.appendChild(pre);
+    });
+  } else {
+    container.innerHTML = `<p style="color:#bbb;">Preview not supported for this file type.</p>`;
+  }
+
+  modal.style.display = "flex";
+}
+
+function closePreview() {
+  document.getElementById("previewModal").style.display = "none";
+}
+
+function secureExit() {
+  try {
+    // 🧼 Clear memory and storage
+    sessionStorage.removeItem("memoroTransfer");
+    localStorage.removeItem("decryptedVault");
+if (window.vaultId) {
+  localStorage.removeItem(`powAttempt_${window.vaultId}`);
+}
+
+    // 🧯 Nuke globals
+    window.fileMap = null;
+    window.vaultData = null;
+    window.unlockKey = null;
+    window.savedQuestions = null;
+
+    // 🚪 Exit
+    window.location.href = "dashboard.html";
+  } catch (err) {
+    console.warn("Secure exit error:", err);
+    window.location.href = "dashboard.html"; // fallback
+  }
+}
+
+window.onload = async () => {
+  try {
+    const transferRaw = sessionStorage.getItem('memoroTransfer');
+    if (!transferRaw) throw new Error("Missing session data from dashboard");
+
+    const transfer = JSON.parse(transferRaw);
+    if (!transfer.decryptedVaultData || !transfer.fileMapRaw || !transfer.baseKey) {
+      throw new Error("Incomplete transfer object");
+    }
+
+    // 🌐 Assign globals
+window.vaultData = {
+  ...transfer.vaultJson,
+  ...transfer.decryptedVaultData
+};
+    window.vaultJsonParsed = transfer.vaultJson;
+    window.fileMap = {};
+    window.savedQuestions = vaultData.questionList || [];
+    window.powSalt = vaultData.powSalt || "";
+    window.powConfig = {
+  start: "0000", // Fixed default: 4 leading zeros
+  incrementEvery: vaultData.powIncreaseEvery || 5
+};
+const vaultId = vaultData.vaultId || vaultData.vaultHash || "default";
+window.vaultId = vaultId;
+const key = `powAttempt_${vaultId}`;
+window.powAttempt = parseInt(localStorage.getItem(key)) || 1;
+
+    // 🔁 Rehydrate Blobs from serialized fileMap
+    for (const [filename, serialized] of Object.entries(transfer.fileMapRaw)) {
+      fileMap[filename] = new Blob([new Uint8Array(serialized.data)], {
+        type: serialized.type || "application/octet-stream"
+      });
+    }
+
+    // 💡 IVs (ensure fallback from transfer if missing in decryptedVaultData)
+    vaultData.finalMessageIv = vaultData.finalMessageIv || transfer.vaultJson.finalMessageIv;
+    vaultData.vaultMetaIv = vaultData.vaultMetaIv || transfer.vaultJson.vaultMetaIv;
+
+    // 🧠 Render recovery UI
+    loadQuestions();
+  } catch (err) {
+    console.error("Vault restore failed:", err);
+    document.body.innerHTML = `<h2 style='color:red;text-align:center;'>❌ Failed to load vault: ${err.message}</h2>`;
+  }
+};
+
+
+</script>
+
+<canvas id="matrixCanvas"></canvas>
+<div class="overlay"></div>
+
+<div id="vaultCrackOverlay"></div>
+<div id="crackOverlay"></div>
+<div id="burstFlash"></div>
+
+<script>
+const canvas = document.getElementById('matrixCanvas');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+const fontSize = 14;
+const columns = Math.floor(canvas.width / fontSize);
+const drops = Array(columns).fill(0);
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff99';
+  ctx.font = `${fontSize}px monospace`;
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = letters[Math.floor(Math.random() * letters.length)];
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+    drops[i]++;
+    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+      drops[i] = 0;
+    }
+  }
+}
+
+setInterval(drawMatrix, 66);
+
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+async function burstMatrixEffect() {
+  const body = document.body;
+  const crackOverlay = document.getElementById('crackOverlay');
+  const flash = document.getElementById('burstFlash');
+
+  // 1. Begin screen shake
+  body.style.animation = 'screenShake 0.1s infinite';
+
+  // 2. Simulate growing cracks
+  crackOverlay.style.background = "repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(255,255,255,0.05) 6px)";
+  crackOverlay.style.opacity = "1";
+
+  await new Promise(r => setTimeout(r, 1200)); // Shake + crack for 1.2s
+
+  // 3. Flash burst
+  flash.style.animation = 'crackFlash 0.3s ease-out';
+  flash.style.opacity = '1';
+
+  setTimeout(() => {
+    flash.style.animation = '';
+    flash.style.opacity = '0';
+  }, 300);
+
+  await new Promise(r => setTimeout(r, 200)); // Brief pause
+
+  // 4. Stop shake, dim overlay
+  body.style.animation = '';
+  crackOverlay.style.opacity = "0";
+
+  // 5. Modal reveal with subtle dust effect
+  const modal = document.querySelector('#seedModal');
+  modal.style.opacity = '0';
+  modal.style.transform = 'scale(1.5)';
+  modal.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
+
+  requestAnimationFrame(() => {
+    modal.classList.add('show');
+    modal.style.opacity = '1';
+    modal.style.transform = 'scale(1)';
+  });
+}
+
+async function showRecoveryModal(finalMessage, files) {
+  const modal = document.getElementById("seedModal");
+  const seedBox = document.getElementById("recoveredSeed");
+  const messageBox = document.getElementById("finalMessage");
+
+  seedBox.textContent = files.length
+    ? `${files.length} file(s) decrypted successfully.`
+    : "No files recovered.";
+
+  // Clear previous links if any
+  const existingLinks = document.getElementById("recoveryFileLinks");
+  if (existingLinks) existingLinks.remove();
+
+  const fileLinks = document.createElement("div");
+  fileLinks.id = "recoveryFileLinks";
+  fileLinks.style.marginTop = "20px";
+  fileLinks.innerHTML = "<h3 style='color:#0f0;'>Decrypted Files:</h3>";
+
+  const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
+  const seenNames = new Set();
+
+  function getUniqueFilename(name) {
+    let base = name, ext = "";
+    const dotIdx = name.lastIndexOf(".");
+    if (dotIdx !== -1) {
+      base = name.substring(0, dotIdx);
+      ext = name.substring(dotIdx);
+    }
+    let counter = 1;
+    let finalName = name;
+    while (seenNames.has(finalName)) {
+      finalName = `${base}_${counter++}${ext}`;
+    }
+    seenNames.add(finalName);
+    return finalName;
+  }
+
+  for (const file of files) {
+    const finalName = getUniqueFilename(file.name);
+    await zipWriter.add(finalName, new zip.BlobReader(file.blob));
+
+    const fileEntry = document.createElement("div");
+    fileEntry.style.marginBottom = "10px";
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(file.blob);
+    link.download = finalName;
+    link.innerText = `📎 ${finalName}`;
+    link.style.color = "#0f0";
+    link.style.marginRight = "12px";
+
+    const previewBtn = document.createElement("button");
+    previewBtn.innerText = "Preview";
+    previewBtn.onclick = () => previewFile(file.blob, file.blob.type);
+    previewBtn.className = "button";
+    previewBtn.style.padding = "4px 8px";
+    previewBtn.style.marginLeft = "5px";
+
+    fileEntry.appendChild(link);
+    fileEntry.appendChild(previewBtn);
+    fileLinks.appendChild(fileEntry);
+  }
+
+  const btnRow = document.createElement("div");
+  btnRow.style.display = "flex";
+  btnRow.style.justifyContent = "center";
+  btnRow.style.gap = "10px";
+  btnRow.style.marginTop = "20px";
+
+  const zipAllBtn = document.createElement("button");
+  zipAllBtn.innerText = "Download All as ZIP";
+  zipAllBtn.className = "button";
+  zipAllBtn.onclick = async () => {
+    const zippedBlob = await zipWriter.close();
+    const url = URL.createObjectURL(zippedBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Memoro_Recovered_Files.zip";
+    a.click();
+  };
+
+  const wipeBtn = document.createElement("button");
+  wipeBtn.innerText = "Securely Wipe & Exit";
+  wipeBtn.className = "button";
+  wipeBtn.onclick = secureExit;
+
+  btnRow.appendChild(zipAllBtn);
+  btnRow.appendChild(wipeBtn);
+  fileLinks.appendChild(btnRow);
+
+  document.querySelector("#seedModal .modal-content").appendChild(fileLinks);
+burstMatrixEffect(); // triggers modal as part of the animation
+}
+
+function secureExit() {
+  try {
+    // 🧼 Wipe all storage types
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // 🧯 Clear all IndexedDB databases
+    indexedDB.databases().then(dbs => {
+      for (const db of dbs) {
+        if (db.name) indexedDB.deleteDatabase(db.name);
+      }
+    });
+
+    // 💣 Nuke globals
+    window.fileMap = null;
+    window.vaultData = null;
+    window.unlockKey = null;
+    window.savedQuestions = null;
+    window.fullKeyMaterial = null;
+    window.vaultId = null;
+    window.powAttempt = null;
+
+    // Give a short delay to ensure deletion finishes
+    setTimeout(() => {
+      window.location.href = "dashboard.html";
+    }, 250);
+    
+  } catch (err) {
+    console.warn("Secure exit error:", err);
+    window.location.href = "dashboard.html"; // fallback
+  }
+}
+
+// 🔠 Force all recovery inputs to lowercase in real-time
+document.addEventListener("input", (e) => {
+  if (e.target.tagName === "INPUT" && e.target.id.startsWith("answer-")) {
+    e.target.value = e.target.value.toLowerCase();
+  }
+});
 
 </script>
 

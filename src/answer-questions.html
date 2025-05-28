@@ -4,41 +4,175 @@
   <meta charset="UTF-8">
   <title>Answer Your Questions - Memoro Vault</title>
   <style>
-    body { background-color: #111; color: #eee; font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-    h1 { font-size: 32px; margin-bottom: 10px; }
-    #countdown { font-size: 18px; color: #bbb; margin-bottom: 20px; }
-    .question-form { width: 100%; max-width: 900px; display: flex; flex-direction: column; }
-    .question-block { background-color: #222; padding: 15px; margin-bottom: 15px; border-radius: 8px; display: grid; grid-template-columns: 2fr 1fr 0.5fr; gap: 10px; align-items: center; }
-    label { font-size: 16px; margin-bottom: 5px; }
-    .input-group { display: flex; flex-direction: column; }
-    input[type="text"], textarea, select { padding: 10px; border-radius: 6px; border: none; background-color: #333; color: #eee; font-size: 16px; }
-    .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
-    .button { background-color: #333; color: #eee; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; }
-    .button:hover { background-color: #555; }
-    .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
-    .modal-content { background-color: #222; padding: 30px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
-    .modal-buttons { margin-top: 20px; display: flex; justify-content: center; gap: 10px; }
-    .modal-buttons button { background-color: #0066cc; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; }
-    .modal-buttons button:hover { background-color: #0055aa; }
-    .modal.fade-out { opacity: 0; pointer-events: none; }
-  </style>
+  body {
+    background-color: black;
+    color: #00ff99;
+    font-family: 'Fira Code', monospace;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -2;
+  }
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: -1;
+  }
+  h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+  #countdown {
+    font-size: 18px;
+    color: #0f0;
+    margin-bottom: 20px;
+  }
+  .question-form {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+  }
+  .question-block {
+    background-color: #111;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 0.5fr;
+    gap: 10px;
+    align-items: center;
+    border: 1px solid #0f0;
+  }
+  label {
+    font-size: 16px;
+    margin-bottom: 5px;
+  }
+  .input-group {
+    display: flex;
+    flex-direction: column;
+  }
+  input[type="text"], textarea, select {
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    background-color: #222;
+    color: #0f0;
+    font-size: 16px;
+  }
+  .button-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 30px;
+  }
+  .button {
+    background-color: #222;
+    color: #00ff99;
+    border: 1px solid #00ff99;
+    padding: 15px 30px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .button:hover {
+    background-color: #333;
+  }
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.85);
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-content {
+    background-color: #111;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+    border: 1px solid #00ff99;
+  }
+  .modal-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+  .modal-buttons button {
+    background-color: #006600;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .modal-buttons button:hover {
+    background-color: #009900;
+  }
+  .modal.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+</style>
+
 </head>
 
 <body>
+
+<canvas id="matrix"></canvas>
+<div class="overlay"></div>
 
 <h1>Answer Your Questions and Enter Your Seed</h1>
 <div id="countdown"></div>
 
 <form class="question-form" id="answerForm">
-  <div class="input-group seed-fields">
-    <label for="bulk-seed">Paste Full Seed Phrase (optional):</label>
-    <textarea id="bulk-seed" rows="3" placeholder="paste your 12/16/24 seed phrase here" oninput="handleSeedPaste()"></textarea>
-  </div>  
+
 </form>
+
+<div id="extraSeedsSection" style="margin-top: 30px; width: 100%; max-width: 900px;">
+  <!-- Extra seed inputs will go here if needed -->
+</div>
+
+<!-- Multi-seed input section -->
+<div id="multiSeedSection" style="margin-top: 40px; width: 100%; max-width: 900px;">
+  <h2 style="color:#0f0;">Saved Seed or Password Files</h2>
+  <div class="input-group">
+    <label for="newSeedName">Seed File/Password Name:</label>
+    <input type="text" id="newSeedName" placeholder="e.g. Primary Wallet" />
+  </div>
+  <div class="input-group" style="margin-top:10px;">
+    <label for="newSeedContent">Seed Phrase or Password:</label>
+    <textarea id="newSeedContent" rows="3" placeholder="type or paste seed phrase or private passphrase here"></textarea>
+  </div>
+  <button class="button" type="button" onclick="saveNamedSeed()">Save Password/Seed File</button>
+  <div id="namedSeedsList" style="margin-top: 20px;"></div>
+</div>
 
 <div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
   <label for="fileUpload" style="font-size: 18px;">Optional: Upload Documents to Include in Your Vault</label>
+<div style="display: flex; align-items: center; gap: 12px;">
   <input type="file" id="fileUpload" multiple />
+  <span id="fileUploadStatus" style="color: #0f0; font-size: 16px;">No files uploaded</span>
+</div>
   <p style="font-size: 14px; color: #aaa; margin-top: 5px;">You can upload files like text notes, images, or scanned documents (up to 250MB total).</p>
 </div>
 
@@ -71,13 +205,13 @@
   <div class="modal-content">
     <h2>Customize Your Hint</h2>
     <div class="input-group">
-      <label>How many letters to reveal?</label>
+      <label>How many characters to reveal?</label>
       <select id="numLetters" onchange="buildLetterSelectors()">
-        <option value="0">0 letters (only text hint)</option>
-        <option value="1">1 letter</option>
-        <option value="2">2 letters</option>
-        <option value="3">3 letters</option>
-        <option value="4">4 letters</option>
+        <option value="0">0 characters (only text hint)</option>
+        <option value="1">1 character</option>
+        <option value="2">2 characters</option>
+        <option value="3">3 characters</option>
+        <option value="4">4 characters</option>
       </select>
     </div>
     <div id="letterSelectors" class="input-group" style="margin-top: 15px;"></div>
@@ -94,63 +228,82 @@
 
 <script>
 
+function openVaultDB(version = 2) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('memoroVaultDB', version);
+
+    request.onupgradeneeded = function (event) {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('vaultFiles')) {
+        db.createObjectStore('vaultFiles', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('vaultUserData')) {
+        db.createObjectStore('vaultUserData', { keyPath: 'id' });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 async function handleFileStorageUpload(event) {
-  const newFiles = Array.from(event.target.files);
-  if (newFiles.length === 0) return;
+  const fileUpload = document.getElementById('fileUpload');
+  const selectedFiles = Array.from(event.target.files);
+  fileUpload.value = null; // ✅ allow re-uploading the same files
 
-  let existingMeta = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
-  const combinedMeta = [...existingMeta];
+  if (selectedFiles.length === 0) return;
 
-  // Step 1: Convert all new files to {id, meta, arrayBuffer}
+  const newFiles = selectedFiles.map(f => ({ file: f, id: crypto.randomUUID() }));
+  const existingMeta = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
+  const newMeta = [];
   const processedFiles = [];
-  for (const file of newFiles) {
-    if (combinedMeta.some(f => f.name === file.name)) continue;
-    const id = crypto.randomUUID();
-    const arrayBuffer = await file.arrayBuffer();
-    processedFiles.push({
-      id,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      raw: arrayBuffer
-    });
-    combinedMeta.push({ id, name: file.name, size: file.size, type: file.type });
+
+  for (const { file, id } of newFiles) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      processedFiles.push({
+        id,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        raw: arrayBuffer
+      });
+      newMeta.push({ id, name: file.name, size: file.size, type: file.type });
+    } catch (err) {
+      console.warn('File unreadable:', file.name, err);
+    }
   }
 
-  // Step 2: Open the database and write
-  const req = indexedDB.open('memoroVaultDB', 2);
+  const combinedMeta = [...existingMeta, ...newMeta];
 
-  req.onupgradeneeded = function (event) {
-    const db = event.target.result;
-    if (!db.objectStoreNames.contains('vaultFiles')) {
-      db.createObjectStore('vaultFiles', { keyPath: 'id' });
-    }
+  openVaultDB().then(db => {
+  const tx = db.transaction('vaultFiles', 'readwrite');
+  const store = tx.objectStore('vaultFiles');
+  for (const file of processedFiles) {
+    store.put(file);
+  }
+  tx.oncomplete = () => {
+    db.close();
+    localStorage.setItem('uploadedFileMeta', JSON.stringify(combinedMeta));
+    displayUploadedFiles();
   };
+}).catch(async (err) => {
+  if (err.name === 'NotFoundError' || err.message.includes('object store')) {
+    indexedDB.deleteDatabase('memoroVaultDB'); // Clear broken DB
+    showMessageModal("IndexedDB Reset", "A missing data store was detected. The vault database has been reset. Please try uploading your files again.");
+  } else {
+    showMessageModal("IndexedDB Error", "Unexpected error: " + err.message);
+  }
+});
 
-  req.onsuccess = function () {
-    const db = req.result;
-    const tx = db.transaction('vaultFiles', 'readwrite');
-    const store = tx.objectStore('vaultFiles');
-
-    for (const file of processedFiles) {
-      store.put(file);
-    }
-
-    tx.oncomplete = () => {
-      db.close();
-      localStorage.setItem('uploadedFileMeta', JSON.stringify(combinedMeta));
-      displayUploadedFiles(); // Refresh UI
-    };
-  };
-
-  req.onerror = function () {
-    showMessageModal("IndexedDB Error", "Failed to open file storage.");
-  };
 }
 
 function displayUploadedFiles() {
   const container = document.getElementById('uploadedFileList');
+  const status = document.getElementById('fileUploadStatus');
   if (!container) return;
+
   container.innerHTML = '';
 
   const storedFiles = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
@@ -161,14 +314,19 @@ function displayUploadedFiles() {
     entry.style.justifyContent = 'space-between';
     entry.style.alignItems = 'center';
     entry.style.marginBottom = '6px';
+    entry.style.border = '1px solid #0f0';
+    entry.style.borderRadius = '6px';
+    entry.style.padding = '10px';
+    entry.style.backgroundColor = '#111';
 
     const fileLabel = document.createElement('span');
     fileLabel.textContent = `📄 ${file.name} (${Math.round(file.size / 1024)} KB)`;
+    fileLabel.style.color = '#0f0';
 
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove';
     removeBtn.style.marginLeft = '10px';
-    removeBtn.style.padding = '4px 8px';
+    removeBtn.style.padding = '6px 12px';
     removeBtn.style.backgroundColor = '#550000';
     removeBtn.style.color = '#fff';
     removeBtn.style.border = 'none';
@@ -196,6 +354,80 @@ function displayUploadedFiles() {
     entry.appendChild(removeBtn);
     container.appendChild(entry);
   });
+
+  if (status) {
+    const count = storedFiles.length;
+    status.textContent = count === 0 ? 'No files uploaded' : `${count} file${count > 1 ? 's' : ''} uploaded`;
+  }
+}
+
+// Activate listeners after page load
+window.addEventListener('DOMContentLoaded', () => {
+  const fileUpload = document.getElementById('fileUpload');
+  if (fileUpload) fileUpload.addEventListener('change', handleFileStorageUpload);
+  displayUploadedFiles();
+});
+
+function displayUploadedFiles() {
+  const container = document.getElementById('uploadedFileList');
+  const status = document.getElementById('fileUploadStatus');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const storedFiles = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
+
+  storedFiles.forEach(file => {
+    const entry = document.createElement('div');
+    entry.style.display = 'flex';
+    entry.style.justifyContent = 'space-between';
+    entry.style.alignItems = 'center';
+    entry.style.marginBottom = '6px';
+    entry.style.padding = '10px';
+    entry.style.border = '1px solid #00ff99';
+    entry.style.borderRadius = '8px';
+    entry.style.backgroundColor = '#111';
+
+    const fileLabel = document.createElement('span');
+    fileLabel.textContent = `📄 ${file.name} (${Math.round(file.size / 1024)} KB)`;
+    fileLabel.style.color = '#00ff99';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.marginLeft = '10px';
+    removeBtn.style.padding = '4px 12px';
+    removeBtn.style.backgroundColor = '#550000';
+    removeBtn.style.color = '#fff';
+    removeBtn.style.border = 'none';
+    removeBtn.style.borderRadius = '6px';
+    removeBtn.style.cursor = 'pointer';
+
+    removeBtn.onclick = () => {
+      const updatedMeta = storedFiles.filter(f => f.id !== file.id);
+      localStorage.setItem('uploadedFileMeta', JSON.stringify(updatedMeta));
+
+      const req = indexedDB.open('memoroVaultDB');
+      req.onsuccess = function () {
+        const db = req.result;
+        const tx = db.transaction('vaultFiles', 'readwrite');
+        const store = tx.objectStore('vaultFiles');
+        store.delete(file.id);
+        tx.oncomplete = () => {
+          db.close();
+          displayUploadedFiles(); // refresh
+        };
+      };
+    };
+
+    entry.appendChild(fileLabel);
+    entry.appendChild(removeBtn);
+    container.appendChild(entry);
+  });
+
+  // Update status label
+  if (status) {
+    const count = storedFiles.length;
+    status.textContent = count === 0 ? 'No files uploaded' : `${count} file${count !== 1 ? 's' : ''} uploaded`;
+  }
 }
 
 // Add this to your onload:
@@ -210,24 +442,20 @@ window.addEventListener('DOMContentLoaded', () => {
   let remainingTime = 1800; // 30 minutes in seconds
   
   function startSecurityTimer() {
-    clearTimeout(securityTimeout);
-    securityTimeout = setInterval(() => {
-      remainingTime--;
-      updateCountdownDisplay();
-      if (remainingTime <= 0) {
-        securelyClearSensitiveData();
-        alert('Session expired for your security. Sensitive data has been cleared.');
-        localStorage.setItem('userAnswers', JSON.stringify(answers));
-localStorage.setItem('userSeeds', JSON.stringify(seeds));
-localStorage.setItem('userHints', JSON.stringify(customHints));
-localStorage.setItem('finalMessage', finalMessage);
-localStorage.setItem('unlockQuestions', JSON.stringify([0, 1])); // fallback if not user-selected
+  clearTimeout(securityTimeout);
+  remainingTime = 1800; // Reset to 30 minutes
+  updateCountdownDisplay();
+  securityTimeout = setInterval(() => {
+    remainingTime--;
+    updateCountdownDisplay();
+    if (remainingTime <= 0) {
+      securelyClearSensitiveData();
+      alert('Session expired for your security. Sensitive data has been cleared.');
+      window.location.href = "dashboard.html";
+    }
+  }, 1000);
+}
 
-        window.location.href = "dashboard.html";
-      }
-    }, 1000);
-  }
-  
   function extendTimer() {
     remainingTime += 5; // Add 5 seconds for any user interaction
   }
@@ -285,10 +513,7 @@ localStorage.setItem('unlockQuestions', JSON.stringify([0, 1])); // fallback if 
           <label><b>${i + 1}.</b> ${questionText}</label>
           <input type="text" id="answer-${i}" placeholder="Your answer" required oninput="forceLowercase(this); refreshHintModal();" onpaste="handlePaste(event, ${i})">
         </div>
-        <div class="input-group seed-fields">
-  <label>Corresponding Seed Word:</label>
-  <input type="text" id="seed-${i}" placeholder="Seed word" required oninput="forceLowercase(this)">
-</div>
+        
         <div class="input-group">
           <label><input type="checkbox" id="custom-hint-${i}" onchange="openHintModal(${i})"> Custom Hint</label>
         </div>
@@ -301,32 +526,79 @@ localStorage.setItem('unlockQuestions', JSON.stringify([0, 1])); // fallback if 
     window.history.back();
   }
   
-  function submitAnswers() {
-    const answers = [];
-    const seeds = [];
-    const answerInputs = document.querySelectorAll('input[id^="answer-"]');
-    const seedInputs = document.querySelectorAll('input[id^="seed-"]');
-    const finalMessage = document.getElementById('finalMessage').value.trim();
-  
-    answerInputs.forEach(input => answers.push(input.value.trim()));
-    seedInputs.forEach(input => seeds.push(input.value.trim()));
-  
-    const vaultType = localStorage.getItem('selectedVaultType');
-const isCryptoVault = !(vaultType === 'docs-only' || vaultType === 'crypto-docs');
+  async function submitAnswers() {
+  const answers = [];
+  const seeds = [];
+  const answerInputs = document.querySelectorAll('input[id^="answer-"]');
+  const seedInputs = document.querySelectorAll('input[id^="seed-"]');
+  const finalMessage = document.getElementById('finalMessage').value.trim();
 
-if (answers.some(a => a === '') || (isCryptoVault && seeds.some(s => s === ''))) {
-  showMessageModal('Missing Information', 'Please fill in all answers' + (isCryptoVault ? ' and all seed words.' : '.'));
-  return;
-}
-  
-    localStorage.setItem('userAnswers', JSON.stringify(answers));
-    localStorage.setItem('userSeeds', JSON.stringify(seeds));
-    localStorage.setItem('userHints', JSON.stringify(customHints));
-    localStorage.setItem('finalMessage', JSON.stringify(finalMessage));
-  
-    window.location.href = "build-vault.html";
+  answerInputs.forEach(input => answers.push(input.value.trim()));
+  seedInputs.forEach(input => seeds.push(input.value.trim()));
+
+  const vaultType = localStorage.getItem('selectedVaultType');
+  const isCryptoVault = !(vaultType === 'docs-only' || vaultType === 'crypto-docs');
+
+  if (answers.some(a => a === '') || (isCryptoVault && seeds.some(s => s === ''))) {
+    showMessageModal('Missing Information', 'Please fill in all answers' + (isCryptoVault ? ' and all seed words.' : '.'));
+    return;
   }
-  
+
+  // Use bulkSeedPhrase if available
+  const bulkSeed = JSON.parse(localStorage.getItem('bulkSeedPhrase') || '[]');
+  const finalSeeds = bulkSeed.length > seeds.length ? bulkSeed : seeds;
+
+  // Store to IndexedDB instead of just localStorage
+  const unlockIndexes = JSON.parse(localStorage.getItem('unlockQuestions')) || [0, 1];
+  const questionCount = parseInt(localStorage.getItem('questionCount')) || 12;
+  const questions = JSON.parse(localStorage.getItem('questions')) || [];
+
+  const req = indexedDB.open('memoroVaultDB', 2);
+
+  req.onupgradeneeded = function (e) {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains('vaultUserData')) {
+      db.createObjectStore('vaultUserData', { keyPath: 'id' });
+    }
+  };
+
+  req.onsuccess = function () {
+    const db = req.result;
+    const tx = db.transaction('vaultUserData', 'readwrite');
+    const store = tx.objectStore('vaultUserData');
+
+    store.put({
+      id: 'userData',
+      answers,
+      seeds: finalSeeds,
+      hints: customHints,
+      questions,
+      questionCount,
+      unlockIndexes,
+      finalMessage
+    });
+
+    tx.oncomplete = () => {
+      db.close();
+
+ const namedSeedFiles = namedSeeds.map(seed => ({
+  name: seed.name + ".txt",
+  content: seed.content
+}));
+localStorage.setItem("namedSeedFiles", JSON.stringify(namedSeedFiles));
+localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
+
+
+      // Optional: clear localStorage copies if you're confident recovery works
+      window.location.href = "build-vault.html";
+    };
+  };
+
+  req.onerror = function () {
+    showMessageModal("IndexedDB Error", "Failed to store user data.");
+  };
+}
+
   function forceLowercase(input) {
     input.value = input.value.toLowerCase();
   }
@@ -340,15 +612,46 @@ if (answers.some(a => a === '') || (isCryptoVault && seeds.some(s => s === '')))
   }
   
   function handleSeedPaste() {
-    const textarea = document.getElementById('bulk-seed');
-    const seeds = textarea.value.trim().toLowerCase().split(/\s+/);
-  
-    seeds.forEach((word, index) => {
-      const input = document.getElementById(`seed-${index}`);
-      if (input) input.value = word;
+  const textarea = document.getElementById('bulk-seed');
+  const seeds = textarea.value.trim().toLowerCase().split(/\s+/);
+  const totalSeeds = seeds.length;
+
+  // Save pasted full phrase to localStorage
+  localStorage.setItem('bulkSeedPhrase', JSON.stringify(seeds));
+
+  // Autofill seed inputs attached to questions
+  seeds.forEach((word, index) => {
+    const input = document.getElementById(`seed-${index}`);
+    if (input) input.value = word;
+  });
+
+  // Display overflow seeds if present
+  const questionCount = parseInt(localStorage.getItem('questionCount')) || 12;
+  const overflow = seeds.slice(questionCount);
+  const extraContainer = document.getElementById('extraSeedsSection');
+  extraContainer.innerHTML = '';
+
+  if (overflow.length > 0) {
+    const label = document.createElement('label');
+    label.style = "font-size: 18px; color: #ccc;";
+    label.textContent = `Extra Seed Words (${overflow.length}):`;
+    extraContainer.appendChild(label);
+
+    overflow.forEach((word) => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = word;
+      input.readOnly = true;
+      input.style = `
+        width: 100%; margin-top: 6px; padding: 10px;
+        border-radius: 6px; background-color: #333; color: #eee;
+        font-size: 16px; border: none;
+      `;
+      extraContainer.appendChild(input);
     });
   }
-  
+}
+
   function openHintModal(index) {
     activeHintIndex = index;
     document.getElementById('hintModal').style.display = 'flex';
@@ -450,12 +753,13 @@ if (answers.some(a => a === '') || (isCryptoVault && seeds.some(s => s === '')))
   }
   
   function securelyClearSensitiveData() {
-    localStorage.removeItem('userAnswers');
-    localStorage.removeItem('userSeeds');
-    localStorage.removeItem('userHints');
-    localStorage.removeItem('finalMessage');
-  }
-  
+  localStorage.removeItem('userAnswers');
+  localStorage.removeItem('userSeeds');
+  localStorage.removeItem('userHints');
+  localStorage.removeItem('finalMessage');
+  localStorage.removeItem('namedSeeds'); // ✅ optional extra safety
+}
+
   window.onload = () => {
   loadQuestions();
   startSecurityTimer();
@@ -467,12 +771,95 @@ if (answers.some(a => a === '') || (isCryptoVault && seeds.some(s => s === '')))
       el.style.display = 'none';
     });
   }
-
-  document.addEventListener('click', extendTimer);
-  document.addEventListener('keydown', extendTimer);
-  document.addEventListener('input', extendTimer);
 };
   </script>  
+
+<script>
+const canvas = document.getElementById('matrix');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const columns = Math.floor(canvas.width / 20);
+const drops = Array(columns).fill(1);
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff99';
+  ctx.font = '16px monospace';
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+    ctx.fillText(text, i * 20, drops[i] * 20);
+    if (drops[i] * 20 > canvas.height || Math.random() > 0.975) {
+      drops[i] = 0;
+    }
+    drops[i]++;
+  }
+}
+
+setInterval(drawMatrix, 33);
+
+
+</script>
+
+<script>
+let namedSeeds = JSON.parse(localStorage.getItem("namedSeeds") || "[]");
+
+function saveNamedSeed() {
+  const nameInput = document.getElementById('newSeedName');
+  const contentInput = document.getElementById('newSeedContent');
+  const name = nameInput.value.trim();
+  const content = contentInput.value.trim();
+
+  if (!name || !content) {
+    showMessageModal("Missing Info", "You must provide both a name and a seed phrase.");
+    return;
+  }
+
+  const safeName = name.toLowerCase().replace(/[^a-z0-9]/gi, "_");
+
+  namedSeeds.push({ name: safeName, content });
+  localStorage.setItem("namedSeeds", JSON.stringify(namedSeeds));
+  
+  nameInput.value = "";
+  contentInput.value = "";
+  renderNamedSeeds();
+}
+
+function renderNamedSeeds() {
+  const container = document.getElementById('namedSeedsList');
+  container.innerHTML = "";
+
+  namedSeeds.forEach((entry, index) => {
+    const div = document.createElement("div");
+    div.style.marginBottom = "10px";
+    div.style.padding = "10px";
+    div.style.background = "#111";
+    div.style.border = "1px solid #0f0";
+    div.style.borderRadius = "6px";
+    div.innerHTML = `
+      <strong>${entry.name}.txt</strong><br>
+      <code>${entry.content.replace(/\s+/g, " ")}</code><br>
+      <button style="margin-top:6px;" class="button" onclick="deleteNamedSeed(${index})">Remove</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function deleteNamedSeed(index) {
+  namedSeeds.splice(index, 1);
+  localStorage.setItem("namedSeeds", JSON.stringify(namedSeeds));
+  renderNamedSeeds();
+}
+
+window.addEventListener("DOMContentLoaded", renderNamedSeeds);
+</script>
 
 </body>
 </html>
