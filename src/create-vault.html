@@ -4,23 +4,44 @@
   <meta charset="UTF-8">
   <title>Create New Vault - Memoro Vault</title>
   <style>
-    body {
-      background-color: #111;
-      color: #eee;
-      font-family: sans-serif;
+    html, body {
       margin: 0;
-      padding: 20px;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Fira Code', monospace;
+      background-color: black;
+      color: #00ff99;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    .content {
+      z-index: 1;
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 30px 60px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0, 255, 153, 0.2);
     }
     h1 {
       font-size: 32px;
       margin-bottom: 20px;
     }
-    label {
-      margin-bottom: 10px;
+    label, .range-label {
       font-size: 18px;
+      color: #77ffcc;
+      margin-bottom: 10px;
     }
     select, button, input[type="range"] {
       margin-bottom: 20px;
@@ -28,22 +49,24 @@
       font-size: 16px;
       border-radius: 6px;
       border: none;
+      background-color: #111;
+      color: #00ff99;
     }
     .button {
-      background-color: #333;
-      color: #eee;
+      background-color: #00aa88;
+      color: #fff;
       cursor: pointer;
       width: 100%;
+      transition: background-color 0.3s;
     }
     .button:hover {
-      background-color: #555;
+      background-color: #00775a;
     }
     .button-container {
       display: flex;
       justify-content: space-between;
       width: 100%;
       max-width: 400px;
-      margin-top: 30px;
       gap: 10px;
     }
     .custom-options {
@@ -53,78 +76,49 @@
       width: 100%;
       max-width: 400px;
     }
-    .range-label {
-      font-size: 16px;
-      margin-bottom: 10px;
-    }
-    #introModal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-color: rgba(0,0,0,0.85);
-      color: #00ff99;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      font-family: 'Fira Code', monospace;
-    }
-    #introModal .content {
-      background-color: #111;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 0 15px #00ff99;
-      max-width: 500px;
-      text-align: center;
-    }
-    #introModal button {
-      background-color: #00ff99;
-      color: #111;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
+
+    .overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75); /* adjust transparency if needed */
+  z-index: 0; /* between canvas and content */
+}
+
+input[type="range"] {
+  accent-color: #00ff99;
+}
+
   </style>
 </head>
 <body>
 
-  <!-- Intro Modal -->
-  <div id="introModal">
-    <div class="content">
-      <h2 style="margin-top: 0;">Welcome to Memoro Vault</h2>
-      <p style="font-size: 16px; margin-bottom: 20px;">
-        You can store <strong>crypto seed phrases</strong>, <strong>passwords</strong>, <strong>documents</strong>, or <strong>combine them all</strong> in the same secure vault.<br><br>
-        If you're storing a crypto seed phrase, the number of questions must match the number of seed words (e.g., 12, 16, or 25).<br><br>
-        Choose your vault type and set your preferred security level.
-      </p>
-      <button onclick="closeIntroModal()">Got it</button>
+    <canvas id="matrix"></canvas>
+
+  <!-- 👇 Add this overlay div right here 👇 -->
+  <div class="overlay"></div>
+
+  <div class="content">
+    <h1>Create New Vault</h1>
+
+    <label for="vaultType">What kind of vault do you want to create?</label>
+    <select id="vaultType" onchange="handleVaultTypeChange()">
+      <option value="crypto-docs">Crypto + Sensitive Documents/Passwords</option>
+      <option value="monero">Monero (16/25 words)</option>
+      <option value="bitcoin">Bitcoin (12/24 words)</option>
+    </select>
+
+    <div class="custom-options" id="customOptions">
+      <div class="range-label">How many memory-based questions? (<span id="questionCount">8</span>)</div>
+      <input type="range" id="questionSlider" min="4" max="25" value="8" step="1" oninput="updateQuestionCount()">
     </div>
-  </div>
 
-  <h1>Create New Vault</h1>
-
-  <label for="vaultType">What kind of vault do you want to create?</label>
-  <select id="vaultType" onchange="handleVaultTypeChange()">
-    <option value="monero">Monero (16/25 words)</option>
-    <option value="bitcoin">Bitcoin (12/24 words)</option>
-    <option value="crypto-docs">Crypto + Sensitive Documents</option>
-    <option value="crypto-only">Crypto Only</option>
-    <option value="docs-only">Sensitive Documents Only</option>
-  </select>
-
-  <div class="custom-options" id="customOptions">
-    <div class="range-label">How many memory-based questions? (<span id="questionCount">12</span>)</div>
-    <input type="range" id="questionSlider" min="8" max="25" value="12" step="1" oninput="updateQuestionCount()">
-  </div>
-
-  <div class="button-container">
-    <button class="button" onclick="goBack()">← Back</button>
-    <button class="button" onclick="startVaultSetup()">Next</button>
+    <div class="button-container">
+      <button class="button" onclick="goBack()">← Back</button>
+      <button class="button" onclick="startVaultSetup()">Next</button>
+    </div>
   </div>
 
   <script>
@@ -132,14 +126,7 @@
       const savedType = localStorage.getItem('selectedVaultType');
       const savedQuestions = localStorage.getItem('customQuestionCount');
 
-      if (savedType) {
-        document.getElementById('vaultType').value = savedType;
-      }
-
-      if (!localStorage.getItem('introShown')) {
-        document.getElementById('introModal').style.display = 'flex';
-        localStorage.setItem('introShown', 'true');
-      }
+      if (savedType) document.getElementById('vaultType').value = savedType;
 
       handleVaultTypeChange();
 
@@ -149,29 +136,16 @@
       }
     };
 
-    function closeIntroModal() {
-      document.getElementById('introModal').style.display = 'none';
-    }
-
     function handleVaultTypeChange() {
       const vaultType = document.getElementById('vaultType').value;
       const slider = document.getElementById('questionSlider');
 
       if (vaultType === 'monero') {
-        slider.min = 16;
-        slider.max = 25;
-        slider.step = 9; // jump from 16 to 25
-        slider.value = 16;
+        slider.min = 16; slider.max = 25; slider.step = 9; slider.value = 16;
       } else if (vaultType === 'bitcoin') {
-        slider.min = 12;
-        slider.max = 24;
-        slider.step = 12; // jump from 12 to 24
-        slider.value = 12;
+        slider.min = 12; slider.max = 24; slider.step = 12; slider.value = 12;
       } else {
-        slider.min = 8;
-        slider.max = 25;
-        slider.step = 1;
-        slider.value = 12;
+        slider.min = 4; slider.max = 25; slider.step = 1; slider.value = 8;
       }
 
       updateQuestionCount();
@@ -179,32 +153,51 @@
     }
 
     function updateQuestionCount() {
-      const slider = document.getElementById('questionSlider');
-      document.getElementById('questionCount').textContent = slider.value;
+      document.getElementById('questionCount').textContent = document.getElementById('questionSlider').value;
     }
 
     function startVaultSetup() {
-  let selectedType = document.getElementById('vaultType').value;
-  const questionCount = document.getElementById('questionSlider').value;
+      let selectedType = document.getElementById('vaultType').value;
+      const questionCount = document.getElementById('questionSlider').value;
 
-  // Override for monero or bitcoin types based on slider
-  if (selectedType === 'monero') {
-    selectedType = questionCount === '25' ? 'monero' : 'monero-polyseed';
-  } else if (selectedType === 'bitcoin') {
-    selectedType = questionCount === '24' ? 'bitcoin' : 'bitcoin-legacy';
-  }
+      localStorage.setItem('selectedVaultType', selectedType);
+      localStorage.setItem('customQuestionCount', questionCount);
 
-  localStorage.setItem('selectedVaultType', selectedType);
-  localStorage.setItem('customQuestionCount', questionCount);
-
-  window.location.href = "setup-questions.html";
-}
-
-
-    function goBack() {
-      window.history.back();
+      window.location.href = "setup-questions.html";
     }
-  </script>
 
+    function goBack() { window.history.back(); }
+
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    const letters = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%^&*";
+    const fontSize = 14;
+    let columns, drops;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
+    }
+
+    function drawMatrix() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00ff99';
+      ctx.font = fontSize + "px monospace";
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    setInterval(drawMatrix, 33);
+  </script>
 </body>
 </html>

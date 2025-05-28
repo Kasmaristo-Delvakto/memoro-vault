@@ -7,54 +7,330 @@
   <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.34/dist/zip.min.js"></script>
 
   <style>
-    body {
-      background-color: #111;
-      color: #eee;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 30px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-    }
-    h1 { font-size: 48px; margin-bottom: 5px; }
-    p { font-size: 20px; margin-bottom: 30px; color: #bbb; text-align: center; }
-    .button-group { display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 40px; gap: 10px; }
-    .button { background-color: #0066cc; color: #fff; border: none; padding: 15px 30px; font-size: 18px; border-radius: 10px; cursor: pointer; transition: background-color 0.3s; }
-    .button:hover { background-color: #0055aa; }
-    .vault-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; }
-    .vault-item { background: linear-gradient(135deg, #1b1b1b, #222); padding: 25px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: flex-start; position: relative; animation: fadeIn 0.5s ease; }
-    .vault-item h2 { margin: 0 0 10px; font-size: 22px; word-break: break-word; }
-    .vault-item p { margin: 5px 0; font-size: 16px; color: #ccc; }
-    .unlock-button { margin-top: 15px; background-color: #333; color: #eee; padding: 10px 25px; font-size: 16px; border: 1px solid #555; border-radius: 8px; cursor: pointer; align-self: stretch; transition: background-color 0.3s, transform 0.2s; }
-    .unlock-button:hover { background-color: #444; transform: translateY(-2px); }
-    .three-dots { position: absolute; top: 15px; right: 15px; background: none; border: none; color: #eee; font-size: 22px; cursor: pointer; }
-    .vault-menu { display: none; position: absolute; top: 45px; right: 15px; background: #222; border: 1px solid #555; border-radius: 8px; overflow: hidden; z-index: 10; }
-    .vault-menu button { display: block; width: 150px; padding: 10px; background: none; border: none; color: #eee; text-align: left; cursor: pointer; }
-    .vault-menu button:hover { background-color: #333; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  body {
+    background-color: black;
+    color: #00ff99;
+    font-family: 'Fira Code', monospace;
+    margin: 0;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
 
-    /* Generic Modal */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 9999; }
-    .modal { background-color: #222; padding: 30px; border-radius: 12px; width: 300px; display: flex; flex-direction: column; gap: 15px; align-items: center; }
-    .modal h2, .modal p { margin: 0; color: #ccc; text-align: center; }
-    .modal input { padding: 10px; border-radius: 8px; border: 1px solid #555; background-color: #111; color: #eee; width: 100%; }
-    .modal-buttons { display: flex; justify-content: space-between; gap: 10px; width: 100%; }
-    .modal-buttons button { flex: 1; padding: 10px; border: none; border-radius: 8px; background-color: #0066cc; color: #fff; cursor: pointer; transition: background-color 0.3s; }
-    .modal-buttons button:hover { background-color: #0055aa; }
-  </style>
+  h1, h2, h3 {
+    color: #00ff99;
+    margin: 0;
+  }
+
+  h1 {
+    font-size: 48px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 5px;
+  }
+
+  p {
+    font-size: 20px;
+    color: #0f0;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  /* Typewriter Effect */
+  .typewriter-text {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 2px solid #00ff99;
+    animation: typing 2s steps(30, end) forwards, blink-caret 0.75s step-end 5;
+  }
+
+  @keyframes typing {
+    from { width: 0 }
+    to { width: 100% }
+  }
+
+  @keyframes blink-caret {
+    0%, 100% { border-color: transparent }
+    50% { border-color: #00ff99 }
+  }
+
+  /* Button Styles */
+  .button, .modal-buttons button {
+    background-color: #003322;
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 15px 30px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    position: relative;
+    overflow: hidden;
+    font-family: 'Fira Code', monospace;
+  }
+
+  .button:hover, .modal-buttons button:hover {
+    background-color: #005544;
+  }
+
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 40px;
+    gap: 10px;
+  }
+
+  /* Vault Item */
+  .vault-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 1000px;
+  }
+
+  .vault-item {
+    background-color: #111;
+    border: 1px solid #00ff99;
+    box-shadow: 0 0 10px #00ff99;
+    padding: 25px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    position: relative;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .vault-item h2 {
+    margin: 0 0 10px;
+    font-size: 22px;
+    word-break: break-word;
+  }
+
+  .vault-item p {
+    margin: 5px 0;
+    font-size: 16px;
+    color: #ccc;
+  }
+
+  .unlock-button {
+    margin-top: 15px;
+    background-color: #002211;
+    color: #00ff99;
+    border: 1px solid #00ff99;
+    padding: 10px 25px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    align-self: stretch;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+
+  .unlock-button:hover {
+    background-color: #004422;
+    transform: translateY(-2px);
+  }
+
+  .three-dots {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: #eee;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .vault-menu {
+    display: none;
+    position: absolute;
+    top: 45px;
+    right: 15px;
+    background: #222;
+    border: 1px solid #555;
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 10;
+  }
+
+  .vault-menu button {
+    display: block;
+    width: 150px;
+    padding: 10px;
+    background: none;
+    border: none;
+    color: #eee;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .vault-menu button:hover {
+    background-color: #333;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .button-group {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.button {
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background-color: #004422;
+  transform: translateY(-2px);
+}
+
+.typewriter-text {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid #00ff99;
+  animation: typing 2s steps(30, end) forwards, blink-caret 0.75s step-end 5;
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  0%, 100% { border-color: transparent }
+  50% { border-color: #00ff99 }
+}
+
+  /* Modal Styling */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+
+  .modal {
+    background-color: #222;
+    padding: 30px;
+    border-radius: 12px;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    box-shadow: 0 0 12px #00ff99;
+    border: 1px solid #00ff99;
+  }
+
+  .modal h2, .modal p {
+    margin: 0;
+    color: #ccc;
+    text-align: center;
+  }
+
+  .modal input {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #0f0;
+    background-color: #000;
+    color: #0f0;
+    width: 100%;
+    font-family: 'Fira Code', monospace;
+  }
+
+  .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+  }
+
+  /* Matrix Background (Optional Canvas Layer) */
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -2;
+  }
+
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: -1;
+  }
+
+#matrixCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -3;
+}
+
+.matrix-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: -2;
+}
+
+
+</style>
+
 </head>
 
 <body>
   <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
-<h1>Memoro Vault</h1>
-<p>Your mind. Your memory. Your vault.</p>
+<div style="display: flex; justify-content: center;">
+  <h1><span class="typewriter-text" style="animation-delay: 0s;">Memoro Vault</span></h1>
+</div>
+<p class="typewriter-text" style="animation-delay: 3s;">Your mind. Your memory. Your vault.</p>
 
 <div class="button-group">
-  <button class="button" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
-  <button class="button" onclick="promptOfflineWarning('load')">📂 Load Vault File</button>
-  <button class="button" onclick="goToHowItWorks()">How Memoro Works</button>
+  <button class="button typewriter-text" style="animation-delay: 3.5s; animation-duration: 2s; min-width: 200px;" onclick="promptOfflineWarning('create')">
+    + Create New Vault
+  </button>
+
+  <button class="button typewriter-text" style="animation-delay: 5.5s; animation-duration: 2s; min-width: 200px;" onclick="promptOfflineWarning('load')">
+    Load Vault File
+  </button>
+
+  <button class="button typewriter-text" style="animation-delay: 7.5s; animation-duration: 2s; min-width: 200px;" onclick="goToHowItWorks()">
+    How Memoro Works
+  </button>
 </div>
 
 <div class="vault-list" id="vaultList"></div>
@@ -72,7 +348,7 @@
     <div id="lockoutSection" style="display:none; width:100%; margin-top:10px; text-align:center;">
       <p id="lockoutTimerText" style="margin:5px 0; font-size:16px; color:#ccc;">Locked for 15s</p>
       <div style="background-color:#444; width:100%; height:10px; border-radius:5px; overflow:hidden;">
-        <div id="lockoutProgress" style="background-color:#0066cc; width:100%; height:10px;"></div>
+      <div id="lockoutProgress" style="background-color:#00ff99; width:100%; height:10px;"></div>
       </div>
     </div>
 
@@ -172,23 +448,43 @@ function closeMessageModal() {
   // Vault Functions
   function saveVaultsToLocalStorage() {
     const vaultArray = Object.entries(loadedVaults).map(([vaultId, data]) => ({
-      vaultId,
-      fileName: data.fileName,
-      vaultData: data.vaultData
-    }));
+  vaultId,
+  fileName: data.fileName,
+  vaultData: data.vaultData,
+  fileMapRaw: data.fileMapRaw  // ✅ correct
+}));
+
     localStorage.setItem('savedVaults', JSON.stringify(vaultArray));
   }
 
   function loadVaultsFromLocalStorage() {
-    const saved = localStorage.getItem('savedVaults');
-    if (saved) {
-      const vaultArray = JSON.parse(saved);
-      vaultArray.forEach(({ vaultId, fileName, vaultData }) => {
-        loadedVaults[vaultId] = { fileName, vaultData };
-        addVaultToList(vaultId, fileName, vaultData, true);
-      });
-    }
+  const saved = localStorage.getItem('savedVaults');
+  if (saved) {
+    const vaultArray = JSON.parse(saved);
+    vaultArray.forEach(({ vaultId, fileName, vaultData, fileMapRaw }) => {
+      const reconstructedMap = {};
+      const reconstructedRaw = {};
+      for (const [name, fileObj] of Object.entries(fileMapRaw)) {
+        const blob = new Blob([new Uint8Array(fileObj.data)], { type: fileObj.type });
+        reconstructedMap[name] = blob;
+        reconstructedRaw[name] = {
+          type: fileObj.type,
+          data: fileObj.data
+        };
+      }
+
+      loadedVaults[vaultId] = {
+        fileName,
+        vaultData,
+        fileMap: reconstructedMap,
+        fileMapRaw: reconstructedRaw
+      };
+
+      addVaultToList(vaultId, fileName, vaultData, true);
+    });
   }
+}
+
 
   function addVaultToList(vaultId, fileName, vaultData, skipSaving = false) {
     const vaultList = document.getElementById('vaultList');
@@ -206,13 +502,13 @@ function closeMessageModal() {
           </div>
         </div>
       </div>
-      <p>Status: 🔒 Locked</p>
+      <p>Status:Locked</p>
       <button class="unlock-button" onclick="openUnlockModal('${vaultId}')">Unlock Vault</button>
     `;
     vaultList.appendChild(vaultItem);
     if (!skipSaving) {
-      saveVaultsToLocalStorage();
-    }
+  saveVaultsToLocalStorage();
+}
   }
 
   function toggleMenu(vaultId) {
@@ -264,23 +560,23 @@ function closeMessageModal() {
   }
 
   function openUnlockModal(vaultId) {
-  // Always clear the old interval first
   clearInterval(countdownInterval);
 
   currentUnlockVaultId = vaultId;
   const vault = loadedVaults[vaultId];
-  const questions = vault.vaultData.unlockQuestions;
+  const prompts = vault.vaultData.questionPrompts || ["Question 1:", "Question 2:"];
 
-  document.getElementById('question1Label').innerText = questions.question1 || "Question 1:";
-  document.getElementById('question2Label').innerText = questions.question2 || "Question 2:";
+  document.getElementById('question1Label').innerText = prompts[0];
+  document.getElementById('question2Label').innerText = prompts[1];
+
   document.getElementById('answer1Input').value = '';
   document.getElementById('answer2Input').value = '';
   document.getElementById('answer1Input').disabled = false;
   document.getElementById('answer2Input').disabled = false;
 
-  // Reset lockout visuals
   document.getElementById('lockoutSection').style.display = 'none';
   document.getElementById('lockoutProgress').style.width = '100%';
+
   const unlockButton = document.getElementById('unlockButton');
   unlockButton.disabled = false;
   unlockButton.textContent = 'Unlock';
@@ -288,10 +584,8 @@ function closeMessageModal() {
   document.getElementById('unlockModal').style.display = 'flex';
   setTimeout(() => document.getElementById('answer1Input').focus(), 100);
 
-  // Load vault-specific lockout data
   failedAttempts = Number(localStorage.getItem(`failedAttempts_${vaultId}`)) || 0;
   lockoutUntil = Number(localStorage.getItem(`lockoutUntil_${vaultId}`)) || 0;
-
   checkIfLocked();
 }
 
@@ -301,74 +595,6 @@ function cancelUnlock() {
   clearInterval(countdownInterval);
 }
 
-
-async function submitUnlock() {
-  if (Date.now() < lockoutUntil) return;
-
-  const answer1 = document.getElementById('answer1Input').value.trim();
-  const answer2 = document.getElementById('answer2Input').value.trim();
-  if (!answer1 || !answer2) {
-    showMessageModal('Missing Answers', 'Please answer both questions.');
-    return;
-  }
-
-  const vault = loadedVaults[currentUnlockVaultId];
-  if (!vault) {
-    showMessageModal('Error', 'Vault data not found.');
-    cancelUnlock();
-    return;
-  }
-
-  try {
-    const combined = answer1 + answer2;
-    const salt = CryptoJS.enc.Utf8.parse('memoro-vault-salt');
-    const unlockKey = CryptoJS.PBKDF2(combined, salt, { keySize: 256/32, iterations: 100000 }).toString();
-
-    const decrypted = CryptoJS.AES.decrypt(vault.vaultData.encryptedDashboardData, unlockKey);
-    const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
-    if (!plaintext) throw new Error('Invalid decryption.');
-
-    // ✅ Serialize and send to sessionStorage
-    const unlockedVault = JSON.parse(plaintext);
-    const fileMap = vault.fileMap || {};
-    const serializedFiles = {};
-
-    const readerPromises = Object.entries(fileMap).map(([filename, file]) => {
-      return new Promise((resolve) => {
-        const r = new FileReader();
-        r.onload = e => {
-          serializedFiles[filename] = btoa(e.target.result); // binary to base64
-          resolve();
-        };
-        r.readAsBinaryString(file);
-      });
-    });
-
-    await Promise.all(readerPromises);
-
-    const transferObject = {
-      vaultData: unlockedVault,
-      encryptedFiles: serializedFiles
-    };
-    sessionStorage.setItem('memoroTransfer', JSON.stringify(transferObject));
-
-    localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
-    localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
-    clearInterval(countdownInterval);
-
-    window.location.href = "recover.html";
-
-  } catch (error) {
-    console.error('Decryption failed:', error);
-    failedAttempts++;
-    const delay = 15000 * Math.pow(2, failedAttempts - 1);
-    lockoutUntil = Date.now() + delay;
-    localStorage.setItem(`failedAttempts_${currentUnlockVaultId}`, failedAttempts);
-    localStorage.setItem(`lockoutUntil_${currentUnlockVaultId}`, lockoutUntil);
-    showMessageModal('Unlock Failed', `Failed to unlock vault. Attempts: ${failedAttempts}`);
-    startCountdown();
-  }
-}
 
 function checkIfLocked() {
   if (Date.now() < lockoutUntil) {
@@ -437,7 +663,7 @@ function startCountdown() {
     window.location.href = "how-it-works.html";
   }
 
-  async function handleVaultZip(event) {
+ async function handleVaultZip(event) {
   const file = event.target.files[0];
   if (!file || !file.name.endsWith('.zip')) {
     showMessageModal('Invalid File', 'Please select a valid .zip vault file.');
@@ -449,9 +675,20 @@ function startCountdown() {
     const entries = await zipReader.getEntries();
 
     const fileMap = {};
+    const fileMapRaw = {};
+    const vaultId = 'vault-' + Date.now();
+    const fileName = file.name.replace(/\.zip$/, '');
+
     for (const entry of entries) {
       const blob = await entry.getData(new zip.BlobWriter());
-      fileMap[entry.filename.toLowerCase()] = blob;
+      const lowerName = entry.filename.toLowerCase();
+      fileMap[lowerName] = blob;
+
+      const buffer = await blob.arrayBuffer();
+      fileMapRaw[lowerName] = {
+        type: blob.type || 'application/octet-stream',
+        data: Array.from(new Uint8Array(buffer))
+      };
     }
 
     const vaultJson = fileMap['vault.json'];
@@ -460,13 +697,11 @@ function startCountdown() {
     const text = await vaultJson.text();
     const vaultData = JSON.parse(text);
 
-    const vaultId = 'vault-' + Date.now();
-    const fileName = file.name.replace(/\.zip$/, '');
-
     loadedVaults[vaultId] = {
       fileName,
       vaultData,
-      fileMap
+      fileMap,
+      fileMapRaw  // ✅ include raw version for reliable re-unlock
     };
 
     addVaultToList(vaultId, fileName, vaultData);
@@ -479,10 +714,186 @@ function startCountdown() {
     showMessageModal('Load Failed', '❌ Could not load the vault ZIP file.');
   }
 }
+ 
+</script>
 
-  // Load saved vaults at startup
-  loadVaultsFromLocalStorage();
-  
+<script>
+async function deriveKey(password) {
+  const enc = new TextEncoder();
+  const salt = await crypto.subtle.digest("SHA-256", enc.encode(password));
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({
+    name: "PBKDF2",
+    salt,
+    iterations: 150000,
+    hash: "SHA-256"
+  }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+async function decryptAES(ciphertextArray, ivArray, key) {
+  try {
+    const iv = new Uint8Array(ivArray);
+    const ciphertext = new Uint8Array(ciphertextArray);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      ciphertext
+    );
+
+    return new TextDecoder().decode(decrypted);
+  } catch (err) {
+    console.error("❌ Decryption failed:", err);
+    throw new Error("Decryption failed: Incorrect key or corrupted vault.enc.");
+  }
+}
+
+async function submitUnlock() {
+  if (Date.now() < lockoutUntil) return;
+
+  const answer1 = document.getElementById('answer1Input').value.trim().toLowerCase();
+  const answer2 = document.getElementById('answer2Input').value.trim().toLowerCase();
+
+  if (!answer1 || !answer2) {
+    showMessageModal('Missing Answers', 'Please answer both questions.');
+    return;
+  }
+
+  const vault = loadedVaults[currentUnlockVaultId];
+  if (!vault || !vault.vaultData || !vault.fileMapRaw) {
+    showMessageModal('Vault Error', 'Vault is missing required data.');
+    return;
+  }
+
+  const vaultEncRaw = vault.fileMapRaw["vault.enc"];
+  if (!vaultEncRaw || !vaultEncRaw.data) {
+    showMessageModal('Vault Error', 'vault.enc is missing or incomplete.');
+    return;
+  }
+
+  try {
+    // Reconstruct vault.enc Blob from original Uint8Array
+    let vaultEncJson;
+try {
+  const text = new TextDecoder().decode(new Uint8Array(vaultEncRaw.data));
+  vaultEncJson = JSON.parse(text);
+} catch {
+  throw new Error("vault.enc is empty or corrupted. Cannot parse JSON.");
+}
+
+
+    const { ciphertext, iv } = vaultEncJson;
+    const unlockKey = answer1 + answer2;
+    const aesKey = await deriveKey(unlockKey);
+    const decrypted = await decryptAES(ciphertext, iv, aesKey);
+
+    let fullVaultData;
+    try {
+      fullVaultData = JSON.parse(decrypted);
+    } catch {
+      throw new Error("Vault content could not be parsed. Possible corruption.");
+    }
+
+    // Pass next-layer IVs into memory
+    fullVaultData.finalMessageIv = vault.vaultData.finalMessageIv;
+    fullVaultData.vaultMetaIv = vault.vaultData.vaultMetaIv;
+
+    // Serialize fresh copy of fileMap
+    const serializedMap = {};
+    for (const [filename, blob] of Object.entries(vault.fileMap)) {
+      const buffer = await blob.arrayBuffer();
+      serializedMap[filename] = {
+        type: blob.type || 'application/octet-stream',
+        data: Array.from(new Uint8Array(buffer))
+      };
+    }
+
+    const transferObject = {
+      vaultJson: vault.vaultData,
+      decryptedVaultData: fullVaultData,
+      baseKey: unlockKey,
+      fileMapRaw: serializedMap
+    };
+
+    sessionStorage.setItem("memoroTransfer", JSON.stringify(transferObject));
+
+    // Clear lockout metadata
+    clearInterval(countdownInterval);
+    localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
+    localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
+
+    window.location.href = "recover.html";
+  } catch (err) {
+    console.warn("Decrypt failed:", err.message);
+    failedAttempts++;
+    const delay = 15000 * Math.pow(2, failedAttempts - 1);
+    lockoutUntil = Date.now() + delay;
+
+    localStorage.setItem(`failedAttempts_${currentUnlockVaultId}`, failedAttempts);
+    localStorage.setItem(`lockoutUntil_${currentUnlockVaultId}`, lockoutUntil);
+
+    showMessageModal("Unlock Failed", `Incorrect answers. Attempts: ${failedAttempts}`);
+    startCountdown();
+  }
+}
+
+// Expose globally
+window.submitUnlock = submitUnlock;
+  // Expose to global scope for onclick handler
+  window.submitUnlock = submitUnlock;
+
+window.addEventListener("DOMContentLoaded", () => {
+  sessionStorage.removeItem("memoroTransfer");
+  Object.keys(loadedVaults).forEach(key => delete loadedVaults[key]); // 💥 flush stale in-memory blobs
+  loadVaultsFromLocalStorage();  // 🧠 this rehydrates cleanly from saved localStorage
+});
+
+// 🧼 Force input to lowercase as user types
+document.addEventListener("input", (e) => {
+  if (e.target.id === "answer1Input" || e.target.id === "answer2Input") {
+    e.target.value = e.target.value.toLowerCase();
+  }
+});
+
+
+</script>
+
+<canvas id="matrixCanvas"></canvas>
+<div class="matrix-overlay"></div>
+
+<script>
+  const canvas = document.getElementById("matrixCanvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+  const fontSize = 14;
+  const columns = Math.floor(canvas.width / fontSize);
+  const drops = Array(columns).fill(0);
+
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00ff99';
+    ctx.font = `${fontSize}px monospace`;
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = letters[Math.floor(Math.random() * letters.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+      drops[i]++;
+      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+    }
+  }
+
+  setInterval(drawMatrix, 66); // ~15fps like "How It Works"
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
 </script>
 
 </body>
