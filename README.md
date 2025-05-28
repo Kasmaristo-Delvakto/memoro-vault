@@ -1,59 +1,108 @@
-How Memoro Vault Works:
+# Memoro Vault
 
-Memoro Vault offers a novel, memory-based approach to cryptographic key storage—eliminating the vulnerabilities of physical backups and enabling a more resilient, decentralized form of digital inheritance.
+**Memoro Vault is a privacy-first memory vault designed to protect everyday people—not just the rich—from loss, theft, and institutional overreach.**  
+It helps you store your most important digital secrets and documents—then locks access behind questions only you or your trusted circle can answer.
 
-Rethinking Traditional Seed Storage
+---
 
-Conventional storage solutions—paper, metal backups, hardware wallets—all suffer from a critical flaw: physical exposure. If your seed phrase is found, it can be compromised. Memoro Vault addresses this weakness by replacing static storage with encrypted, memory-based access—where the “key” is composed of answers only you (or your trusted network) would know.
+## Why It Matters for the Working Class
 
-Built for Decentralized Inheritance
+The wealthy use trusts, lawyers, and family offices to protect and pass on their assets.  
+Everyone else is left with folders in drawers, unencrypted USB sticks, and vague instructions.
 
-Memoro Vault isn’t just a security tool—it’s also a self-sovereign estate planning mechanism. Users can structure their vaults so that no single individual knows all the answers required to unlock it, while multiple parties working together can recover it. This model enables secure legacy transfer without reliance on centralized custodians, attorneys, or third-party executors.
+- 67% of Americans have no estate plan  
+- Probate eats up 3–8% of what you leave behind  
+- Identity theft hits hardest when documents are lost or exposed  
+- Billions in crypto, logins, or digital assets are lost every year—often permanently
 
-Preventing Loss Through Familiarity
+Memoro Vault changes that by giving everyday people a way to secure and share critical information—without relying on lawyers, subscriptions, or cloud-based services that can be hacked or shut down.
 
-Roughly 20% of all Bitcoin is estimated to be lost—primarily due to forgotten or misplaced seed phrases. Memoro Vault reduces this risk by anchoring recovery to biographical memory and relational knowledge, rather than static objects or fragile locations. Vault files themselves are designed to be unremarkable and unintelligible to outsiders—further reducing the risk of targeted attacks.
+---
 
-Dual-Layer Security Architecture
+## Use Cases
 
-Layer 1 – Dashboard Access
+Memoro Vault can be used to securely store and protect:
 
-Requires correct answers to two memory questions
+- **Seed phrases** for crypto wallets (without leaving them exposed)
+- **Password lists** or master password files
+- **Scanned birth certificates or SSNs**
+- **Medical directives and living wills**
+- **Banking or investment account instructions**
+- **Private letters or ethical wills**
+- **Emergency contacts or instructions for family**
 
-Reveals only metadata (e.g., question types, dashboard layout)
+Whether you’re trying to pass something down or protect yourself in life, Memoro Vault keeps your data locked—until the right people remember the right answers.
 
-Incorrect attempts trigger escalating lockout timers
+---
 
-Layer 2 – Full Recovery
+## Two Layers of Defense
 
-Requires 16–25 memory answers (with character-length hints)
+### Layer 1 – Dashboard Access
+- Requires correct answers to two personal memory questions
+- Grants access only to vault structure and layout—not the content
+- Incorrect attempts trigger escalating lockout delays to slow guessing
 
-Includes a dynamic Proof-of-Work (PoW) system that increases in difficulty with each failed attempt
+### Layer 2 – Full Recovery
+- Requires 16–25 total answers (you define them)
+- Enforces a dynamic Proof-of-Work (PoW) challenge that must be solved each time
+- Only if all answers and the nonce are correct does final decryption occur
 
-Full seed decryption only occurs when all inputs are correct
+---
 
-Cryptographic Design
-AES-256 encryption using PBKDF2 with 100,000 iterations for both layers
+## How It Works
 
-SHA-256 for hashing and nonce-based PoW
+1. **Create your vault.**  
+   Choose custom memory questions—things only you or a few people would know.
 
-All vault content remains fully encrypted until correct memory inputs and PoW are provided
+2. **Upload sensitive files.**  
+   Passwords, birth certificates, social security scans, seed phrases—anything under 250MB.
 
-No sensitive data is stored in plaintext—neither seeds nor hints
+3. **Encrypt offline.**  
+   Everything is locked with AES-256 using a key derived from your answers and a mined nonce.
 
-Security rests on the uniqueness of your memory inputs. Choose obscure, deeply personal answers not easily guessed or scraped.
+4. **Store safely.**  
+   Keep the encrypted `.zip` file on a USB drive, in your will, or with someone you trust.
 
-Memoro Vault is designed to operate fully offline—eliminating the risks of clipboard scraping, internet-based exploits, or remote compromise. Once created, your encrypted vault file can be safely stored on USB drives, SD cards, or cloud services. Without the correct memory and a valid PoW solution, the file is cryptographically inaccessible.
+5. **Recover when needed.**  
+   With the right answers and a new proof-of-work solution, the vault unlocks—anywhere, anytime.
 
-Summary
-Eliminates physical points of failure using memory-based encryption
+---
 
-Protects sensitive data through two independent layers of defense
+## Privacy and Security
 
-Designed for long-term, decentralized inheritance
+- **No internet required.** Everything is client-side. No cloud sync, no central server, no tracking.
+- **No passwords to forget.** You define the questions. The answers are the keys.
+- **No backdoors.** Vaults are AES-256 encrypted with 100,000 rounds of PBKDF2.
+- **No readable data.** Even filenames and metadata are encrypted until unlocked.
+- **No trust required.** It's open-source and GPLv3 licensed.
 
-Requires no internet connection for use or recovery
+Memoro Vault is built for people who can’t afford to get this wrong.
 
-Open-source and released under the GNU GPLv3 license
+---
 
-Memoro Vault is not merely a tool. It’s a new philosophy of self-custody—rooted in memory, resistant to surveillance, and ready for the world ahead.
+## Flexible Access Options
+
+- Keep all answers yourself, relying on memory
+- Split questions between loved ones, requiring teamwork to unlock
+- Add hints to aid recall while preventing brute-force attempts
+- Leave instructions in your will that guide your heirs without revealing your secrets
+
+---
+
+## Why It’s Different
+
+Memoro Vault isn’t just a crypto tool. It’s a blueprint for **self-sovereign inheritance** and **offline digital resilience**—without needing lawyers, apps, or subscriptions.
+
+It replaces fragile storage with durable memory.  
+It shifts power from institutions to individuals.  
+It’s estate planning for people without a family office.
+
+---
+
+## Summary
+
+- Protects sensitive documents and secrets behind memory-based encryption  
+- Eliminates the risk of theft from physical backups  
+- Enables private, offline inheritance without lawyers or trust funds  
+- Requires no servers or subscriptions  
+- Free and open-source under GNU GPLv3  
