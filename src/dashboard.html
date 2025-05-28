@@ -447,24 +447,29 @@ function closeMessageModal() {
 
   // Vault Functions
   function saveVaultsToLocalStorage() {
-    const vaultArray = Object.entries(loadedVaults).map(([vaultId, data]) => ({
-  vaultId,
-  fileName: data.fileName,
-  vaultData: data.vaultData,
-  fileMapRaw: data.fileMapRaw  // ✅ correct
-}));
+  const vaultArray = Object.entries(loadedVaults).map(([vaultId, data]) => {
+    saveFilesToIndexedDB(vaultId, data.fileMapRaw); // ⬅ Store fileMapRaw separately
+    return {
+      vaultId,
+      fileName: data.fileName,
+      vaultData: data.vaultData
+    };
+  });
 
-    localStorage.setItem('savedVaults', JSON.stringify(vaultArray));
-  }
+  localStorage.setItem('savedVaults', JSON.stringify(vaultArray));
+}
 
   function loadVaultsFromLocalStorage() {
   const saved = localStorage.getItem('savedVaults');
-  if (saved) {
-    const vaultArray = JSON.parse(saved);
-    vaultArray.forEach(({ vaultId, fileName, vaultData, fileMapRaw }) => {
+  if (!saved) return;
+
+  const vaultArray = JSON.parse(saved);
+  vaultArray.forEach(({ vaultId, fileName, vaultData }) => {
+    loadFilesFromIndexedDB(vaultId).then(fileMapRaw => {
       const reconstructedMap = {};
       const reconstructedRaw = {};
-      for (const [name, fileObj] of Object.entries(fileMapRaw)) {
+
+      for (const [name, fileObj] of Object.entries(fileMapRaw || {})) {
         const blob = new Blob([new Uint8Array(fileObj.data)], { type: fileObj.type });
         reconstructedMap[name] = blob;
         reconstructedRaw[name] = {
@@ -481,10 +486,12 @@ function closeMessageModal() {
       };
 
       addVaultToList(vaultId, fileName, vaultData, true);
+    }).catch(err => {
+      console.error(`Failed to load fileMapRaw for vault ${vaultId}:`, err);
+      showMessageModal("Load Error", `Could not load vault files for "${fileName}".`);
     });
-  }
+  });
 }
-
 
   function addVaultToList(vaultId, fileName, vaultData, skipSaving = false) {
     const vaultList = document.getElementById('vaultList');
@@ -694,8 +701,27 @@ function startCountdown() {
     const vaultJson = fileMap['vault.json'];
     if (!vaultJson) throw new Error("Missing vault.json in ZIP");
 
-    const text = await vaultJson.text();
-    const vaultData = JSON.parse(text);
+const text = await vaultJson.text();
+const vaultData = JSON.parse(text);
+
+const vaultEncBlob = fileMap['vault.enc'];
+if (!vaultEncBlob) throw new Error("Missing vault.enc in ZIP");
+
+const encText = await vaultEncBlob.text();
+let parsedEnc;
+try {
+  parsedEnc = JSON.parse(encText); // Ensure it's valid JSON
+} catch {
+  throw new Error("vault.enc is not valid JSON.");
+}
+
+// Re-encode text just like others
+const encoded = new TextEncoder().encode(encText);
+fileMapRaw['vault.enc'] = {
+  type: 'application/json',
+  data: Array.from(encoded)
+};
+
 
     loadedVaults[vaultId] = {
       fileName,
@@ -721,7 +747,9 @@ function startCountdown() {
 async function deriveKey(password) {
   const enc = new TextEncoder();
   const salt = await crypto.subtle.digest("SHA-256", enc.encode(password));
-  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
+  );
   return crypto.subtle.deriveKey({
     name: "PBKDF2",
     salt,
@@ -735,13 +763,20 @@ async function decryptAES(ciphertextArray, ivArray, key) {
     const iv = new Uint8Array(ivArray);
     const ciphertext = new Uint8Array(ciphertextArray);
 
-    const decrypted = await crypto.subtle.decrypt(
+    const decryptedBuffer = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       key,
       ciphertext
     );
 
-    return new TextDecoder().decode(decrypted);
+    const decoded = new TextDecoder().decode(decryptedBuffer);
+
+    // ✅ Ensure full JSON was returned for large payloads
+    if (!decoded.startsWith('{') || !decoded.endsWith('}')) {
+      throw new Error("Decryption returned incomplete JSON. Data may be too large or corrupted.");
+    }
+
+    return decoded;
   } catch (err) {
     console.error("❌ Decryption failed:", err);
     throw new Error("Decryption failed: Incorrect key or corrupted vault.enc.");
@@ -772,33 +807,19 @@ async function submitUnlock() {
   }
 
   try {
-    // Reconstruct vault.enc Blob from original Uint8Array
-    let vaultEncJson;
-try {
-  const text = new TextDecoder().decode(new Uint8Array(vaultEncRaw.data));
-  vaultEncJson = JSON.parse(text);
-} catch {
-  throw new Error("vault.enc is empty or corrupted. Cannot parse JSON.");
-}
-
-
+    const decoded = new TextDecoder().decode(Uint8Array.from(vaultEncRaw.data));
+    const vaultEncJson = JSON.parse(decoded);
     const { ciphertext, iv } = vaultEncJson;
-    const unlockKey = answer1 + answer2;
-    const aesKey = await deriveKey(unlockKey);
-    const decrypted = await decryptAES(ciphertext, iv, aesKey);
 
-    let fullVaultData;
-    try {
-      fullVaultData = JSON.parse(decrypted);
-    } catch {
-      throw new Error("Vault content could not be parsed. Possible corruption.");
-    }
+    const aesKey = await deriveKey(answer1 + answer2);
+    const decrypted = await decryptAES(new Uint8Array(ciphertext), new Uint8Array(iv), aesKey);
+    const fullVaultData = JSON.parse(decrypted);
 
-    // Pass next-layer IVs into memory
+    // Inject required metadata
     fullVaultData.finalMessageIv = vault.vaultData.finalMessageIv;
     fullVaultData.vaultMetaIv = vault.vaultData.vaultMetaIv;
 
-    // Serialize fresh copy of fileMap
+    // Serialize file map
     const serializedMap = {};
     for (const [filename, blob] of Object.entries(vault.fileMap)) {
       const buffer = await blob.arrayBuffer();
@@ -811,18 +832,43 @@ try {
     const transferObject = {
       vaultJson: vault.vaultData,
       decryptedVaultData: fullVaultData,
-      baseKey: unlockKey,
+      baseKey: answer1 + answer2,
       fileMapRaw: serializedMap
     };
 
-    sessionStorage.setItem("memoroTransfer", JSON.stringify(transferObject));
+    // Save to IndexedDB BEFORE navigating
+    await new Promise((resolve, reject) => {
+      const req = indexedDB.open("memoroVaultVaultStorage", 1);
+      req.onupgradeneeded = function (event) {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains("vaultFiles")) {
+          db.createObjectStore("vaultFiles", { keyPath: "vaultId" });
+        }
+      };
+      req.onsuccess = function (event) {
+        const db = event.target.result;
+        const tx = db.transaction("vaultFiles", "readwrite");
+        const store = tx.objectStore("vaultFiles");
 
-    // Clear lockout metadata
+        // Save both raw files and transfer object
+        store.put({ vaultId: currentUnlockVaultId, fileMapRaw: vault.fileMapRaw });
+        store.put({ vaultId: currentUnlockVaultId + "-transfer", ...transferObject });
+
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject("IndexedDB write failed");
+      };
+      req.onerror = () => reject("Failed to open IndexedDB");
+    });
+
+    // Clear lockout and save ID
     clearInterval(countdownInterval);
     localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
     localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
+    localStorage.setItem("lastVaultId", currentUnlockVaultId);
 
+    // Navigate to recovery
     window.location.href = "recover.html";
+
   } catch (err) {
     console.warn("Decrypt failed:", err.message);
     failedAttempts++;
@@ -855,6 +901,44 @@ document.addEventListener("input", (e) => {
   }
 });
 
+function saveFilesToIndexedDB(vaultId, fileMapRaw, transferObject = null) {
+  const req = indexedDB.open("memoroVaultVaultStorage", 1);
+  req.onupgradeneeded = function (event) {
+    const db = event.target.result;
+    if (!db.objectStoreNames.contains("vaultFiles")) {
+      db.createObjectStore("vaultFiles", { keyPath: "vaultId" });
+    }
+  };
+  req.onsuccess = function (event) {
+    const db = event.target.result;
+    const tx = db.transaction("vaultFiles", "readwrite");
+    const store = tx.objectStore("vaultFiles");
+
+    // Always store fileMapRaw for dashboard hydration
+    store.put({ vaultId, fileMapRaw });
+
+    // If this is also a recovery session, store full object
+    if (transferObject) {
+      store.put({ vaultId: vaultId + "-transfer", ...transferObject });
+      console.log("✅ Transfer stored under:", vaultId + "-transfer");
+    }
+  };
+}
+
+function loadFilesFromIndexedDB(vaultId) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("memoroVaultVaultStorage", 1);
+    req.onsuccess = function (event) {
+      const db = event.target.result;
+      const tx = db.transaction("vaultFiles", "readonly");
+      const store = tx.objectStore("vaultFiles");
+      const getReq = store.get(vaultId);
+      getReq.onsuccess = () => resolve(getReq.result?.fileMapRaw || {});
+      getReq.onerror = () => reject("Failed to retrieve vault file blobs.");
+    };
+    req.onerror = () => reject("IndexedDB load failed.");
+  });
+}
 
 </script>
 

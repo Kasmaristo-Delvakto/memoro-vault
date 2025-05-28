@@ -1,45 +1,61 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
+let mainWindow;
+let audioWindow;
+
 function createWindow() {
-  const win = new BrowserWindow({
+  // Main app window
+  mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
+    show: false,
     icon: path.join(__dirname, 'src', 'assets', 'memoro-vault.ico'),
     webPreferences: {
-      nodeIntegration: false, // safer
-      contextIsolation: true,  // isolates frontend and backend
-      preload: path.join(__dirname, 'preload.js') // we'll make this next
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     focusable: true
   });
 
-  // Load your starting page
-  win.loadFile(path.join(__dirname, 'src', 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 
-  // Ensure the window is shown and focused
-  win.once('ready-to-show', () => {
-    win.show();
-    win.focus();
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
   });
 
-  // Optional: Open dev tools automatically (you can comment out later)
-  // win.webContents.openDevTools();
+  // 🔊 Background audio window (hidden and persistent)
+  audioWindow = new BrowserWindow({
+    show: false,
+    focusable: false,
+    transparent: true,
+    frame: false,
+    fullscreenable: false,
+    resizable: false,
+    webPreferences: {
+      contextIsolation: true
+    }
+  });
+
+  audioWindow.loadFile(path.join(__dirname, 'src', 'audio.html'));
+
+  // ✅ Close everything when main window closes
+  mainWindow.on('closed', () => {
+    if (audioWindow && !audioWindow.isDestroyed()) {
+      audioWindow.destroy();
+    }
+    app.quit();
+  });
 }
 
-// When Electron is ready, create the window
+// When Electron is ready, create the windows
 app.whenReady().then(createWindow);
 
-// On macOS, re-create a window if the dock icon is clicked and no windows are open
+// macOS: re-create window if dock icon is clicked and none open
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
-  }
-});
-
-// Quit when all windows are closed (except on macOS)
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
   }
 });
