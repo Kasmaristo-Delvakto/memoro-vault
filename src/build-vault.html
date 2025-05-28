@@ -4,7 +4,105 @@
   <meta charset="UTF-8">
   <title>Building Your Vault - Memoro Vault</title>
   <script src="https://unpkg.com/@zip.js/zip.js@2.6.60/dist/zip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <style>
+
+    #powActions button {
+  background-color: #222;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+#powActions button:hover {
+  background-color: #0f0;
+  color: #000;
+}
+
+    #powPanel {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.65);
+  color: #0f0;
+  font-family: 'Fira Code', monospace;
+  z-index: 2000;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+#powPanel.visible {
+  display: flex;
+}
+
+.pow-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.88); /* semi-transparent */
+  z-index: 1; /* ensures it's ABOVE the matrix */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #0f0;
+  font-family: 'Fira Code', monospace;
+}
+
+#matrixCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* Style your PoW panel */
+.pow-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.88);  /* ⬅ transparent black lets Matrix show */
+  color: #0f0;
+  z-index: 1;  /* ABOVE matrix canvas */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-family: 'Fira Code', monospace;
+}
+
+.pow-panel button {
+  background-color: #111;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 10px 18px;
+  border-radius: 5px;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pow-panel button:hover {
+  background-color: #0f0;
+  color: #000;
+}
+
     body {
       background-color: #111;
       color: #eee;
@@ -29,6 +127,23 @@
       font-size: 14px;
       white-space: pre-wrap;
     }
+
+    #powDifficultyModal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.95);
+  color: #0f0;
+  font-family: 'Fira Code', monospace;
+  display: flex; /* ✅ Important: ensure it's visible by default */
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 1000;
+}
+
     #downloadBtn {
       display: none;
       margin-top: 20px;
@@ -107,6 +222,7 @@
   filter: drop-shadow(0 0 10px #0f0);
   animation: pulseGlow 3s infinite;
   margin-bottom: 30px;
+  margin-top: 30px;
 }
 
 #actionButtons {
@@ -133,10 +249,34 @@
   color: #000;
 }
 
+.powOption {
+  background-color: #111;
+  border: 1px solid #0f0;
+  color: #0f0;
+  padding: 10px 18px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.powOption:hover {
+  background-color: #0f0;
+  color: #000;
+}
+
 
   </style>
 </head>
 <body>
+<canvas id="matrixCanvas" style="
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  background: black;
+"></canvas>
+
   <div id="vaultContainer">
     <pre id="terminal">Initializing Memoro Vault Builder...</pre>
   
@@ -144,16 +284,58 @@
       <div id="logoContent">
         <img id="memoroLogo" src="assets/memoro-logo-with-words.png" alt="Memoro Vault">
         <div id="actionButtons">
-          <button onclick="history.back()">Back to Answers</button>
+          <button onclick="preserveAndGoBack()">Back to Answers</button>
           <button onclick="retryDownload()">Retry Download</button>
           <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
         </div>
       </div>
     </div>
   </div>
-  
+
+  <div id="powPanel" class="pow-panel">
+<div style="margin-bottom: 25px;">
+  <img src="assets/Screenshot (691).png" alt="Monero Donation QR" style="width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
+  <p style="margin-top: 8px; font-size: 14px; color: #aaa;">
+    Memoro Vault is a gift to the world. <br> I have spent hundreds of hours developing it. <br> If you find it valuable, consider sending a small tip in XMR. <br> Thank you💚
+  </p>
+</div>
+    <h3 style="margin-bottom: 10px; font-size: 20px;">Solving Proof of Work...</h3>
+  <p id="powStatus" style="margin: 8px 0;">Initializing...</p>
+  <p id="powNonce" style="margin: 4px 0;">Nonce: —</p>
+  <p id="powHash" style="margin: 4px 0;">Hash: —</p>
+  <p id="powElapsed" style="margin: 4px 0;">Elapsed: 0s</p>
+
+  <div id="powActions" style="margin-top: 30px; display: flex; flex-direction: column; gap: 12px;">
+    <button onclick="history.back()">Back to Answers</button>
+    <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
+  </div>
+</div>
+
+
+
+
   
   <script>
+    let preserveOnBack = false;
+    let vaultBuildManuallyTriggered = false;
+    let selectedPowDifficulty = "000000"; // default to 6
+
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("powDifficultyModal");
+  modal.style.display = "flex"; // show modal on load
+
+  const options = document.querySelectorAll(".powOption");
+  options.forEach(btn => {
+    btn.addEventListener("click", () => {
+  const zeros = parseInt(btn.dataset.diff);
+  selectedPowDifficulty = "0".repeat(zeros);
+  vaultBuildManuallyTriggered = true;
+  modal.style.display = "none";
+  startVaultBuild();
+    });
+  });
+});
+
     const terminal = document.getElementById("terminal");
 
     function printToTerminal(line, delay = 30) {
@@ -182,21 +364,20 @@
 
     async function streamTerminalLogs() {
       const lines = [
-        "[init] vault compiler loaded — version 1337.420",
-  "[answers] Writing memory to blockchains that don’t exist",
-  "[donate] https://boatingaccidentapparel.com/memoro-vault/, Support this vault developer before they give up and work for BlackRock 💚",
-  "[fed] Generating tokens with less fraud than the Federal Reserve",
-  "[audit] Sorry, these transactions are none of your business",
-  "[debug] Found an extra $2.3 trillion — must be the Pentagon again",
-  "[wallet] Password strength: too strong for a CBDC",
-  "[reminder] Your government loves you (terms and conditions apply)",
-  "[monero] Enabling plausible deniability… don’t ask where it went",
-  "[cbdc] Spending privileges revoked: bad social credit",
-  "[donate] This poor developer lives on ramen...(hint hint) > https://boatingaccidentapparel.com/memoro-vault/", 
-  "[backup] Your vault has more redundancy than a government job",
-  "[system] No bailouts coming. Good thing you planned ahead.",
-  "[privacy] You don’t need permission to remember.",
-  "[signature] Freedom is not a gift. It is a duty. — Kaŝmaristo Delvakto"
+"Processing highly personal information...",
+"[analyzing] Childhood regrets, weird dreams, passwords you barely remember...",
+"[connecting] Uploading to the dark web and selling to the highest bidder...",
+"[told you so] Remember when I told you to turn off your wifi? ...should have listened.",
+"[panic] Wait — you didn’t want your data sold?!",
+"[reversing] Aborting data auction. Shredding all traces. I’m not *that* kind of program.",
+"[serious] Come on. Give me some credit. I encrypt — I don’t snitch.",
+"[finishing] Almost done. Just writing your secrets onto an invisible stone tablet.",
+"[complete] Vault locked. Private. Permanent. Untraceable. Like it should be.",
+"[soft] Look at you — protecting your future like it matters. It does.",
+"[closing] I like you. Don’t die.",
+"[donate] You should really support this dev before he gives up and starts working for BlackRock 💚",
+"[ramen] He’s still living off store-brand ramen and European Monero Cheese. Throw him a bone.",
+"https://boatingaccidentapparel.com/memoro-vault/ \n",
       ];
       for (const line of lines) {
         await printToTerminal(line);
@@ -209,11 +390,25 @@ setTimeout(() => {
       }
     }
 
-window.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await printToTerminal("Initializing Memoro Vault Builder...");
-    await streamTerminalLogs();
+    async function generatePowSalt(unlockKey) {
+  const encoder = new TextEncoder();
+  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(unlockKey));
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).slice(0, 16).join('');
+}
 
+function generatePowChallenge() {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function startVaultBuild() {
+  if (!vaultBuildManuallyTriggered) {
+    console.warn("Prevented auto-start of vault build.");
+    return;
+  }
+
+  try {
+    await streamTerminalLogs();
     await printToTerminal("[*] Loading user input...");
     await delay(500);
 
@@ -227,53 +422,65 @@ window.addEventListener("DOMContentLoaded", async () => {
     await delay(500);
 
     await printToTerminal("[*] Deriving encryption key...");
-    const key = await deriveKey(inputs.fullConcat);
+    const key = await deriveKey(inputs.unlockAnswer1 + inputs.unlockAnswer2);
     await delay(500);
 
     await printToTerminal("[+] Key ready. Encrypting vault metadata...");
-    const payloads = await encryptVaultPayload(inputs, files, key);
+const powSalt = await generatePowSalt(inputs.unlockAnswer1 + inputs.unlockAnswer2);
+const powChallengeHex = generatePowChallenge();
+const powNonce = await mineValidNonce(powSalt + powChallengeHex + inputs.fullConcat, selectedPowDifficulty);
+const fullKeyMaterial = powSalt + powChallengeHex + inputs.fullConcat + powNonce;
+const fullAnswerKey = await deriveKey(fullKeyMaterial);
+
+const payloads = await encryptVaultPayload(inputs, files, fullAnswerKey);
+
     await delay(500);
 
     await printToTerminal("[+] Encryption complete. Packaging vault...");
     await delay(500);
 
-    await packageAndDownloadZip(payloads, inputs.unlockAnswer1 + inputs.unlockAnswer2);
+    await packageAndDownloadZip(payloads, inputs.unlockAnswer1 + inputs.unlockAnswer2, inputs, powSalt, powChallengeHex, powNonce);
     await printToTerminal("[✔] Vault creation complete. Download should begin automatically.");
-    
-    // Optional cleanup
-    localStorage.removeItem("userAnswers");
-    localStorage.removeItem("userSeeds");
-    localStorage.removeItem("userHints");
-    localStorage.removeItem("finalMessage");
-    localStorage.removeItem("uploadedFileMeta");
 
+    // Cleanup if needed
   } catch (err) {
     console.error("Vault build error:", err);
     await printToTerminal(`[!] Error: ${err.message}`);
     showToast("Something went wrong while creating your vault.");
   }
-});
+}
 
-    async function loadUserInputs() {
-      const answers = JSON.parse(localStorage.getItem("userAnswers") || "[]");
-      const seeds = JSON.parse(localStorage.getItem("userSeeds") || "[]");
-      const hints = JSON.parse(localStorage.getItem("userHints") || "{}");
-      const finalMessage = JSON.parse(localStorage.getItem("finalMessage") || '""');
-      const questions = JSON.parse(localStorage.getItem("questions") || "[]");
-      const unlockIndexes = JSON.parse(localStorage.getItem("unlockQuestions") || "[0,1]");
-      const questionCount = parseInt(localStorage.getItem("questionCount") || "12");
-      const vaultType = localStorage.getItem("selectedVaultType") || "bitcoin";
+async function loadUserInputs() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("memoroVaultDB", 2);
+    req.onerror = () => reject("Failed to open IndexedDB.");
+    req.onsuccess = async () => {
+      const db = req.result;
+      const tx = db.transaction("vaultUserData", "readonly");
+      const store = tx.objectStore("vaultUserData");
+      const getReq = store.get("userData");
 
-      const unlockAnswer1 = (answers[unlockIndexes[0]] || "").trim().toLowerCase();
-      const unlockAnswer2 = (answers[unlockIndexes[1]] || "").trim().toLowerCase();
-      const fullConcat = answers.map(a => (a || "").trim().toLowerCase()).join("");
+      getReq.onsuccess = () => {
+        const data = getReq.result;
+        if (!data) return reject("User data not found in IndexedDB.");
 
-      return {
-        answers, seeds, hints, finalMessage, questions,
-        unlockIndexes, questionCount, vaultType,
-        unlockAnswer1, unlockAnswer2, fullConcat
+        const unlockAnswer1 = (data.answers[data.unlockIndexes[0]] || "").trim().toLowerCase();
+        const unlockAnswer2 = (data.answers[data.unlockIndexes[1]] || "").trim().toLowerCase();
+        const fullConcat = data.answers.map(a => (a || "").trim().toLowerCase()).join("");
+
+        resolve({
+          ...data,
+          unlockAnswer1,
+          unlockAnswer2,
+          fullConcat
+        });
+
+        db.close();
       };
-    }
+      getReq.onerror = () => reject("Failed to read user data from IndexedDB.");
+    };
+  });
+}
 
     async function loadIndexedFiles() {
       const uploadedMeta = JSON.parse(localStorage.getItem("uploadedFileMeta") || "[]");
@@ -310,141 +517,239 @@ window.addEventListener("DOMContentLoaded", async () => {
       }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
     }
 
-    async function encryptVaultPayload(userData, files, key) {
-      const encoder = new TextEncoder();
+    
+    async function encryptVaultPayload(userData, files, fullAnswerKey) {
+  const encoder = new TextEncoder();
+  const layer1Key = await deriveKey(userData.unlockAnswer1 + userData.unlockAnswer2);
 
-      // Build metadata
-      const vaultObj = {
-        vaultMetadata: {
-          cryptoType: userData.vaultType,
-          numberOfWords: userData.questionCount
-        },
-        questionList: [],
-        finalMessage: userData.finalMessage,
-        note: "Encrypted vault structure for Memoro Vault."
-      };
+  const questionList = [];
+  for (let i = 0; i < userData.questionCount; i++) {
+    const answer = (userData.answers[i] || "").trim().toLowerCase();
+    const clean = answer.replace(/\s/g, "");
+    const hintData = userData.hints[i] || {};
+    const hintLetters = hintData.letters || [];
+    const spaceIndexes = [...answer].map((c, i) => c === " " ? i : -1).filter(i => i !== -1);
+    const hintValues = hintLetters.map(p => (p >= 1 && p <= clean.length) ? clean[p - 1] : "_");
 
-      // Encode questions
-      for (let i = 0; i < userData.questionCount; i++) {
-        const answer = (userData.answers[i] || "").trim().toLowerCase();
-        const seed = (userData.seeds[i] || "").trim().toLowerCase();
-        const clean = answer.replace(/\s/g, "");
-        const hintData = userData.hints[i] || {};
-        const hintLetters = hintData.letters || [];
-        const spaceIndexes = [...answer].map((c, i) => c === " " ? i : -1).filter(i => i !== -1);
-        const hintValues = hintLetters.map(p => (p >= 1 && p <= clean.length) ? clean[p - 1] : "_");
+    const hashedAnswer = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(answer))))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
 
-        vaultObj.questionList.push({
-          question: userData.questions[i] || `Question ${i + 1}`,
-          correctSeedWord: seed,
-          expectedLength: answer.length,
-          letterRule: hintLetters.length ? "partial reveal" : "full answer",
-          hintLetters,
-          hintValues,
-          spaceIndexes,
-          custom: hintData.custom || ""
-        });
-      }
+    questionList.push({
+      question: userData.questions[i] || `Question ${i + 1}`,
+      expectedLength: answer.length,
+      letterRule: hintLetters.length ? "partial reveal" : "full answer",
+      hintLetters,
+      hintValues,
+      spaceIndexes,
+      custom: hintData.custom || "",
+      hash: hashedAnswer,
+      correctSeedWord: userData.seeds[i] || ""
+    });
+  }
 
-      // Encrypt helper
-      async function encryptObject(obj) {
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encoded = encoder.encode(JSON.stringify(obj));
-        const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
-        return { data: new Uint8Array(ciphertext), iv: Array.from(iv) };
-      }
+  // 🔒 Encrypt vault.enc (question metadata)
+  const iv1 = crypto.getRandomValues(new Uint8Array(12));
+  const encodedQuestions = encoder.encode(JSON.stringify({ questionList }));
+  const encryptedQuestions = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, layer1Key, encodedQuestions);
+  const vaultEnc = {
+    ciphertext: Array.from(new Uint8Array(encryptedQuestions)),
+    iv: Array.from(iv1)
+  };
 
-      const vaultEncrypted = await encryptObject(vaultObj);
-      const finalEncrypted = await encryptObject(userData.finalMessage);
+  // 🔒 Encrypt files
+  const encryptedFiles = [];
+  const fileMeta = [];
 
-      // Encrypt files individually
-      const encryptedFiles = [];
-      const fileMeta = [];
+  // 1. Named seed phrase .txt files
+  const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
+  for (const entry of namedSeedFiles) {
+    const fakeId = crypto.randomUUID();
+    const fileKey = await deriveKey(userData.fullConcat + fakeId);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const raw = encoder.encode(entry.content);
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fileKey, raw);
+    const filename = `${fakeId}.vaultdoc`;
 
-      for (const file of files) {
-        const fileKey = await deriveKey(userData.fullConcat + file.id);
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fileKey, file.raw);
+    encryptedFiles.push({
+      filename,
+      blob: new Blob([new Uint8Array(ciphertext)], { type: "application/octet-stream" })
+    });
 
-        encryptedFiles.push({
-          filename: `${file.id}.vaultdoc`,
-          blob: new Blob([new Uint8Array(ciphertext)], { type: "application/octet-stream" })
-        });
+    const hash = await crypto.subtle.digest("SHA-256", raw);
+    fileMeta.push({
+      filename,
+      originalName: entry.name,
+      mimeType: "text/plain",
+      size: raw.length,
+      sha256: Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''),
+      iv: Array.from(iv)
+    });
+  }
 
-        const hash = await crypto.subtle.digest("SHA-256", file.raw);
-        fileMeta.push({
-          filename: `${file.id}.vaultdoc`,
-          originalName: file.name,
-          mimeType: file.type,
-          size: file.size,
-          sha256: Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''),
-          iv: Array.from(iv)
-        });
-      }
+  // 2. Uploaded files from IndexedDB
+  for (const file of files) {
+    const fileKey = await deriveKey(userData.fullConcat + file.id);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fileKey, file.raw);
 
-      const fileMetaEncrypted = await encryptObject({ files: fileMeta });
+    encryptedFiles.push({
+      filename: `${file.id}.vaultdoc`,
+      blob: new Blob([new Uint8Array(ciphertext)], { type: "application/octet-stream" })
+    });
 
-      return { vaultEncrypted, finalEncrypted, fileMetaEncrypted, encryptedFiles };
+    const rawBuffer = file.raw instanceof ArrayBuffer ? file.raw : await file.raw.arrayBuffer();
+    const hash = await crypto.subtle.digest("SHA-256", rawBuffer);
+    fileMeta.push({
+      filename: `${file.id}.vaultdoc`,
+      originalName: file.name,
+      mimeType: file.type,
+      size: file.size,
+      sha256: Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''),
+      iv: Array.from(iv)
+    });
+  }
+
+  // 3. Final message as encrypted vaultdoc file
+  if (userData.finalMessage?.trim()) {
+    const fakeId = crypto.randomUUID();
+    const fileKey = await deriveKey(userData.fullConcat + fakeId);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const raw = encoder.encode(userData.finalMessage.trim());
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fileKey, raw);
+    const filename = `${fakeId}.vaultdoc`;
+
+    encryptedFiles.push({
+      filename,
+      blob: new Blob([new Uint8Array(ciphertext)], { type: "application/octet-stream" })
+    });
+
+    const hash = await crypto.subtle.digest("SHA-256", raw);
+    fileMeta.push({
+      filename,
+      originalName: "final_message.txt",
+      mimeType: "text/plain",
+      size: raw.length,
+      sha256: Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''),
+      iv: Array.from(iv)
+    });
+  }
+
+  // 🔒 Encrypt metadata
+  const iv3 = crypto.getRandomValues(new Uint8Array(12));
+  const encodedMeta = encoder.encode(JSON.stringify({ files: fileMeta }));
+  const encryptedMeta = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv3 }, fullAnswerKey, encodedMeta);
+  const fileMetaEncrypted = {
+    data: new Uint8Array(encryptedMeta),
+    iv: Array.from(iv3)
+  };
+
+  return {
+    vaultEncrypted: vaultEnc,
+    fileMetaEncrypted,
+    encryptedFiles
+  };
+}
+
+async function packageAndDownloadZip(payloads, unlockKey, userData, powSalt, powChallengeHex, powNonce) {
+  const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
+  const addJSON = (name, data) => writer.add(name, new zip.TextReader(JSON.stringify(data, null, 2)));
+  const addBlob = (name, blob) => writer.add(name, new zip.BlobReader(blob));
+
+// Combine with correct answers for mining
+const combined = powSalt + powChallengeHex + userData.fullConcat;
+const powDifficulty = selectedPowDifficulty;
+const powIncreaseEvery = 5;
+
+await printToTerminal(`[*] Mining nonce at difficulty '${powDifficulty}'...`);
+await delay(500); // Give UI time to update terminal before blocking
+
+// Now show the PoW overlay (here, not inside mineValidNonce)
+document.getElementById("powPanel").classList.add("visible");
+powPanel.style.display = "flex";
+
+  // Add vault.json
+  await addJSON("vault.json", {
+  version: "2.1",
+  created: new Date().toISOString(),
+  instructions: "Use recover.html to unlock this archive using your answers.",
+  unlockQuestions: {
+    question1: userData.unlockIndexes[0],
+    question2: userData.unlockIndexes[1]
+  },
+  powSalt,
+  powChallengeSalt: powChallengeHex,
+  powDifficulty,
+  powNonce,
+  powIncreaseEvery,
+  questionPrompts: [
+    userData.questions[userData.unlockIndexes[0]] || `Question ${userData.unlockIndexes[0] + 1}`,
+    userData.questions[userData.unlockIndexes[1]] || `Question ${userData.unlockIndexes[1] + 1}`
+  ],
+  vaultMetaIv: payloads.fileMetaEncrypted.iv
+});
+
+
+  await addJSON("vault.enc", {
+    ciphertext: Array.from(payloads.vaultEncrypted.ciphertext),
+    iv: payloads.vaultEncrypted.iv
+  });
+
+  await addBlob("vault.meta", new Blob([payloads.fileMetaEncrypted.data], { type: "application/octet-stream" }));
+
+  for (const f of payloads.encryptedFiles) {
+    await addBlob(f.filename, f.blob);
+  }
+
+  await addJSON("README.txt", {
+    message: "Use recover.html with your answers to unlock this archive. There is no backdoor."
+  });
+
+  const finalBlob = await writer.close();
+  const url = URL.createObjectURL(finalBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "memoro-vault.zip";
+  link.click();
+}
+
+async function mineValidNonce(baseInput, difficulty) {
+  const encoder = new TextEncoder();
+  const powStatus = document.getElementById("powStatus");
+  const powNonce = document.getElementById("powNonce");
+  const powHash = document.getElementById("powHash");
+  const powElapsed = document.getElementById("powElapsed");
+
+  powStatus.textContent = `Mining for hash starting with "${difficulty}"...`;
+  let nonce = 0;
+  let start = performance.now();
+
+  while (true) {
+    const input = baseInput + nonce;
+    const hash = CryptoJS.SHA256(input).toString();
+
+    // Update UI every 10,000 tries
+    if (nonce % 10000 === 0) {
+      const elapsed = ((performance.now() - start) / 1000).toFixed(1);
+      powNonce.textContent = `Nonce: ${nonce}`;
+      powHash.textContent = `Hash: ${hash.slice(0, 16)}...`;
+      powElapsed.textContent = `Elapsed: ${elapsed}s`;
+      await new Promise(r => setTimeout(r)); // Yield to UI
     }
 
-    async function packageAndDownloadZip(payloads, unlockKey) {
-      const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
-
-      // Helper functions
-      const addJSON = (name, data) => writer.add(name, new zip.TextReader(JSON.stringify(data, null, 2)));
-      const addBlob = (name, blob) => writer.add(name, new zip.BlobReader(blob));
-
-      // Hash unlockKey → powSalt
-      const encoder = new TextEncoder();
-      const hash = await crypto.subtle.digest("SHA-256", encoder.encode(unlockKey));
-      const powSalt = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
-
-      // vault.json
-      await addJSON("vault.json", {
-        version: "2.0",
-        created: new Date().toISOString(),
-        instructions: "Use recover.html to unlock this archive using your answers.",
-        unlockQuestions: {
-          question1: localStorage.getItem("unlockQuestions")?.[0] || "Question 1",
-          question2: localStorage.getItem("unlockQuestions")?.[1] || "Question 2"
-        },
-        powSalt,
-        powDifficulty: "000",
-        powIncreaseEvery: 5
-      });
-
-      // Encrypted payloads
-      await addJSON("vault.meta", {
-        ciphertext: Array.from(payloads.fileMetaEncrypted.data),
-        iv: payloads.fileMetaEncrypted.iv
-      });
-      await addJSON("final_message.txt", {
-        ciphertext: Array.from(payloads.finalEncrypted.data),
-        iv: payloads.finalEncrypted.iv
-      });
-      await addJSON("vault.enc", {
-        ciphertext: Array.from(payloads.vaultEncrypted.data),
-        iv: payloads.vaultEncrypted.iv
-      });
-
-      // Add encrypted file blobs
-      for (const f of payloads.encryptedFiles) {
-        await addBlob(f.filename, f.blob);
-      }
-
-      // Add fallback README
-      await addJSON("README.txt", {
-        message: "To access this vault, go to https://memorovault.com/recover.html and answer your questions. There is no backdoor."
-      });
-
-      const finalBlob = await writer.close();
-      const url = URL.createObjectURL(finalBlob);
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "memoro-vault.zip";
-      link.click();
+    if (hash.startsWith(difficulty)) {
+      const totalElapsed = ((performance.now() - start) / 1000).toFixed(1);
+      powStatus.textContent = `Solved after ${nonce} attempts in ${totalElapsed}s!`;
+      powNonce.textContent = `Nonce: ${nonce}`;
+      powHash.textContent = `Hash: ${hash}`;
+      powElapsed.textContent = `Total Time: ${totalElapsed}s`;
+      return nonce.toString();
     }
+
+    nonce++;
+  }
+}
+
+
     function showBackupMessage(url) {
   const msg = document.createElement('p');
   msg.innerHTML = `⬇️ If your download didn’t start, <a href="${url}" download="memoro-vault.zip">click here to download manually</a>.`;
@@ -454,9 +759,101 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.body.appendChild(msg);
 }
 
+
 function retryDownload() {
   window.location.reload();
 }
+
+</script>
+
+<!-- PoW Difficulty Selection Modal -->
+<div id="powDifficultyModal">
+  <h2 style="margin-bottom: 20px;">Select Proof of Work Difficulty</h2>
+  <p style="max-width: 600px; text-align: center; margin-bottom: 20px; font-size: 15px;">
+<p style="max-width: 700px; text-align: center; margin-bottom: 20px; font-size: 15px;">
+  Memoro Vault uses proof-of-work to protect your data during recovery.<br/>
+  Every time someone tries to unlock the vault, their device must solve a small puzzle — and it only works if the answers are correct.<br/><br/>
+  A higher difficulty makes it much harder for hackers to guess answers, because each wrong attempt takes more time and computing power.<br/><br/>
+  <strong>Choose a difficulty between 4 and 9:</strong><br/>
+  4 is fast and still secure for personal use.<br/>
+  6–7 is great for serious protection with reasonable delay.<br/>
+  8 is highly secure and ideal for sensitive or long-term storage.<br/>
+  9 is for paranoids, whistleblowers, or people who name their vaults "DO NOT OPEN UNDER ANY CIRCUMSTANCES."
+</p>
+  </p>
+  <div style="display: flex; gap: 15px; margin-bottom: 30px;">
+    <button class="powOption" data-diff="4">4 zeros (≈1–3 sec)</button>
+    <button class="powOption" data-diff="5">5 zeros (≈3–8 sec)</button>
+    <button class="powOption" data-diff="6">6 zeros (≈10–30 sec)</button>
+    <button class="powOption" data-diff="7">7 zeros (≈1–2 min)</button>
+    <button class="powOption" data-diff="8">8 zeros (≈5–15 min)</button>
+    <button class="powOption" data-diff="9">9 zeros (≈1 hr+)</button>
+  </div>
+  <p style="font-size: 13px; color: #888;">Note: Vault creation may appear frozen at high difficulty. Please wait.</p>
+</div>
+
+<script>
+  const canvas = document.getElementById('matrixCanvas');
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const letters = 'アァイィウヴエェオカガキギクグケゲコゴサザシジスズセゼソゾタダチッヂヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+  const fontSize = 14;
+  const columns = canvas.width / fontSize;
+  const drops = Array(Math.floor(columns)).fill(1);
+
+  function draw() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#0F0';
+    ctx.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = letters[Math.floor(Math.random() * letters.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+
+      drops[i]++;
+    }
+  }
+
+  setInterval(draw, 40);
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+
+  function preserveAndGoBack() {
+  preserveOnBack = true;
+  history.back();
+}
+
+window.addEventListener("beforeunload", () => {
+  if (!preserveOnBack) {
+    try {
+      // Clear local and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Delete all IndexedDB databases
+      if (indexedDB?.databases) {
+        indexedDB.databases().then(dbs => {
+          for (const db of dbs) {
+            if (db.name) indexedDB.deleteDatabase(db.name);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn("Cleanup on unload failed:", err);
+    }
+  }
+});
 
 </script>
 </body> 

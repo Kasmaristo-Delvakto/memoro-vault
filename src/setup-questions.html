@@ -13,20 +13,93 @@
     .edit-button { background-color: #444; color: #eee; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; }
     .edit-button:hover { background-color: #666; }
     .unlock-checkbox { margin-left: 20px; transform: scale(1.5); }
+    /* Matrix-style custom checkbox */
+.unlock-checkbox {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #00ff99;
+  border-radius: 3px;
+  background-color: #111;
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  transition: all 0.2s ease;
+}
+
+.unlock-checkbox:checked {
+  background-color: #00ff99;
+  border-color: #00ff99;
+}
+
+.unlock-checkbox:checked::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid black;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+
     .button-container { display: flex; justify-content: space-between; width: 100%; max-width: 400px; margin-top: 30px; }
     .button { background-color: #333; color: #eee; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; width: 45%; }
     .button:hover { background-color: #555; }
 
     /* Modal Styles */
-    .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
     .modal-content { background-color: #222; padding: 30px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
     .modal-content input { width: 100%; padding: 10px; margin-top: 20px; margin-bottom: 20px; border: none; border-radius: 6px; background-color: #333; color: #eee; font-size: 16px; }
     .modal-buttons { display: flex; justify-content: space-around; margin-top: 20px; }
-    .modal-buttons button { background-color: #0066cc; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; }
-    .modal-buttons button:hover { background-color: #0055aa; }
+.modal-buttons button {
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.modal-buttons button:hover {
+  background-color: #004422;
+  transform: translateY(-1px);
+}
+    
+    canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -2;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
+  z-index: -1;
+}
+
+body {
+  background-color: black;
+  color: #00ff99;
+  font-family: 'Fira Code', monospace;
+}
+
   </style>
 </head>
 <body>
+
+  <canvas id="matrix"></canvas>
+<div class="overlay"></div>
 
 <h1>Setup Your Security Questions</h1>
 <p class="instruction">
@@ -50,7 +123,7 @@
     </div>
     <div style="margin-bottom: 15px;">
       <label style="font-size:16px;">Suggestions:</label>
-      <select id="categoryDropdown" onchange="populateSuggestions()" style="width:100%; padding:10px; font-size:16px; background:#222; border:none; color:white; border-radius:6px; margin-top:5px;">
+    <select id="categoryDropdown">
         <option value="">-- Select Category --</option>
         <option value="home">Home</option>
         <option value="family">Family</option>
@@ -67,7 +140,7 @@
     </div>
     <div id="suggestionsList" style="max-height: 150px; overflow-y: auto; margin-bottom:15px;"></div>
     <div class="modal-buttons">
-      <button onclick="saveEditedQuestion()">Save</button>
+      <button onclick="saveModalEdit()">Save</button>
       <button onclick="closeModal()">Cancel</button>
     </div>
   </div>
@@ -81,7 +154,9 @@
       Your seed and memory answers will be handled only on this device.<br><br>
       Nothing is uploaded, transmitted, or stored externally.<br><br>
       Sensitive data is automatically erased after 30 minutes or after building your vault.<br><br>
-      Please use a secure device and environment.
+      Please use a secure device and environment.<br><br>
+      For security purposes, avoid using your full name
+      in the questions. Use only initials.
     </p>
     <div class="modal-buttons">
       <button onclick="proceedToAnswers()">I Understand — Continue</button>
@@ -132,10 +207,22 @@ const defaultQuestions = [
 ];
 
 function loadQuestions() {
-  const selectedCrypto = localStorage.getItem('selectedCrypto');
-  let numberOfQuestions = 24;
-  if (selectedCrypto === 'monero') numberOfQuestions = 25;
-  else if (selectedCrypto === 'monero-polyseed') numberOfQuestions = 16;
+  const vaultType = localStorage.getItem('selectedVaultType');
+let numberOfQuestions;
+
+// Handle Monero and Bitcoin variants
+if (vaultType === 'monero') numberOfQuestions = 25;
+else if (vaultType === 'monero-polyseed') numberOfQuestions = 16;
+else if (vaultType === 'bitcoin') numberOfQuestions = 24;
+else if (vaultType === 'bitcoin-legacy') numberOfQuestions = 12;
+else {
+  const customCount = parseInt(localStorage.getItem('customQuestionCount'));
+  numberOfQuestions = isNaN(customCount) ? 12 : customCount;
+}
+
+
+  // Save it again just to ensure continuity
+  localStorage.setItem('questionCount', numberOfQuestions);
 
   const savedQuestions = JSON.parse(localStorage.getItem('questions'));
   questions = (savedQuestions && savedQuestions.length >= numberOfQuestions)
@@ -150,7 +237,7 @@ function loadQuestions() {
     div.className = 'question-item';
     div.innerHTML = `
       <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${questions[i]}</div>
-      <button class="edit-button" onclick="openModal(${i})">✏️ Edit</button>
+      <button class="edit-button" onclick="openModal(${i})">Edit</button>
       <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
     `;
     questionList.appendChild(div);
@@ -173,7 +260,7 @@ function closeModal() {
 }
 
 function saveModalEdit() {
-  const newQuestion = document.getElementById('modalInput').value.trim();
+  const newQuestion = document.getElementById('editInput').value.trim();
   if (newQuestion && currentEditIndex !== null) {
     questions[currentEditIndex] = newQuestion;
     document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${newQuestion}`;
@@ -229,10 +316,6 @@ function closeMessageModal() {
 
 window.onload = loadQuestions;
 </script>
-
-</body>
-</html>
-
 
 <!-- Disclaimer Modal -->
 <div id="disclaimerModal" class="modal">
@@ -260,132 +343,6 @@ window.onload = loadQuestions;
     </div>
   </div>
 </div>
-
-<script>
-let questions = [];
-let currentEditIndex = null;
-
-const defaultQuestions = [
-  "What was the name of your childhood best friend?",
-  "What was the street name where you grew up?",
-  "What is your oldest sibling’s middle name?",
-  "What was the name of your first pet?",
-  "What city were you born in?",
-  "What is the name of your favorite childhood teacher?",
-  "What was the make of your first car?",
-  "What is the middle name of one of your grandparents?",
-  "What is the title of your favorite childhood book?",
-  "What was the mascot of your high school?",
-  "What was your favorite vacation spot as a kid?",
-  "What was the name of your first boss?",
-  "What was the color of your childhood bedroom walls?",
-  "What was your childhood dream job?",
-  "What’s the first concert you ever attended?",
-  "What’s the name of your favorite stuffed animal or toy?",
-  "What was the first videogame you remember playing?",
-  "What was your childhood nickname?",
-  "What is your mother's mother's maiden name?",
-  "What is the name of the first street you lived on?",
-  "What was your favorite childhood meal?",
-  "What was your favorite cartoon growing up?",
-  "Who was your favorite childhood hero?",
-  "What is a weird family tradition you had growing up?"
-];
-
-function loadQuestions() {
-  const selectedCrypto = localStorage.getItem('selectedCrypto');
-  let numberOfQuestions = 24;
-  if (selectedCrypto === 'monero') numberOfQuestions = 25;
-  else if (selectedCrypto === 'monero-polyseed') numberOfQuestions = 16;
-
-  const savedQuestions = JSON.parse(localStorage.getItem('questions'));
-  questions = (savedQuestions && savedQuestions.length >= numberOfQuestions)
-    ? savedQuestions.slice(0, numberOfQuestions)
-    : defaultQuestions.slice(0, numberOfQuestions);
-
-  const questionList = document.getElementById('questionList');
-  questionList.innerHTML = "";
-
-  for (let i = 0; i < numberOfQuestions; i++) {
-    const div = document.createElement('div');
-    div.className = 'question-item';
-    div.innerHTML = `
-      <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${questions[i]}</div>
-      <button class="edit-button" onclick="openModal(${i})">✏️ Edit</button>
-      <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
-    `;
-    questionList.appendChild(div);
-  }
-}
-
-function openModal(index) {
-  currentEditIndex = index;
-  document.getElementById('modalInput').value = questions[index];
-  document.getElementById('editModal').style.display = 'flex';
-}
-
-function closeModal() {
-  document.getElementById('editModal').style.display = 'none';
-  currentEditIndex = null;
-}
-
-function saveModalEdit() {
-  const newQuestion = document.getElementById('modalInput').value.trim();
-  if (newQuestion && currentEditIndex !== null) {
-    questions[currentEditIndex] = newQuestion;
-    document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${newQuestion}`;
-    localStorage.setItem('questions', JSON.stringify(questions));
-  }
-  closeModal();
-}
-
-function limitSelection() {
-  const checkboxes = document.querySelectorAll('.unlock-checkbox');
-  const checked = Array.from(checkboxes).filter(cb => cb.checked);
-  if (checked.length >= 2) {
-    checkboxes.forEach(cb => { if (!cb.checked) cb.disabled = true; });
-  } else {
-    checkboxes.forEach(cb => cb.disabled = false);
-  }
-}
-
-function showDisclaimer() {
-  const checkboxes = document.querySelectorAll('.unlock-checkbox');
-  const selected = Array.from(checkboxes).filter(cb => cb.checked);
-  if (selected.length !== 2) {
-    showMessageModal('Selection Error', 'Please select exactly TWO unlock questions.');
-    return;
-  }
-  document.getElementById('disclaimerModal').style.display = 'flex';
-}
-
-function proceedToAnswers() {
-  const checkboxes = document.querySelectorAll('.unlock-checkbox');
-  const selectedIndexes = [];
-  checkboxes.forEach((cb, idx) => { if (cb.checked) selectedIndexes.push(idx); });
-
-  localStorage.setItem('questions', JSON.stringify(questions));
-  localStorage.setItem('unlockQuestions', JSON.stringify(selectedIndexes));
-
-  window.location.href = "answer-questions.html";
-}
-
-function goBack() {
-  window.history.back();
-}
-
-function showMessageModal(title, message) {
-  document.getElementById('messageModalTitle').innerText = title;
-  document.getElementById('messageModalText').innerText = message;
-  document.getElementById('messageModal').style.display = 'flex';
-}
-
-function closeMessageModal() {
-  document.getElementById('messageModal').style.display = 'none';
-}
-
-window.onload = loadQuestions;
-</script>
 
 <script>
   const suggestionBank = {
@@ -587,29 +544,6 @@ window.onload = loadQuestions;
 ],
   };
   
-  function populateSuggestions() {
-    const category = document.getElementById('categoryDropdown').value;
-    const listDiv = document.getElementById('suggestionsList');
-    listDiv.innerHTML = '';
-  
-    if (category && suggestionBank[category]) {
-      suggestionBank[category].forEach(q => {
-        const btn = document.createElement('button');
-        btn.textContent = q;
-        btn.style.cssText = `
-          display:block; width:100%; text-align:left;
-          background:#333; border:none; color:white;
-          padding:8px; margin-top:5px; border-radius:6px;
-          font-size:15px; cursor:pointer;
-        `;
-        btn.onclick = () => {
-          document.getElementById('editInput').value = q;
-        };
-        listDiv.appendChild(btn);
-      });
-    }
-  }
-  
   
   function populateSuggestions() {
     const category = document.getElementById('categoryDropdown').value;
@@ -643,7 +577,14 @@ window.onload = loadQuestions;
     }
     closeModal();
   }
+
+  document.addEventListener("DOMContentLoaded", () => {
+  loadQuestions();
+  document.getElementById("categoryDropdown").addEventListener("change", populateSuggestions);
+});
+
   </script>
   
 </body>
 </html>
+
