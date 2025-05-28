@@ -43,7 +43,7 @@ Whether you’re trying to pass something down or protect yourself in life, Memo
 - Incorrect attempts trigger escalating lockout delays to slow guessing
 
 ### Layer 2 – Full Recovery
-- Requires 16–25 total answers (you define them)
+- Requires 4–25 total answers (you define them)
 - Enforces a dynamic Proof-of-Work (PoW) challenge that must be solved each time
 - Only if all answers and the nonce are correct does final decryption occur
 
