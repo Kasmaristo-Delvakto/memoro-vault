@@ -381,58 +381,98 @@ async function flushBatch(lines) {
   await new Promise(resolve => setTimeout(resolve, 0)); // Let DOM render
 }
 
-  async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
+
+async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
+  if (!vaultJson?.powSalt || !vaultJson?.powChallengeSalt || !vaultJson?.vaultHash) {
+    throw new Error("Vault is missing critical PoW data.");
+  }
+
   const fullConcat = userAnswers.map(a => a.trim().toLowerCase()).join("");
   const baseInput = vaultJson.powSalt + vaultJson.powChallengeSalt + fullConcat;
-  const bakedNonce = vaultJson.powNonce;
+  const vaultHash = vaultJson.vaultHash;
   const bakedDifficulty = vaultJson.powDifficulty;
-  const bakedHash = CryptoJS.SHA256(baseInput + bakedNonce).toString();
   const attempt = window.powAttempt || 1;
   const dynamicDifficulty = getCurrentDifficulty(attempt);
 
-  await printLineSlow(`[*] Verifying proof-of-work...`);
-  await printLineSlow(`[⛏] Starting Proof of Work... Difficulty: '${dynamicDifficulty}'`);
-  await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second pause
+  console.log("[] Static PoW Debug:");
+  console.log("vaultHash:", vaultHash);
+  console.log("baseInput + nonce", baseInput + " + [nonce]");
+  console.log("bakedDifficulty:", bakedDifficulty);
 
-  let solved = false;
-  let valid = bakedHash.startsWith(bakedDifficulty);
-  let nonce = 0;
-  let verifiedNonce = null;
   let batch = [];
 
-  while (!solved) {
-    const currentNonce = nonce.toString();
-    const hash = CryptoJS.SHA256(baseInput + currentNonce).toString();
+  // 🔓 1. Dynamic PoW (rate-limiting step)
+  await printLineSlow(`[*] Dynamic Proof of Work...`);
+  await printLineSlow(`[⛏] Mining until hash starts with '${dynamicDifficulty}'`);
+  await new Promise(r => setTimeout(r, 1000));
 
-    batch.push(`Nonce ${nonce} → ${hash.slice(0, 16)}...`);
+  let nonce1 = 0;
+  let dynamicSolved = false;
 
-    if (!verifiedNonce && hash.startsWith(dynamicDifficulty)) {
-      verifiedNonce = currentNonce;
-      if (valid) {
-        await flushBatch(batch);
-        await printLineSlow(`✅ Found matching hash. Using vault nonce ${bakedNonce}`);
-        vaultJson.powNonce = bakedNonce;
-      } else {
-        await flushBatch(batch);
-        await printLineSlow(`✅ Solved PoW with nonce ${verifiedNonce}, hash: ${hash.slice(0, 16)}...`);
-        vaultJson.powNonce = verifiedNonce;
-      }
-      solved = true;
+  while (!dynamicSolved) {
+    const hash = CryptoJS.SHA256(baseInput + nonce1).toString();
+    batch.push(`Nonce ${nonce1} → ${hash.slice(0, 16)}...`);
+
+    if (hash.startsWith(dynamicDifficulty)) {
+      dynamicSolved = true;
+      await flushBatch(batch);
+      await printLineSlow(`Dynamic PoW success at nonce ${nonce1}`);
     }
 
-    nonce++;
-
-    if (batch.length === 500) {
+    nonce1++;
+    if (batch.length >= 500) {
       await flushBatch(batch);
       batch = [];
     }
   }
 
-  if (batch.length > 0) {
-    await flushBatch(batch);
+  await printLineSlow(`\n────────────────────────────`);
+  await printLineSlow(`[→] Starting static PoW now...`);
+  await printLineSlow(`────────────────────────────\n`);
+  await printLineSlow(`[*] Static PoW — matching vaultHash...`);
+  await printLineSlow(`[*] Mining until hash = vaultHash:`);
+
+  let nonce2 = 0;
+  let staticSolved = false;
+  batch = [];
+
+  const maxNonceLimits = {
+    "0000":        5_000_000,
+    "00000":      10_000_000,
+    "000000":     50_000_000,
+    "0000000":   250_000_000,
+    "00000000": 2_050_000_000,
+    "000000000":50_000_000_000
+  };
+  const maxNonce = maxNonceLimits[bakedDifficulty] || 10_000_000;
+
+  while (!staticSolved && nonce2 <= maxNonce) {
+    const hash = CryptoJS.SHA256(baseInput + nonce2).toString();
+    batch.push(`Nonce ${nonce2} → ${hash.slice(0, 16)}...`);
+
+    if (hash === vaultHash) {
+      staticSolved = true;
+      vaultJson.powNonce = nonce2.toString(); // for decryption
+      await flushBatch(batch);
+      await printLineSlow(`✅ Static PoW match at nonce ${nonce2}`);
+      break;
+    }
+
+    nonce2++;
+    if (batch.length >= 500) {
+      await flushBatch(batch);
+      batch = [];
+    }
   }
 
-  await printLineSlow(`[✓] PoW verification complete.`);
+  if (!staticSolved) {
+    await flushBatch(batch);
+    await printLineSlow(`❌ Failed to solve static PoW after ${maxNonce} tries`);
+    throw new Error("Static PoW failed. Try again with correct answers.");
+  }
+
+  if (batch.length > 0) await flushBatch(batch);
+  await printLineSlow(`[✓] Dual PoW verification complete.`);
 }
 
 async function safeUint8ArrayFromBlob(blob) {
@@ -534,7 +574,6 @@ async function safeUint8ArrayFromBlob(blob) {
   const terminalDiv = document.getElementById("powTerminal");
 
   try {
-    // Reset overlay and terminal
     overlay.style.display = "flex";
     overlay.style.opacity = "1";
     overlay.style.transition = "none";
@@ -546,8 +585,16 @@ async function safeUint8ArrayFromBlob(blob) {
     const vaultData = window.vaultData;
     const requiredCorrect = window.requiredCorrectAnswers || 0;
 
+    // 🔒 Ensure questions and file map are ready
+    if (!vaultData?.questionList || vaultData.questionList.length === 0) {
+      throw new Error("Vault questions not loaded yet.");
+    }
+    if (!window.fileMap || Object.keys(window.fileMap).length === 0) {
+      throw new Error("File map not fully loaded yet.");
+    }
+
     const inputs = [];
-    for (let i = 0; i < window.savedQuestions.length; i++) {
+    for (let i = 0; i < vaultData.questionList.length; i++) {
       const val = document.getElementById(`answer-${i}`).value.trim().toLowerCase();
       inputs.push(val);
     }
@@ -571,15 +618,22 @@ async function safeUint8ArrayFromBlob(blob) {
     const powNonce = vaultData.powNonce;
     const fullConcat = inputs.join("");
     const fullKeyMaterial = vaultData.powSalt + vaultData.powChallengeSalt + fullConcat + powNonce;
+
+    // 🪪 Debug check — log what hash is being tested
+    const debugHash = CryptoJS.SHA256(fullKeyMaterial).toString();
+    console.log("Expected vaultHash:", vaultData.vaultHash);
+    console.log("Actual input hash:", debugHash);
+    console.log("fullConcat:", fullConcat);
+    console.log("powNonce:", powNonce);
+
     const fullKey = await deriveKey(fullKeyMaterial);
     window.fullKeyMaterial = fullKeyMaterial;
 
-    // Fingerprint check
-    const checkHash = CryptoJS.SHA256(fullKeyMaterial).toString();
-    if (vaultData.vaultHash && checkHash !== vaultData.vaultHash) {
+    // ✅ Fingerprint check
+    if (vaultData.vaultHash && debugHash !== vaultData.vaultHash) {
       await printLineSlow("[!] Warning: Vault fingerprint mismatch. Vault may be corrupted or tampered.");
     } else {
-      await printLineSlow(`[✓] Vault fingerprint verified: ${checkHash.slice(0, 16)}...`);
+      await printLineSlow(`[✓] Vault fingerprint verified: ${debugHash.slice(0, 16)}...`);
     }
 
     await printLineSlow("[*] Decrypting vault metadata...");
@@ -589,38 +643,33 @@ async function safeUint8ArrayFromBlob(blob) {
     await printLineSlow("[*] Decrypting vault documents...");
     const decryptedFiles = await decryptVaultDocs(fullKey, decryptedMeta.files);
 
-    // ✅ Reset PoW counter on success
     const vaultId = vaultData.vaultId || vaultData.vaultHash || "default";
     localStorage.removeItem(`powAttempt_${vaultId}`);
 
     await showRecoveryModal(finalMessage, decryptedFiles);
 
   } catch (err) {
-  overlay.style.transition = "opacity 0.5s";
-  overlay.style.opacity = "0";
-  setTimeout(() => {
-    overlay.style.display = "none";
-    overlay.style.opacity = "1";
-  }, 500);
+    overlay.style.transition = "opacity 0.5s";
+    overlay.style.opacity = "0";
+    setTimeout(() => {
+      overlay.style.display = "none";
+      overlay.style.opacity = "1";
+    }, 500);
 
-  // ❌ Track failed PoW attempt safely
-  const vaultData = window.vaultData;
-  const vaultId = vaultData?.vaultId || vaultData?.vaultHash || "default";
-  const key = `powAttempt_${vaultId}`;
-  window.powAttempt = (parseInt(localStorage.getItem(key)) || 1) + 1;
-  localStorage.setItem(key, window.powAttempt);
+    const vaultData = window.vaultData;
+    const vaultId = vaultData?.vaultId || vaultData?.vaultHash || "default";
+    const key = `powAttempt_${vaultId}`;
+    window.powAttempt = (parseInt(localStorage.getItem(key)) || 1) + 1;
+    localStorage.setItem(key, window.powAttempt);
 
-  console.error("❌ Recovery failed:", err);
-  await printLineSlow(`[!] Recovery failed: ${err.message || err}`);
-  showToast(err.message || "Wrong answer. Try again...or don't.");
+    console.error("❌ Recovery failed:", err);
+    await printLineSlow(`[!] Recovery failed: ${err.message || err}`);
+    showToast(err.message || "Wrong answer. Try again...or don't.");
 
-  // ✅ Force full memory reset to avoid stale state bugs
-  setTimeout(() => {
-  window.location.reload();
-}, 4000);
-
-}
-
+    setTimeout(() => {
+      window.location.reload();
+    }, 4000);
+  }
 }
 
     function showSeedModal() {
@@ -935,45 +984,56 @@ if (window.vaultId) {
 
 window.onload = async () => {
   try {
-    const transferRaw = sessionStorage.getItem('memoroTransfer');
-    if (!transferRaw) throw new Error("Missing session data from dashboard");
+    const currentVaultId = localStorage.getItem("lastVaultId");
+    if (!currentVaultId) throw new Error("No vault ID reference");
 
-    const transfer = JSON.parse(transferRaw);
-    if (!transfer.decryptedVaultData || !transfer.fileMapRaw || !transfer.baseKey) {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open("memoroVaultVaultStorage", 1);
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = () => reject("Failed to open IndexedDB.");
+    });
+
+    const tx = db.transaction("vaultFiles", "readonly");
+    const store = tx.objectStore("vaultFiles");
+    const getReq = store.get(currentVaultId + "-transfer");
+
+    const transfer = await new Promise((resolve, reject) => {
+      getReq.onsuccess = () => resolve(getReq.result);
+      getReq.onerror = () => reject("Transfer data lookup failed.");
+    });
+
+    if (!transfer) throw new Error("Vault transfer data missing.");
+    if (!transfer.decryptedVaultData || !transfer.fileMapRaw || !transfer.baseKey || !transfer.vaultJson) {
       throw new Error("Incomplete transfer object");
     }
 
-    // 🌐 Assign globals
-window.vaultData = {
-  ...transfer.vaultJson,
-  ...transfer.decryptedVaultData
-};
+    // 🧠 Global hydrate
+    window.vaultData = { ...transfer.vaultJson, ...transfer.decryptedVaultData };
     window.vaultJsonParsed = transfer.vaultJson;
     window.fileMap = {};
-    window.savedQuestions = vaultData.questionList || [];
-    window.powSalt = vaultData.powSalt || "";
+    window.savedQuestions = window.vaultData.questionList || [];
+    window.powSalt = window.vaultData.powSalt || "";
     window.powConfig = {
-  start: "0000", // Fixed default: 4 leading zeros
-  incrementEvery: vaultData.powIncreaseEvery || 5
-};
-const vaultId = vaultData.vaultId || vaultData.vaultHash || "default";
-window.vaultId = vaultId;
-const key = `powAttempt_${vaultId}`;
-window.powAttempt = parseInt(localStorage.getItem(key)) || 1;
+      start: "0000",
+      incrementEvery: window.vaultData.powIncreaseEvery || 5
+    };
+    window.vaultId = window.vaultData.vaultId || window.vaultData.vaultHash || "default";
+    window.powAttempt = parseInt(localStorage.getItem(`powAttempt_${window.vaultId}`)) || 1;
 
-    // 🔁 Rehydrate Blobs from serialized fileMap
+    // 🧩 Rehydrate blobs from raw
     for (const [filename, serialized] of Object.entries(transfer.fileMapRaw)) {
       fileMap[filename] = new Blob([new Uint8Array(serialized.data)], {
         type: serialized.type || "application/octet-stream"
       });
     }
 
-    // 💡 IVs (ensure fallback from transfer if missing in decryptedVaultData)
+    // 🛠️ IV Fallbacks (in case only present in original vaultJson)
     vaultData.finalMessageIv = vaultData.finalMessageIv || transfer.vaultJson.finalMessageIv;
     vaultData.vaultMetaIv = vaultData.vaultMetaIv || transfer.vaultJson.vaultMetaIv;
 
-    // 🧠 Render recovery UI
+    // 🧾 Render the question inputs
     loadQuestions();
+
   } catch (err) {
     console.error("Vault restore failed:", err);
     document.body.innerHTML = `<h2 style='color:red;text-align:center;'>❌ Failed to load vault: ${err.message}</h2>`;

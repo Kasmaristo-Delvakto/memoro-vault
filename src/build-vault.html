@@ -116,17 +116,31 @@
       height: 100vh;
       overflow: hidden;
     }
-    #terminal {
-      background-color: #000;
-      color: #00ff00;
-      padding: 20px;
-      width: 100vw;
-      height: 100vh;
-      overflow-y: auto;
-      box-shadow: inset 0 0 20px #00ff00;
-      font-size: 14px;
-      white-space: pre-wrap;
-    }
+    
+   #terminal {
+  padding: 10px;
+  width: 50%;
+  height: 100%;
+  background-color: #000;
+  color: #0f0;
+  box-shadow: inset 0 0 20px #0f0;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  overflow-y: auto; /* 🔥 allows vertical scrolling */
+  overflow-x: hidden; /* optional: prevents horizontal scroll */
+}
+
+
+#terminalContent {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+
 
     #powDifficultyModal {
   position: fixed;
@@ -180,23 +194,14 @@
 }
 #vaultContainer {
   display: flex;
-  width: 100vw;
+  width: 100%;
+  max-width: 1600px; /* Optional: set max width */
   height: 100vh;
   overflow: hidden;
+  margin: 0 auto; /* Center on screen */
 }
 
-#terminal {
-  width: 50%;
-  height: 100vh;
-  overflow-y: auto;
-  background-color: #000;
-  color: #0f0;
-  padding: 20px;
-  box-shadow: inset 0 0 20px #0f0;
-  font-size: 14px;
-  white-space: pre-wrap;
-  font-family: 'Fira Code', monospace;
-}
+
 
 #logoSection {
   width: 50%;
@@ -210,20 +215,26 @@
 #logoContent {
   display: flex;
   flex-direction: column;
+  justify-content: center; /* center vertically */
   align-items: center;
-  justify-content: center;
+  height: 100%;
+  padding: 20px 0;
   opacity: 0;
   transition: opacity 1s ease;
 }
 
+
+
+
 #memoroLogo {
-  max-width: 80%;
-  max-height: 60%;
+  max-width: 90%;
+  max-height: 70%;
   filter: drop-shadow(0 0 10px #0f0);
   animation: pulseGlow 3s infinite;
   margin-bottom: 30px;
   margin-top: 30px;
 }
+
 
 #actionButtons {
   display: flex;
@@ -264,6 +275,7 @@
 }
 
 
+
   </style>
 </head>
 <body>
@@ -278,7 +290,7 @@
 "></canvas>
 
   <div id="vaultContainer">
-    <pre id="terminal">Initializing Memoro Vault Builder...</pre>
+<pre id="terminal"><code id="terminalContent">Initializing Memoro Vault Builder...</code></pre>
   
     <div id="logoSection">
       <div id="logoContent">
@@ -336,23 +348,31 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-    const terminal = document.getElementById("terminal");
+    const terminalContent = document.getElementById("terminalContent");
 
     function printToTerminal(line, delay = 30) {
-      return new Promise(resolve => {
-        let i = 0;
-        const interval = setInterval(() => {
-          terminal.textContent += line[i] || '';
-          terminal.scrollTop = terminal.scrollHeight;
-          i++;
-          if (i >= line.length) {
-            clearInterval(interval);
-            terminal.textContent += '\n';
-            resolve();
-          }
-        }, delay);
-      });
-    }
+  const terminalContent = document.getElementById("terminalContent");
+  const terminalContainer = document.getElementById("terminal");
+
+  return new Promise(resolve => {
+    let i = 0;
+    const interval = setInterval(() => {
+      // Append next character
+      terminalContent.textContent += line[i] || '';
+      
+      // Scroll terminal container to bottom
+      terminalContainer.scrollTop = terminalContainer.scrollHeight;
+
+      i++;
+      if (i >= line.length) {
+        clearInterval(interval);
+        terminalContent.textContent += '\n';
+        terminalContainer.scrollTop = terminalContainer.scrollHeight;
+        resolve();
+      }
+    }, delay);
+  });
+}
 
     function showToast(msg) {
       alert(msg);
@@ -370,13 +390,13 @@ document.addEventListener("DOMContentLoaded", () => {
 "[told you so] Remember when I told you to turn off your wifi? ...should have listened.",
 "[panic] Wait — you didn’t want your data sold?!",
 "[reversing] Aborting data auction. Shredding all traces. I’m not *that* kind of program.",
-"[serious] Come on. Give me some credit. I encrypt — I don’t snitch.",
+"[serious] Come on. Can't you take a joke? Fine. Back to work...",
 "[finishing] Almost done. Just writing your secrets onto an invisible stone tablet.",
-"[complete] Vault locked. Private. Permanent. Untraceable. Like it should be.",
+"[complete] Vault locked and encrypted. Your data can now securely be hidden in plain sight.",
 "[soft] Look at you — protecting your future like it matters. It does.",
 "[closing] I like you. Don’t die.",
 "[donate] You should really support this dev before he gives up and starts working for BlackRock 💚",
-"[ramen] He’s still living off store-brand ramen and European Monero Cheese. Throw him a bone.",
+"[ramen] He’s still living off of store-brand ramen. Throw him a bone.",
 "https://boatingaccidentapparel.com/memoro-vault/ \n",
       ];
       for (const line of lines) {
@@ -428,6 +448,17 @@ async function startVaultBuild() {
     await printToTerminal("[+] Key ready. Encrypting vault metadata...");
 const powSalt = await generatePowSalt(inputs.unlockAnswer1 + inputs.unlockAnswer2);
 const powChallengeHex = generatePowChallenge();
+// Show PoW panel BEFORE mining starts
+const powPanel = document.getElementById("powPanel");
+powPanel.classList.add("visible");
+powPanel.style.display = "flex";
+
+// Let browser render modal before mining begins
+await new Promise(resolve => requestAnimationFrame(() => {
+  setTimeout(resolve, 100); // allow modal to visibly appear
+}));
+
+// Start mining after UI is ready
 const powNonce = await mineValidNonce(powSalt + powChallengeHex + inputs.fullConcat, selectedPowDifficulty);
 const fullKeyMaterial = powSalt + powChallengeHex + inputs.fullConcat + powNonce;
 const fullAnswerKey = await deriveKey(fullKeyMaterial);
@@ -663,10 +694,6 @@ const powIncreaseEvery = 5;
 await printToTerminal(`[*] Mining nonce at difficulty '${powDifficulty}'...`);
 await delay(500); // Give UI time to update terminal before blocking
 
-// Now show the PoW overlay (here, not inside mineValidNonce)
-document.getElementById("powPanel").classList.add("visible");
-powPanel.style.display = "flex";
-
   // Add vault.json
   await addJSON("vault.json", {
   version: "2.1",
@@ -676,11 +703,11 @@ powPanel.style.display = "flex";
     question1: userData.unlockIndexes[0],
     question2: userData.unlockIndexes[1]
   },
-  powSalt,
+    powSalt,
   powChallengeSalt: powChallengeHex,
   powDifficulty,
-  powNonce,
   powIncreaseEvery,
+  vaultHash: CryptoJS.SHA256(powSalt + powChallengeHex + userData.fullConcat + powNonce).toString(),
   questionPrompts: [
     userData.questions[userData.unlockIndexes[0]] || `Question ${userData.unlockIndexes[0] + 1}`,
     userData.questions[userData.unlockIndexes[1]] || `Question ${userData.unlockIndexes[1] + 1}`
@@ -733,7 +760,7 @@ async function mineValidNonce(baseInput, difficulty) {
       powNonce.textContent = `Nonce: ${nonce}`;
       powHash.textContent = `Hash: ${hash.slice(0, 16)}...`;
       powElapsed.textContent = `Elapsed: ${elapsed}s`;
-      await new Promise(r => setTimeout(r)); // Yield to UI
+      await new Promise(requestAnimationFrame); // Yield to rendering engine
     }
 
     if (hash.startsWith(difficulty)) {
@@ -771,14 +798,15 @@ function retryDownload() {
   <h2 style="margin-bottom: 20px;">Select Proof of Work Difficulty</h2>
   <p style="max-width: 600px; text-align: center; margin-bottom: 20px; font-size: 15px;">
 <p style="max-width: 700px; text-align: center; margin-bottom: 20px; font-size: 15px;">
-  Memoro Vault uses proof-of-work to protect your data during recovery.<br/>
-  Every time someone tries to unlock the vault, their device must solve a small puzzle — and it only works if the answers are correct.<br/><br/>
-  A higher difficulty makes it much harder for hackers to guess answers, because each wrong attempt takes more time and computing power.<br/><br/>
+  Memoro Vault uses dual proof-of-work to protect your data during recovery.<br/>
+  Every time someone tries to unlock the vault, their device must solve both static and dynamic proof-of-work puzzles — and it only works if all of the answers are correct.<br/><br/>
+  A higher difficulty makes it much harder for hackers to guess answers, because each wrong attempt takes more time and computing power. This process is designed to completely prevent brute force attacks.<br/><br/>
   <strong>Choose a difficulty between 4 and 9:</strong><br/>
   4 is fast and still secure for personal use.<br/>
+  5 is recommended for most users.<br/>
   6–7 is great for serious protection with reasonable delay.<br/>
   8 is highly secure and ideal for sensitive or long-term storage.<br/>
-  9 is for paranoids, whistleblowers, or people who name their vaults "DO NOT OPEN UNDER ANY CIRCUMSTANCES."
+  9 is for paranoids, whistleblowers, or people who want maximum security.<br/><br/>
 </p>
   </p>
   <div style="display: flex; gap: 15px; margin-bottom: 30px;">
@@ -789,7 +817,7 @@ function retryDownload() {
     <button class="powOption" data-diff="8">8 zeros (≈5–15 min)</button>
     <button class="powOption" data-diff="9">9 zeros (≈1 hr+)</button>
   </div>
-  <p style="font-size: 13px; color: #888;">Note: Vault creation may appear frozen at high difficulty. Please wait.</p>
+  <p style="font-size: 13px; color: #888;"><strong>Note:</strong> Higher difficulty means longer vault creation  and decryption times. Please be patient and let the program work.<br/>
 </div>
 
 <script>
