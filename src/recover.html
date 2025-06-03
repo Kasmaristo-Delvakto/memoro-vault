@@ -157,16 +157,26 @@
   background-color: #111;
   color: #eee;
   padding: 30px;
+  margin: 0 auto;
   border-radius: 10px;
   text-align: center;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
+  width: calc(100vw - 80px);
+  max-width: 1000px;
+  box-sizing: border-box;
+  max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid #00ff99;
   box-shadow: 0 0 12px #00ff99;
   animation: pulseGlow 2.5s ease-in-out infinite;
+
+  /* add this for column layout */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
 }
+
 
 
   .modal-buttons {
@@ -282,6 +292,20 @@
   pointer-events: none;
 }
 
+.pow-section {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #0f0;
+  border-radius: 12px;
+  background: #000;
+  box-shadow: 0 0 12px rgba(0, 255, 0, 0.2);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+
 </style>
 
 </head>
@@ -299,21 +323,57 @@
   </div>
 
   <div id="seedModal" class="modal">
-  <div class="modal-content">
-    <img src="assets/Screenshot (691).png" alt="Donate Monero"
-         style="max-width: 180px; margin-bottom: 10px; border: 2px solid #0f0; border-radius: 8px;" />
-    <p style="margin-top: 0px; margin-bottom: 20px; font-size: 14px; color: #88ff88;">
-      💚 Thanks for using Memoro Vault. If you found it useful, consider sending a small Monero donation.
-    </p>
+  <div class="modal-content" style="max-width: 800px; padding: 40px 30px;">
 
-    <h2>Vault Recovered!</h2>
-    <pre id="recoveredSeed" style="white-space: pre-wrap; color: #0f0; margin-top: 15px;"></pre>
-    <pre id="finalMessage" style="white-space: pre-wrap; color: #88ff88; margin-top: 15px;"></pre>
-    <div class="modal-buttons">
-      <button onclick="closeSeedModal()">Return to Dashboard</button>
-    </div>
-  </div>
+    <!-- Donation Section -->
+    <div class="pow-section">
+      <h3>Support Memoro Vault</h3>
+      <img src="assets/Screenshot (691).png" alt="Monero Donation QR"
+           style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
+      <p>
+        Memoro Vault is a gift to the world.<br>
+        If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
+      </p>
+      <button onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')"
+              style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+        Donate with preferred crypto
+      </button>
+
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px;">
+  <p style="font-size: 13px; color: #0f0; margin: 0;">
+    Offline? Paste it into your browser later.
+  </p>
+
+  <button onclick="copyDonationLink()"
+          style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+    Copy Donation Link
+  </button>
 </div>
+
+    </div>
+
+    <!-- Vault Recovered Section -->
+    <div class="pow-section" style="margin-top: 30px;">
+<h2 style="
+  font-size: 28px;
+  color: #00ff99;
+  text-align: center;
+  text-shadow: 0 0 8px #00ff99;
+  font-family: 'Fira Code', monospace;
+  margin-bottom: 10px;
+">
+  Vault Recovered!
+</h2>
+      <pre id="recoveredSeed" style="white-space: pre-wrap; color: #0f0; margin-top: 10px;"></pre>
+      <pre id="finalMessage" style="white-space: pre-wrap; color: #88ff88; margin-top: 15px;"></pre>
+      <div class="modal-buttons" style="margin-top: 15px;">
+        <button onclick="closeSeedModal()">Return to Dashboard</button>
+      </div>
+    </div>
+
+  </div> <!-- closes .modal-content -->
+</div> <!-- closes #seedModal -->
+
 
 
   <div id="previewModal" class="modal">
@@ -337,8 +397,8 @@
 
   <div id="toast"></div>
   
-  <script src="https://unpkg.com/@zip.js/zip.js@2.7.34/dist/zip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+<script src="libs/crypto-js.min.js"></script>
+<script src="libs/zip.min.js"></script>
   <script>
   
   const terminal = document.getElementById("powTerminal");
@@ -401,7 +461,7 @@ async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
 
   let batch = [];
 
-  // 🔓 1. Dynamic PoW (rate-limiting step)
+  // 1. Dynamic PoW (rate-limiting step)
   await printLineSlow(`[*] Dynamic Proof of Work...`);
   await printLineSlow(`[⛏] Mining until hash starts with '${dynamicDifficulty}'`);
   await new Promise(r => setTimeout(r, 1000));
@@ -420,7 +480,7 @@ async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
     }
 
     nonce1++;
-    if (batch.length >= 500) {
+    if (batch.length >= 2500) {
       await flushBatch(batch);
       batch = [];
     }
@@ -437,12 +497,12 @@ async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
   batch = [];
 
   const maxNonceLimits = {
-    "0000":        5_000_000,
+    "0000":        1_000_000,
     "00000":      10_000_000,
-    "000000":     50_000_000,
-    "0000000":   250_000_000,
+    "000000":     1_000_000_000,
+    "0000000":   12_000_000_000,
     "00000000": 2_050_000_000,
-    "000000000":50_000_000_000
+    "000000000":250_000_000_000
   };
   const maxNonce = maxNonceLimits[bakedDifficulty] || 10_000_000;
 
@@ -454,12 +514,12 @@ async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
       staticSolved = true;
       vaultJson.powNonce = nonce2.toString(); // for decryption
       await flushBatch(batch);
-      await printLineSlow(`✅ Static PoW match at nonce ${nonce2}`);
+      await printLineSlow(`Static PoW match at nonce ${nonce2}`);
       break;
     }
 
     nonce2++;
-    if (batch.length >= 500) {
+    if (batch.length >= 2500) {
       await flushBatch(batch);
       batch = [];
     }
@@ -565,7 +625,12 @@ async function safeUint8ArrayFromBlob(blob) {
           cleanIndex++;
         }
       }
-      hintDiv.innerHTML = `<div style="display:flex;gap:10px"><div>${hint.trim()}</div>${question.custom ? `<div style="font-size:14px;color:#bbb;font-style:italic;">Hint: ${question.custom}</div>` : ''}</div>`;
+hintDiv.innerHTML = `
+  <div style="display: flex; gap: 10px;">
+    <div>${hint.trim()}</div>
+    ${question.custom ? `<div class="hint-custom-text">Hint: ${question.custom}</div>` : ''}
+  </div>
+`;
     }
 
     async function submitRecovery() {
@@ -613,7 +678,8 @@ async function safeUint8ArrayFromBlob(blob) {
     }
 
     await validateProofOfWorkWithAnswers(vaultData, inputs);
-    await printLineSlow("[+] Answers verified. Deriving decryption key...");
+    await printLineSlow("[*] Verifying recover.html integrity...");
+    await verifyRecoverHtmlIntegrity();
 
     const powNonce = vaultData.powNonce;
     const fullConcat = inputs.join("");
@@ -681,6 +747,13 @@ async function safeUint8ArrayFromBlob(blob) {
       navigator.clipboard.writeText(document.getElementById('recoveredSeed').innerText.replace('Seed Phrase:\n', ''));
       showToast('Seed copied.', 'success');
     }
+
+    function copyDonationLink(el) {
+  const url = el?.dataset?.url || "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
+  navigator.clipboard.writeText(url)
+    .then(() => showToast("Donation link copied!", "success"))
+    .catch(() => showToast("Failed to copy link.", "error"));
+}
 
     async function decryptFinalMessage(fullKey, filesMeta) {
   const finalMeta = filesMeta.find(f => f.originalName === "final_message.txt");
@@ -773,6 +846,28 @@ async function decryptVaultDocs(fullKey, filesMeta) {
   return JSON.parse(new TextDecoder().decode(decryptedMeta));
 }
 
+async function verifyRecoverHtmlIntegrity() {
+  const checksumSalt = vaultData.checksumSalt || "";
+  const expectedChecksum = vaultData.recoverChecksum;
+  if (!expectedChecksum) throw new Error("Missing expected recoverChecksum.");
+
+  let actualChecksum;
+
+  try {
+    const recoverText = await fetch("recover.html").then(res => res.text());
+    actualChecksum = CryptoJS.SHA256(checksumSalt + recoverText).toString();
+  } catch (err) {
+    console.warn("Failed to fetch recover.html for hash check:", err);
+    actualChecksum = "corrupt"; // fallback triggers failure
+  }
+
+  if (actualChecksum !== expectedChecksum) {
+    throw new Error("This recovery file has been tampered with or is not the correct version.");
+  }
+
+  console.log("[✓] recover.html file integrity verified.");
+}
+
 async function decryptVaultFiles() {
   try {
     const metaBlob = fileMap["vault.meta"];
@@ -791,7 +886,7 @@ async function decryptVaultFiles() {
     const metaData = JSON.parse(new TextDecoder().decode(decryptedMeta));
     const fileLinks = document.createElement("div");
     fileLinks.style.marginTop = "20px";
-    fileLinks.innerHTML = "<h3>📁 Download Files:</h3>";
+    fileLinks.innerHTML = "<h3>Download Files:</h3>";
 
     const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
     const answerConcat = savedQuestions.map(q => (q.answer || "").trim().toLowerCase()).join("");
@@ -892,7 +987,9 @@ async function decryptVaultFiles() {
     btnRow.appendChild(wipeBtn);
     fileLinks.appendChild(btnRow);
 
-    document.querySelector("#seedModal .modal-content").appendChild(fileLinks);
+// New — append to the second .pow-section inside the modal (Vault Recovered box)
+const recoveredBox = document.querySelector("#seedModal .pow-section:nth-of-type(2)");
+recoveredBox.appendChild(fileLinks);
   } catch (err) {
     console.error("❌ Failed to decrypt vault files:", err);
   }
@@ -961,14 +1058,14 @@ function closePreview() {
 
 function secureExit() {
   try {
-    // 🧼 Clear memory and storage
+    // Clear memory and storage
     sessionStorage.removeItem("memoroTransfer");
     localStorage.removeItem("decryptedVault");
 if (window.vaultId) {
   localStorage.removeItem(`powAttempt_${window.vaultId}`);
 }
 
-    // 🧯 Nuke globals
+    // Nuke globals
     window.fileMap = null;
     window.vaultData = null;
     window.unlockKey = null;
@@ -1007,7 +1104,7 @@ window.onload = async () => {
       throw new Error("Incomplete transfer object");
     }
 
-    // 🧠 Global hydrate
+    // Global hydrate
     window.vaultData = { ...transfer.vaultJson, ...transfer.decryptedVaultData };
     window.vaultJsonParsed = transfer.vaultJson;
     window.fileMap = {};
@@ -1136,7 +1233,10 @@ async function showRecoveryModal(finalMessage, files) {
     ? `${files.length} file(s) decrypted successfully.`
     : "No files recovered.";
 
-  // Clear previous links if any
+  if (finalMessage) {
+    messageBox.textContent = finalMessage;
+  }
+
   const existingLinks = document.getElementById("recoveryFileLinks");
   if (existingLinks) existingLinks.remove();
 
@@ -1217,24 +1317,27 @@ async function showRecoveryModal(finalMessage, files) {
   btnRow.appendChild(wipeBtn);
   fileLinks.appendChild(btnRow);
 
-  document.querySelector("#seedModal .modal-content").appendChild(fileLinks);
-burstMatrixEffect(); // triggers modal as part of the animation
+  // Append into "Vault Recovered!" box (second pow-section)
+  const recoveredBox = document.querySelector("#seedModal .pow-section:nth-of-type(2)");
+  recoveredBox.appendChild(fileLinks);
+
+  burstMatrixEffect(); // triggers modal + animation
 }
 
 function secureExit() {
   try {
-    // 🧼 Wipe all storage types
+    // Wipe all storage types
     localStorage.clear();
     sessionStorage.clear();
 
-    // 🧯 Clear all IndexedDB databases
+    // Clear all IndexedDB databases
     indexedDB.databases().then(dbs => {
       for (const db of dbs) {
         if (db.name) indexedDB.deleteDatabase(db.name);
       }
     });
 
-    // 💣 Nuke globals
+    // Nuke globals
     window.fileMap = null;
     window.vaultData = null;
     window.unlockKey = null;
@@ -1254,12 +1357,32 @@ function secureExit() {
   }
 }
 
-// 🔠 Force all recovery inputs to lowercase in real-time
+// Force all recovery inputs to lowercase in real-time
 document.addEventListener("input", (e) => {
   if (e.target.tagName === "INPUT" && e.target.id.startsWith("answer-")) {
     e.target.value = e.target.value.toLowerCase();
   }
 });
+
+async function nukeEverything() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+    console.log("Memoro Vault: Local memory wiped.");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
 
 </script>
 

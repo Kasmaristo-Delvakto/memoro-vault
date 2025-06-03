@@ -4,54 +4,130 @@
   <meta charset="UTF-8">
   <title>Setup Your Security Questions - Memoro Vault</title>
   <style>
-    body { background-color: #111; color: #eee; font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    body { background-color: #111; color: #eee; font-family: 'Fira Code', monospace; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 32px; margin-bottom: 20px; }
-    p.instruction { font-size: 18px; color: #aaa; margin-bottom: 30px; text-align: center; max-width: 600px; }
+p.instruction {
+  font-size: 17px;
+  color: #00ff99;
+  background-color: #000;
+  padding: 15px 20px;
+  margin-top: 10px;
+  margin-bottom: 30px;
+  border: 1px solid #00ff99;
+  border-radius: 8px;
+  box-shadow: 0 0 6px #00ff99;
+  text-align: center;
+  max-width: 700px;
+  line-height: 1.6;
+}
     .question-list { width: 100%; max-width: 800px; display: flex; flex-direction: column; }
     .question-item { background-color: #222; padding: 15px; margin-bottom: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .question-text { flex-grow: 1; margin-right: 20px; }
-    .edit-button { background-color: #444; color: #eee; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; }
-    .edit-button:hover { background-color: #666; }
+.question-text {
+  flex-grow: 1;
+  margin-right: 20px;
+  font-family: 'Fira Code', monospace;
+  font-size: 16px;
+  background-color: #000;
+  color: #00ff99;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #00ff99;
+  box-shadow: 0 0 6px #00ff99;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+.edit-button {
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #004422;
+  transform: translateY(-1px);
+}
     .unlock-checkbox { margin-left: 20px; transform: scale(1.5); }
     /* Matrix-style custom checkbox */
+/* Custom Matrix Checkbox */
 .unlock-checkbox {
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: 2px solid #00ff99;
-  border-radius: 3px;
-  background-color: #111;
-  cursor: pointer;
+  background-color: black;
+  border-radius: 4px;
   position: relative;
-  vertical-align: middle;
+  cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 0 6px #00ff99;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.unlock-checkbox:hover {
+  box-shadow: 0 0 8px #00ff99, 0 0 14px #00ff99;
 }
 
 .unlock-checkbox:checked {
   background-color: #00ff99;
-  border-color: #00ff99;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
 }
 
-.unlock-checkbox:checked::before {
-  content: '';
+.unlock-checkbox:checked::after {
+  content: "✔";
+  color: black;
   position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 5px;
-  height: 10px;
-  border: solid black;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  top: 50%;
+  left: 50%;
+  font-size: 14px;
+  font-weight: bold;
+  transform: translate(-50%, -50%);
+  line-height: 1;
 }
+
+
 
 
     .button-container { display: flex; justify-content: space-between; width: 100%; max-width: 400px; margin-top: 30px; }
-    .button { background-color: #333; color: #eee; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; width: 45%; }
+.button {
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background-color: #004422;
+  transform: translateY(-2px);
+}
     .button:hover { background-color: #555; }
 
     /* Modal Styles */
     .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
-    .modal-content { background-color: #222; padding: 30px; border-radius: 10px; text-align: center; width: 90%; max-width: 400px; }
+    .modal-content {
+  background-color: #111;
+  padding: 35px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  text-align: center;
+  box-shadow: 0 0 16px #00ff99;
+  border: 1px solid #00ff99;
+  color: #00ff99;
+  font-family: 'Fira Code', monospace;
+}
+
     .modal-content input { width: 100%; padding: 10px; margin-top: 20px; margin-bottom: 20px; border: none; border-radius: 6px; background-color: #333; color: #eee; font-size: 16px; }
     .modal-buttons { display: flex; justify-content: space-around; margin-top: 20px; }
 .modal-buttons button {
@@ -78,6 +154,16 @@
   z-index: -2;
 }
 
+.matrix-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: -2;
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -94,12 +180,61 @@ body {
   font-family: 'Fira Code', monospace;
 }
 
+#categoryDropdown {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  background-color: #000;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  border-radius: 6px;
+  box-shadow: 0 0 6px #00ff99;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#categoryDropdown:hover {
+  background-color: #002611;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+
+#editInput {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  background-color: #000;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  border-radius: 6px;
+  box-shadow: 0 0 6px #00ff99;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  box-sizing: border-box;
+  display: block;
+}
+
+#editInput:focus {
+  outline: none;
+  border-color: #00ff99;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+
+#categoryDropdown:focus {
+  outline: none;
+  border-color: #00ff99;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+
+
+
   </style>
 </head>
 <body>
 
-  <canvas id="matrix"></canvas>
-<div class="overlay"></div>
+<canvas id="matrixCanvas"></canvas>
+<div class="matrix-overlay"></div>
 
 <h1>Setup Your Security Questions</h1>
 <p class="instruction">
@@ -119,25 +254,26 @@ body {
   <div class="modal-content">
     <h2>Edit Question</h2>
     <div style="margin-bottom: 10px;">
-      <input type="text" id="editInput" style="width:100%; padding:10px; font-size:16px; background:#333; border:none; color:white; border-radius:6px;">
+<input type="text" id="editInput">
     </div>
-    <div style="margin-bottom: 15px;">
-      <label style="font-size:16px;">Suggestions:</label>
-    <select id="categoryDropdown">
-        <option value="">-- Select Category --</option>
-        <option value="home">Home</option>
-        <option value="family">Family</option>
-        <option value="life">Life Events</option>
-        <option value="Pets">Pets</option>
-        <option value="favorites">Favorites</option>
-        <option value="random">Random</option>
-        <option value="school">School</option>
-        <option value="career">Career</option>
-        <option value="travel">Travel</option>
-        <option value="hobbies">Hobbies</option>
-        <option value="special">Special Memories</option>
-      </select>      
-    </div>
+    <div style="margin-top: 20px; margin-bottom: 15px;">
+  <label style="font-size:16px; color:#00ff99; font-family:'Fira Code', monospace;">Suggestions:</label>
+<select id="categoryDropdown">
+  <option value="">-- Select Category --</option>
+  <option value="home">Home</option>
+  <option value="family">Family</option>
+  <option value="life">Life Events</option>
+  <option value="Pets">Pets</option>
+  <option value="favorites">Favorites</option>
+  <option value="random">Random</option>
+  <option value="school">School</option>
+  <option value="career">Career</option>
+  <option value="travel">Travel</option>
+  <option value="hobbies">Hobbies</option>
+  <option value="special">Special Memories</option>
+</select>
+</div>
+
     <div id="suggestionsList" style="max-height: 150px; overflow-y: auto; margin-bottom:15px;"></div>
     <div class="modal-buttons">
       <button onclick="saveModalEdit()">Save</button>
@@ -191,20 +327,20 @@ const defaultQuestions = [
   "What is my father's middle name?",
   "In what city did my wife and I go on our first date?",
   "Journey before... (complete the phrase)",
-  "What was the name of my Honda Accord?",
   "What was the name of my yellow Suzuki V-Strom 650 motorcycle?",
+  "What is the name of my childhood best friend?",
   "Was my wife my first kiss? (y/n)",
   "Was I her first kiss? (y/n)",
-  "What is the name of my childhood best friend?",
+  "Do I like mustard? (y/n)",
   "I play the guitar AND piano (t/f)",
-  "My wife was a collegiate basketball player (t/f)",
+  "My wife was a collegiate dancer for Auburn (t/f)",
   "We had our first child in 2019 (t/f)",
-  "I am a competitive tennis player (t/f)",
-  "I am a competitive basketball player (t/f)",
+  "I have played league tennis (t/f)",
+  "I played tennis in high school (t/f)",
   "My wife and I met in high school (t/f)",
   "My wife is left-handed (t/f)",
   "I am left-handed (t/f)",
-  "I have travelled overseas and am bilingual (t/f)"
+  "I have travelled overseas AND am bilingual (t/f)"
 ];
 
 function loadQuestions() {
@@ -247,10 +383,18 @@ else {
 
 function openModal(index) {
   currentEditIndex = index;
-  const input = document.getElementById('editInput'); // use the new input ID
+
+  const input = document.getElementById('editInput');
   if (input) {
     input.value = questions[index] || '';
   }
+
+  const dropdown = document.getElementById('categoryDropdown');
+  if (dropdown) {
+    dropdown.removeEventListener("change", populateSuggestions); // Prevent duplicate listeners
+    dropdown.addEventListener("change", populateSuggestions);
+  }
+
   document.getElementById('editModal').style.display = 'flex';
 }
 
@@ -586,6 +730,61 @@ window.onload = loadQuestions;
 
   </script>
   
+  <script>
+  const canvas = document.getElementById("matrixCanvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+  const fontSize = 14;
+  const columns = Math.floor(canvas.width / fontSize);
+  const drops = Array(columns).fill(0);
+
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00ff99';
+    ctx.font = `${fontSize}px monospace`;
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = letters[Math.floor(Math.random() * letters.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+      drops[i]++;
+      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+    }
+  }
+
+  setInterval(drawMatrix, 66);
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+
+  async function nukeEverything() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+    console.log("Memoro Vault: Local memory wiped.");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
+</script>
+
 </body>
 </html>
 

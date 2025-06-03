@@ -89,6 +89,26 @@
   .button:hover {
     background-color: #333;
   }
+
+  #fileUploadLabel {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  box-shadow: 0 0 6px #00ff99;
+}
+
+#fileUploadLabel:hover {
+  background-color: #004422;
+  transform: translateY(-1px);
+}
+
   .modal {
     display: none;
     position: fixed;
@@ -132,6 +152,68 @@
     opacity: 0;
     pointer-events: none;
   }
+
+  #letterSelectors {
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 6px;
+  border: 1px solid #00ff99;
+  border-radius: 6px;
+}
+.modal-content {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Hide the native checkbox */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #000;
+  border: 2px solid #00ff99;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  margin-right: 8px;
+  display: inline-block;
+  box-shadow: 0 0 5px rgba(0,255,153,0.5);
+}
+
+/* Checkmark style */
+input[type="checkbox"]:checked::after {
+  content: "✔";
+  color: #00ff99;
+  position: absolute;
+  left: 2px;
+  top: -1px;
+  font-size: 14px;
+}
+
+/* Optional: Glow on hover */
+input[type="checkbox"]:hover {
+  box-shadow: 0 0 8px #00ff99;
+}
+
+/* Checkmark fix */
+input[type="checkbox"]:checked::after {
+  content: "✔";
+  color: #00ff99;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+#messageModal {
+  z-index: 10000;
+}
+
 </style>
 
 </head>
@@ -170,8 +252,9 @@
 <div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
   <label for="fileUpload" style="font-size: 18px;">Optional: Upload Documents to Include in Your Vault</label>
 <div style="display: flex; align-items: center; gap: 12px;">
-  <input type="file" id="fileUpload" multiple />
-  <span id="fileUploadStatus" style="color: #0f0; font-size: 16px;">No files uploaded</span>
+<input type="file" id="fileUpload" multiple hidden />
+<label for="fileUpload" id="fileUploadLabel">Choose Files</label>
+<span id="fileUploadStatus" style="color: #0f0; font-size: 16px;">No files uploaded</span>
 </div>
   <p style="font-size: 14px; color: #aaa; margin-top: 5px;">You can upload files like text notes, images, or scanned documents (up to ~250MB depending on device hardware).</p>
 </div>
@@ -206,13 +289,7 @@
     <h2>Customize Your Hint</h2>
     <div class="input-group">
       <label>How many characters to reveal?</label>
-      <select id="numLetters" onchange="buildLetterSelectors()">
-        <option value="0">0 characters (only text hint)</option>
-        <option value="1">1 character</option>
-        <option value="2">2 characters</option>
-        <option value="3">3 characters</option>
-        <option value="4">4 characters</option>
-      </select>
+      <select id="numLetters" onchange="buildLetterSelectors()"></select>
     </div>
     <div id="letterSelectors" class="input-group" style="margin-top: 15px;"></div>
     <div class="input-group" style="margin-top: 20px;">
@@ -515,7 +592,7 @@ window.addEventListener('DOMContentLoaded', () => {
         </div>
         
         <div class="input-group">
-          <label><input type="checkbox" id="custom-hint-${i}" onchange="openHintModal(${i})"> Custom Hint</label>
+          <label><input type="checkbox" id="custom-hint-${i}" onchange="if(this.checked) openHintModal(${i})"> Custom Hint</label>
         </div>
       `;
       form.appendChild(block);
@@ -667,37 +744,53 @@ localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
   }
   
   function buildLetterSelectors() {
-    if (activeHintIndex === null) return;
-    const container = document.getElementById('letterSelectors');
-    container.innerHTML = '';
-    const answerInput = document.getElementById(`answer-${activeHintIndex}`);
-    const rawAnswer = answerInput ? answerInput.value.trim() : '';
-    const cleanedAnswer = rawAnswer.replace(/\s+/g, '');
-  
-    let maxHints = Math.max(1, Math.floor(cleanedAnswer.length * 0.50));
-    maxHints = Math.min(maxHints, 4);
-  
-    if (parseInt(document.getElementById('numLetters').value) > maxHints) {
-      showMessageModal('Warning', `You cannot reveal more than 50% of your answer's letters (Max ${maxHints}).`);
-      document.getElementById('numLetters').value = maxHints;
-    }
-  
-    const num = parseInt(document.getElementById('numLetters').value);
-    for (let i = 0; i < num; i++) {
-      const select = document.createElement('select');
-      select.id = `letter-select-${i}`;
-  
-      for (let j = 0; j < cleanedAnswer.length; j++) {
-        const letter = cleanedAnswer[j];
-        const option = document.createElement('option');
-        option.value = j + 1;
-        option.textContent = `${letter} (${j + 1})`;
-        select.appendChild(option);
-      }
-      container.appendChild(select);
+  if (activeHintIndex === null) return;
+
+  const container = document.getElementById('letterSelectors');
+  container.innerHTML = '';
+
+  const answerInput = document.getElementById(`answer-${activeHintIndex}`);
+  const rawAnswer = answerInput ? answerInput.value.trim() : '';
+  const cleanedAnswer = rawAnswer.replace(/\s+/g, '');
+
+  const maxHints = Math.floor(cleanedAnswer.length * 0.5);
+  const select = document.getElementById('numLetters');
+
+  // Dynamically repopulate the dropdown if needed
+  if (select.options.length !== maxHints + 1) {
+    select.innerHTML = '';
+    for (let i = 0; i <= maxHints; i++) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = i === 0
+        ? "0 characters (only text hint)"
+        : `${i} character${i > 1 ? 's' : ''}`;
+      select.appendChild(option);
     }
   }
-  
+
+  // Read selected number of letters
+  let num = parseInt(select.value);
+  if (num > maxHints) {
+    num = maxHints;
+    select.value = maxHints;
+    showMessageModal('Warning', `You cannot reveal more than 50% of your answer's letters (Max ${maxHints}).`);
+  }
+
+  // Build selectors
+  for (let i = 0; i < num; i++) {
+    const letterSelect = document.createElement('select');
+    letterSelect.id = `letter-select-${i}`;
+    for (let j = 0; j < cleanedAnswer.length; j++) {
+      const option = document.createElement('option');
+      option.value = j + 1;
+      option.textContent = `${cleanedAnswer[j]} (${j + 1})`;
+      letterSelect.appendChild(option);
+    }
+    container.appendChild(letterSelect);
+  }
+}
+
   function saveCustomHint() {
     if (activeHintIndex === null) return;
     const num = parseInt(document.getElementById('numLetters').value);
@@ -859,6 +952,26 @@ function deleteNamedSeed(index) {
 }
 
 window.addEventListener("DOMContentLoaded", renderNamedSeeds);
+
+async function nukeEverything() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+    console.log("Memoro Vault: Local memory wiped.");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
 </script>
 
 </body>

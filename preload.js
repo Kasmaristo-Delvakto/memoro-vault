@@ -1,12 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose safe IPC methods only
+// Expose only safe, intentional API to the renderer
 contextBridge.exposeInMainWorld('memoroAPI', {
   saveVaultFile: (data) => ipcRenderer.send('save-vault', data),
-  showMessage: (msg) => ipcRenderer.send('show-message', msg)
+  showMessage: (msg) => ipcRenderer.send('show-message', msg),
+  openExternalLink: (url) => ipcRenderer.send('open-external-link', url)
 });
 
-// If you want to expose Web Crypto helpers, you could optionally do this:
+// Optional: Expose cryptographic helpers
 contextBridge.exposeInMainWorld('memoroCrypto', {
   subtle: window.crypto.subtle,
   getRandomValues: (array) => window.crypto.getRandomValues(array)

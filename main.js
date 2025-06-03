@@ -1,11 +1,11 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 
 let mainWindow;
 let audioWindow;
+let isQuitting = false;
 
 function createWindow() {
-  // Main app window
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
@@ -15,8 +15,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
-    },
-    focusable: true
+    }
   });
 
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
@@ -26,7 +25,6 @@ function createWindow() {
     mainWindow.focus();
   });
 
-  // 🔊 Background audio window (hidden and persistent)
   audioWindow = new BrowserWindow({
     show: false,
     focusable: false,
@@ -41,19 +39,51 @@ function createWindow() {
 
   audioWindow.loadFile(path.join(__dirname, 'src', 'audio.html'));
 
-  // ✅ Close everything when main window closes
-  mainWindow.on('closed', () => {
-    if (audioWindow && !audioWindow.isDestroyed()) {
-      audioWindow.destroy();
+  mainWindow.on('close', async (e) => {
+    if (!isQuitting) {
+      e.preventDefault();
+      isQuitting = true;
+
+      const allWindows = BrowserWindow.getAllWindows();
+      for (const win of allWindows) {
+        try {
+          await Promise.race([
+            win.webContents.executeJavaScript(`typeof nukeEverything === 'function' ? nukeEverything() : Promise.resolve();`),
+            new Promise(resolve => setTimeout(resolve, 750))
+          ]);
+        } catch (err) {
+          console.warn('Nuke call failed:', err.message);
+        }
+      }
+
+      // Now destroy everything manually
+      if (audioWindow && !audioWindow.isDestroyed()) {
+        audioWindow.destroy();
+      }
+      mainWindow.destroy(); // Don't use .close() again or loop
+
+      app.quit(); // Explicit after everything is wiped
     }
-    app.quit();
   });
 }
 
-// When Electron is ready, create the windows
+// External link handling via IPC
+ipcMain.on('open-external-link', (event, url) => {
+  try {
+    const allowedHosts = ['trocador.app', 'github.com', 'boatingaccidentapparel.com'];
+    const parsed = new URL(url);
+    if (allowedHosts.includes(parsed.hostname)) {
+      shell.openExternal(url);
+    } else {
+      console.warn('Blocked unsafe URL:', url);
+    }
+  } catch (e) {
+    console.error('Invalid URL passed to openExternalLink:', url);
+  }
+});
+
 app.whenReady().then(createWindow);
 
-// macOS: re-create window if dock icon is clicked and none open
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
