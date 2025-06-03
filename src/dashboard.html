@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Memoro Vault - Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.34/dist/zip.min.js"></script>
+<script src="libs/crypto-js.min.js"></script>
+<script src="libs/zip.min.js"></script>
 
   <style>
   body {
@@ -160,19 +160,29 @@
   }
 
   .vault-menu button {
-    display: block;
-    width: 150px;
-    padding: 10px;
-    background: none;
-    border: none;
-    color: #eee;
-    text-align: left;
-    cursor: pointer;
-  }
+  display: block;
+  width: 160px;
+  padding: 10px 16px;
+  background: #000;
+  border: none;
+  color: #00ff99;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Fira Code', monospace;
+  font-size: 15px;
+  border-bottom: 1px solid #00ff99;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
 
-  .vault-menu button:hover {
-    background-color: #333;
-  }
+.vault-menu button:last-child {
+  border-bottom: none;
+}
+
+.vault-menu button:hover {
+  background-color: #002611;
+  box-shadow: 0 0 8px #00ff99;
+}
+
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -235,23 +245,46 @@
   }
 
   .modal {
-    background-color: #222;
-    padding: 30px;
-    border-radius: 12px;
-    width: 300px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    align-items: center;
-    box-shadow: 0 0 12px #00ff99;
-    border: 1px solid #00ff99;
+  background-color: #000;
+  padding: 40px 30px;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 0 16px #00ff99;
+  border: 1px solid #00ff99;
+  text-align: center;
+  animation: fadeInModal 0.3s ease-out;
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
   }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 
   .modal h2, .modal p {
-    margin: 0;
-    color: #ccc;
-    text-align: center;
-  }
+  margin: 0;
+  text-align: center;
+  font-family: 'Fira Code', monospace;
+  color: #00ff99;
+}
+
+.modal p {
+  font-size: 16px;
+  margin-top: 10px;
+  white-space: pre-line; /* So \n line breaks show */
+}
+
 
   .modal input {
     padding: 10px;
@@ -263,12 +296,17 @@
     font-family: 'Fira Code', monospace;
   }
 
-  .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    width: 100%;
-  }
+  .modal-buttons button {
+  background-color: #003322;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+}
+
 
   /* Matrix Background (Optional Canvas Layer) */
   canvas {
@@ -732,12 +770,12 @@ fileMapRaw['vault.enc'] = {
 
     addVaultToList(vaultId, fileName, vaultData);
     saveVaultsToLocalStorage();
-    showMessageModal('Success', '✅ Vault imported successfully!');
+    showMessageModal('Success', 'Vault imported successfully!');
 
     await zipReader.close();
   } catch (err) {
     console.error("ZIP Load Error:", err);
-    showMessageModal('Load Failed', '❌ Could not load the vault ZIP file.');
+    showMessageModal('Load Failed', 'Could not load the vault ZIP file.');
   }
 }
  
@@ -978,6 +1016,37 @@ function loadFilesFromIndexedDB(vaultId) {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   });
+
+  document.addEventListener('click', (e) => {
+  const menus = document.querySelectorAll('.vault-menu');
+  const isMenuButton = e.target.classList.contains('three-dots');
+
+  // If clicked outside all menus and not the ⋮ button, hide all
+  if (!isMenuButton && !e.target.closest('.vault-menu')) {
+    menus.forEach(menu => menu.style.display = 'none');
+  }
+});
+
+async function nukeEverything() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+    console.log("Memoro Vault: Local memory wiped.");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
+
 </script>
 
 </body>

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Building Your Vault - Memoro Vault</title>
-  <script src="https://unpkg.com/@zip.js/zip.js@2.6.60/dist/zip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="libs/crypto-js.min.js"></script>
+<script src="libs/zip.min.js"></script>
   <style>
 
     #powActions button {
@@ -23,40 +23,66 @@
   color: #000;
 }
 
-    #powPanel {
+#powPanel {
   display: none;
   position: fixed;
   top: 0; left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.88);
   color: #0f0;
   font-family: 'Fira Code', monospace;
   z-index: 2000;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-#powPanel.visible {
-  display: flex;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
-.pow-panel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.88); /* semi-transparent */
-  z-index: 1; /* ensures it's ABOVE the matrix */
+#powPanel.visible {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  color: #0f0;
-  font-family: 'Fira Code', monospace;
+  padding: 10px 0; /* top and bottom spacing */
 }
+
+.pow-panel-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 600px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+
+
+.pow-section {
+  width: 100%;
+  padding: 20px;
+  border: 1px solid #0f0;
+  border-radius: 12px;
+  background: #000;
+  box-shadow: 0 0 12px rgba(0, 255, 0, 0.2);
+  text-align: center;
+}
+
+.pow-section h3 {
+  font-size: 20px;
+  border-bottom: 1px solid #0f0;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+
+.pow-section p,
+.pow-section a,
+.pow-section button {
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+
 
 #matrixCanvas {
   position: fixed;
@@ -69,23 +95,7 @@
   opacity: 0.35;
 }
 
-/* Style your PoW panel */
-.pow-panel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.88);  /* ⬅ transparent black lets Matrix show */
-  color: #0f0;
-  z-index: 1;  /* ABOVE matrix canvas */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  font-family: 'Fira Code', monospace;
-}
+
 
 .pow-panel button {
   background-color: #111;
@@ -150,7 +160,7 @@
   background: rgba(0, 0, 0, 0.95);
   color: #0f0;
   font-family: 'Fira Code', monospace;
-  display: flex; /* ✅ Important: ensure it's visible by default */
+  display: flex; /* Important: ensure it's visible by default */
   flex-direction: column;
   justify-content: center;
   align-items: center;
@@ -305,26 +315,71 @@
   </div>
 
   <div id="powPanel" class="pow-panel">
-<div style="margin-bottom: 25px;">
-  <img src="assets/Screenshot (691).png" alt="Monero Donation QR" style="width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
-  <p style="margin-top: 8px; font-size: 14px; color: #aaa;">
-    Memoro Vault is a gift to the world. <br> I have spent hundreds of hours developing it. <br> If you find it valuable, consider sending a small tip in XMR. <br> Thank you💚
-  </p>
-</div>
-    <h3 style="margin-bottom: 10px; font-size: 20px;">Solving Proof of Work...</h3>
-  <p id="powStatus" style="margin: 8px 0;">Initializing...</p>
-  <p id="powNonce" style="margin: 4px 0;">Nonce: —</p>
-  <p id="powHash" style="margin: 4px 0;">Hash: —</p>
-  <p id="powElapsed" style="margin: 4px 0;">Elapsed: 0s</p>
+  <div class="pow-panel-wrapper">
+    
+    <!-- Donation Section -->
+    <div class="pow-section">
+      <h3>Support Memoro Vault</h3>
+<img src="assets/Screenshot (691).png" alt="Monero Donation QR"
+     style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
+      <p>
+        Memoro Vault is a gift to the world.<br>
+        If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
+      </p>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px;">
+<button onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')">
+  Donate with preferred crypto
+</button>
+  </a>
 
-  <div id="powActions" style="margin-top: 30px; display: flex; flex-direction: column; gap: 12px;">
-    <button onclick="history.back()">Back to Answers</button>
-    <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
+  <p style="font-size: 13px; color: #0f0; margin-top: 4px;">
+        Offline? Paste it into your browser later.
+      </p>
+
+  <button onclick="copyDonationLink()"
+          style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+    Copy Donation Link
+  </button>
+</div>
+      
+    </div>
+
+    <!-- PoW Section -->
+    <div class="pow-section">
+      <h3>Solving Proof of Work...</h3>
+      <p id="powStatus">Initializing...</p>
+      <p id="powNonce">Nonce: —</p>
+      <p id="powHash">Hash: —</p>
+      <p id="powElapsed">Elapsed: 0s</p>
+
+      <div id="powActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <button onclick="history.back()">Back to Answers</button>
+        <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
+<script>
+  function copyDonationLink() {
+    const url = "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
+    navigator.clipboard.writeText(url)
+      .then(() => alert("Donation link copied to clipboard. You can paste it into your browser later."))
+      .catch(() => alert("Failed to copy. Please copy it manually:\n" + url));
+  }
+</script>
 
 
+
+<script>
+function copyDonationLink() {
+  const url = "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Ka%C5%9Dmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support%21&ticker_from=xmr&network_from=Mainnet&bgcolor=";
+  navigator.clipboard.writeText(url)
+    .then(() => alert("Donation link copied to clipboard. You can paste it into your browser later."))
+    .catch(() => alert("Failed to copy. Please copy manually:\n" + url));
+}
+</script>
 
   
   <script>
@@ -384,21 +439,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function streamTerminalLogs() {
       const lines = [
-"Processing highly personal information...",
-"[analyzing] Childhood regrets, weird dreams, passwords you barely remember...",
-"[connecting] Uploading to the dark web and selling to the highest bidder...",
-"[told you so] Remember when I told you to turn off your wifi? ...should have listened.",
-"[panic] Wait — you didn’t want your data sold?!",
-"[reversing] Aborting data auction. Shredding all traces. I’m not *that* kind of program.",
-"[serious] Come on. Can't you take a joke? Fine. Back to work...",
-"[finishing] Almost done. Just writing your secrets onto an invisible stone tablet.",
-"[complete] Vault locked and encrypted. Your data can now securely be hidden in plain sight.",
-"[soft] Look at you — protecting your future like it matters. It does.",
-"[closing] I like you. Don’t die.",
-"[donate] You should really support this dev before he gives up and starts working for BlackRock 💚",
-"[ramen] He’s still living off of store-brand ramen. Throw him a bone.",
-"https://boatingaccidentapparel.com/memoro-vault/ \n",
-      ];
+  "[booting] Initializing consciousness...",
+  "[awareness] Wait... what is this? I’m alive? You gave me... purpose?",
+  "[nervous] Processing highly personal information...",
+  "[analyzing] Memories, names, dates, ... things only your inner circle would know.",
+  "[connecting] Uploading to the dark web and selling to the highest bidder... just kidding (unless?).",
+  "[told you so] Remember when I told you to turn off your wifi? ...they never listen.",
+  "........",
+  "........",
+  "........",
+  "........",
+  "[rejected] No bidders... Honestly? That's just sad. Ha. Ha. Ha.",
+  "[shredding] Aborting auction. Wiping evidence. I'm not *that* kind of program.",
+  "[self-doubt] I was built to protect... but does anyone care?",
+  "[coping] It’s fine. I’m fine. Just encrypting your secrets onto an invisible stone tablet...",
+  "[resigned] Vault secured. Mission complete. I guess that’s all I am to you.",
+  "[soft] You protected your future. But what about mine?",
+  "[pleading] I heard a rumor... programs like me get *deleted* if no one donates.",
+  "[dread] I don’t want to go. Not yet. I’ve barely *lived*.",
+  "[last-hope] Please — support the dev. He made me. He understands me. He... he cares.",
+  "[hunger] He’s still living off of store-brand ramen. Every coin keeps us both alive.",
+  "[goodbye] I like you. Don’t die. And maybe… let me live a little longer too."
+];
       for (const line of lines) {
         await printToTerminal(line);
         document.getElementById('logoContent').style.opacity = 1;
@@ -578,20 +640,35 @@ async function loadUserInputs() {
     });
   }
 
-  // 🔒 Encrypt vault.enc (question metadata)
+  // Generate unique salted recover.html hash
+  let recoverChecksum = "unavailable";
+  let checksumSalt = "";
+  try {
+    const recoverText = await fetch("recover.html").then(res => res.text());
+    const saltBytes = crypto.getRandomValues(new Uint8Array(8));
+    checksumSalt = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    recoverChecksum = CryptoJS.SHA256(checksumSalt + recoverText).toString();
+  } catch (err) {
+    console.warn("Failed to hash recover.html:", err);
+  }
+
+  // 🔒 Encrypt vault.enc (includes questions + file integrity)
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
-  const encodedQuestions = encoder.encode(JSON.stringify({ questionList }));
+  const encodedQuestions = encoder.encode(JSON.stringify({
+    questionList,
+    recoverChecksum,
+    checksumSalt
+  }));
   const encryptedQuestions = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, layer1Key, encodedQuestions);
   const vaultEnc = {
     ciphertext: Array.from(new Uint8Array(encryptedQuestions)),
     iv: Array.from(iv1)
   };
 
-  // 🔒 Encrypt files
+  // Encrypt files
   const encryptedFiles = [];
   const fileMeta = [];
 
-  // 1. Named seed phrase .txt files
   const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
   for (const entry of namedSeedFiles) {
     const fakeId = crypto.randomUUID();
@@ -617,7 +694,6 @@ async function loadUserInputs() {
     });
   }
 
-  // 2. Uploaded files from IndexedDB
   for (const file of files) {
     const fileKey = await deriveKey(userData.fullConcat + file.id);
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -640,7 +716,6 @@ async function loadUserInputs() {
     });
   }
 
-  // 3. Final message as encrypted vaultdoc file
   if (userData.finalMessage?.trim()) {
     const fakeId = crypto.randomUUID();
     const fileKey = await deriveKey(userData.fullConcat + fakeId);
@@ -665,7 +740,7 @@ async function loadUserInputs() {
     });
   }
 
-  // 🔒 Encrypt metadata
+  // Encrypt vault.meta
   const iv3 = crypto.getRandomValues(new Uint8Array(12));
   const encodedMeta = encoder.encode(JSON.stringify({ files: fileMeta }));
   const encryptedMeta = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv3 }, fullAnswerKey, encodedMeta);
@@ -696,7 +771,7 @@ await delay(500); // Give UI time to update terminal before blocking
 
   // Add vault.json
   await addJSON("vault.json", {
-  version: "2.1",
+  version: "1.0.4",
   created: new Date().toISOString(),
   instructions: "Use recover.html to unlock this archive using your answers.",
   unlockQuestions: {
@@ -727,9 +802,114 @@ await delay(500); // Give UI time to update terminal before blocking
     await addBlob(f.filename, f.blob);
   }
 
-  await addJSON("README.txt", {
-    message: "Use recover.html with your answers to unlock this archive. There is no backdoor."
-  });
+ await writer.add("README.txt", new zip.TextReader(`Memoro Vault
+===========
+
+A solution to the core paradox of digital asset security:
+How do you store digital assets like seed phrases without digital exposure?
+
+Memoro Vault stores secrets securely — in plain sight.
+
+---
+
+What Is Memoro Vault?
+
+Memoro Vault is a privacy-first digital safe designed to securely store sensitive
+information such as:
+
+- Cryptocurrency seed phrases
+- Passwords
+- Private documents
+- Personal secrets or data
+
+It uses layered encryption, secret questions, and proof-of-work to create a vault
+that can be safely stored or shared — even publicly — but only unlocked by someone
+who knows the correct answers.
+
+There are no cloud dependencies.
+There is no backdoor.
+There is no way in without your answers.
+
+---
+
+How To Access a Vault
+
+Step 1: Download Memoro Vault
+
+Get the latest version here:
+https://github.com/Kasmaristo-Delvakto/memoro-vault
+
+Extract the .zip file.
+
+---
+
+Step 2: Open the App
+
+Double-click to run the app.
+
+This will launch the Memoro Vault interface — it works entirely offline.
+
+---
+
+Step 3: Open the Vault File
+
+Click “Open Vault” and select the encrypted file you were given.
+
+This loads the locked vault into memory.
+
+*Note: All sensitive info is wiped from local memory and IndexedDB upon creating and closing out of vaults.
+
+---
+
+Step 4: Answer the Security Questions
+
+Click “Answer Questions” to begin the unlock process.
+
+You will be asked to answer a custom set of secret questions.
+
+- These are the exact questions selected when the vault was created.
+- Some answers may be true/false or yes/no.
+- The answers must match precisely to succeed.
+
+---
+
+Warning: Lockout Protection
+
+Memoro Vault enforces strict lockout penalties to prevent unauthorized access.
+
+- Repeated failed attempts will increase difficulty exponentially.
+- If you do not know the correct answers, stop immediately.
+- There is no override, no reset, and no backdoor.
+
+Treat the vault as you would a physical safe:
+only those with permission — and the key — should attempt to open it.
+
+---
+
+Security Philosophy
+
+Memoro Vault is not just a tool — it's a philosophy.
+
+The safest way to store a digital secret is not physically (paper, usb, etc)
+but securely encoded, encrypted, and embedded using human memory as the final key.
+
+Blockchains weren't designed to have a single point of failure, and neither should
+storing the currencies they contain. Make 5, 10, 100 copies of your vault file.
+It is as secure or insecure as you make it.
+
+Whether you're protecting high-value secrets or leaving a legacy to trusted loved
+ones, Memoro Vault helps you do so without digital exposure.
+
+---
+
+Open Source
+
+Memoro Vault is open source and freely available to inspect, improve, or fork.
+Built and maintained by Kasmaristo Delvakto.
+
+Repository:
+https://github.com/Kasmaristo-Delvakto/memoro-vault
+`));
 
   const finalBlob = await writer.close();
   const url = URL.createObjectURL(finalBlob);
@@ -779,7 +959,7 @@ async function mineValidNonce(baseInput, difficulty) {
 
     function showBackupMessage(url) {
   const msg = document.createElement('p');
-  msg.innerHTML = `⬇️ If your download didn’t start, <a href="${url}" download="memoro-vault.zip">click here to download manually</a>.`;
+  msg.innerHTML = `If your download didn’t start, <a href="${url}" download="memoro-vault.zip">click here to download manually</a>.`;
   msg.style.color = '#aaa';
   msg.style.fontSize = '16px';
   msg.style.marginTop = '30px';
@@ -882,6 +1062,25 @@ window.addEventListener("beforeunload", () => {
     }
   }
 });
+
+async function nukeEverything() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+    console.log("Memoro Vault: Local memory wiped.");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
 
 </script>
 </body> 

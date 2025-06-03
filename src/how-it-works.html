@@ -194,6 +194,26 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   });
+
+  async function nukeEverything() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+    console.log("Memoro Vault: Local memory wiped.");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
 </script>
 </body>
 </html>
