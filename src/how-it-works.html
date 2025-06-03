@@ -105,63 +105,73 @@
 <div class="content">
   <h1>How Memoro Vault Works</h1>
 
-  <p><strong>Memoro Vault is a digital safe designed for real people—not just the wealthy.</strong><br>
-  It helps you store your most important files, secrets, and instructions in encrypted form—then lock access behind memory-based questions that only you or your chosen inner circle can answer.</p>
+  <p><strong>Reclaiming Ownership in a World of Exposure</strong><br>
+  In today’s digital world, personal data is not owned—it is extracted. Every search, backup, login, and cloud sync becomes part of a surveillance economy. Most people do not control their data. They rent access to it from companies who monetize it, mismanage it, or lose it entirely.</p>
 
-  <p>Where the rich use trusts, lawyers, and family offices to pass on wealth, most people are left with nothing but hope—and a will that often gets buried in a drawer.</p>
+  <p>The rise of decentralized technologies has created new forms of digital value—cryptocurrency wallets, identity keys, encrypted archives—but the means of preserving them remain fragile. A lost password, corrupted drive, or compromised platform can erase everything.</p>
 
+  <p><strong>Memoro Vault changes that.</strong><br>
+  It enables anyone to encrypt critical files, instructions, and credentials into a portable, tamper-evident vault that can be stored anywhere and unlocked only through exact knowledge.</p>
+
+  <p>There are no servers, no logins, and no trusted intermediaries. Just a sealed vault file and a locally installed recovery program that runs entirely offline. Memoro Vault doesn’t manage access—it makes you prove it.</p>
+
+  <h2>The Problem Memoro Vault Solves</h2>
+
+  <p>Access to long-term digital preservation is uneven. Some individuals rely on legal structures—trusts, foundations, estate attorneys—to transfer intent and assets across generations. Most do not. When someone passes away or loses capacity, accounts and data often remain locked behind proprietary systems or forgotten credentials.</p>
+
+  <p>The problem extends far beyond cryptocurrency:</p>
   <ul>
-    <li>67% of Americans have no estate plan.</li>
-    <li>Probate eats up 3–8% of your estate.</li>
-    <li>Inheritance taxes can claim up to 40% depending on your state.</li>
-    <li>Millions in crypto, passwords, or account data are lost every year—forever.</li>
+    <li>Family records lost in cloud accounts or inaccessible formats</li>
+    <li>Journalists and whistleblowers needing offline, tamper-proof storage</li>
+    <li>Parents wishing to pass on private messages, credentials, or creative work</li>
+    <li>Refugees or stateless persons needing durable access to identity documents</li>
   </ul>
 
-  <p>With Memoro Vault, you control who gets access and when.<br>
-  You can split knowledge between family members, so no single person can unlock the vault alone. Or you can leave everything to someone you trust, encrypted and locked behind answers only they would know.</p>
-
-  <p><strong>It's estate planning without paperwork. Inheritance without lawyers.<br>
-  Private. Offline. Yours.</strong></p>
-
-  <h2>How Memoro Vault Works</h2>
-
-  <p>Memoro Vault protects your data using a two-phase encryption system built entirely around memory. There are no passwords, no logins, no server dependencies—just your mind and a self-contained encrypted file.</p>
+  <p>Memoro Vault allows users to define the conditions for recovery with cryptographic precision. You can split knowledge across multiple trusted people—ensuring no one can access the vault alone, but collaboration enables recovery. It's inheritance without institutions, privacy without infrastructure, and permanence without fragility.</p>
 
   <h2>Memory-Based Encryption</h2>
-  <p>When you create your vault, you define between <strong>4 and 25 custom memory questions</strong>. These can be highly specific, obscure, or deeply personal—anything from childhood details to inside references no outsider would ever guess. Each answer contributes to the cryptographic key used to encrypt your vault.</p>
 
-  <p>These answers are never stored or saved. Instead, Memoro uses them to derive a secure encryption key using <strong>PBKDF2</strong> with <strong>AES-256</strong>, the same algorithms trusted in high-security systems worldwide.</p>
+  <p>During creation, users define between <strong>4 and 25 custom memory questions</strong>. These can be personal, obscure, or collaboratively known. Answers are never stored. Instead, they are used to derive an AES-GCM encryption key using <strong>PBKDF2</strong>, a hardened key-stretching algorithm trusted in high-security systems.</p>
 
   <h2>Layered Access Control</h2>
-  <p>Memoro Vault applies your answers in two distinct layers of protection:</p>
 
-  <p><strong>Initial Unlock Phase:</strong><br>
-  The first two answers you provide act as a gatekeeper. Without getting both exactly right, no one can access or even begin attempting full recovery. To defend against guessing, Memoro imposes escalating delays with each incorrect attempt—making brute-force attempts slow, expensive, and detectable.</p>
+  <p><strong>Phase One: Initial Gatekeeping</strong><br>
+  The first two answers act as a strict gate. Each incorrect attempt triggers an exponentially increasing lockout, slowing down brute-force attacks. No hints or feedback are given.</p>
 
-  <p><strong>Final Recovery Phase:</strong><br>
-  If the vault is successfully unlocked, the full decryption process begins. This stage requires all 4–25 answers you originally defined, entered exactly as saved. But it also includes an added layer: a <strong>proof-of-work challenge</strong>.</p>
+  <p><strong>Phase Two: Full Cryptographic Challenge</strong><br>
+  The vault then requires all answers to be correct—entered exactly. At this stage, optional hints and character counts may be enabled by the creator to support intended users while still deterring attackers.</p>
 
-  <p>This dynamic PoW puzzle binds access to both time and knowledge. It must be solved fresh at the time of recovery, preventing attackers from reusing or pre-mining shortcuts. The correct answers and valid PoW together generate the final decryption key.</p>
-
-  <h2>File Security</h2>
+  <p>This phase is protected by dual proof-of-work:</p>
   <ul>
-    <li>All files are encrypted individually with AES-256</li>
-    <li>Metadata, filenames, and messages are also encrypted</li>
-    <li>Final output is a portable ZIP archive or container you can store anywhere</li>
+    <li>A <strong>static PoW nonce</strong> mined during vault creation and tied to the encryption key</li>
+    <li>A <strong>dynamic PoW challenge</strong> that must be solved at recovery time, with difficulty increasing after each failure</li>
   </ul>
 
-  <h2>Designed for Distribution</h2>
-  <p>Memoro supports flexible access models:<br>
-  - Store everything yourself and rely on memory<br>
-  - Split questions across multiple people to require collaboration<br>
-  - Leave instructions in your will pointing trusted heirs to their piece of the puzzle</p>
+  <h2>File and Environment Security</h2>
+  <ul>
+    <li>All files are encrypted individually with AES-256</li>
+    <li>Metadata, filenames, and messages are encrypted</li>
+    <li>Final output is a portable, tamper-evident ZIP archive</li>
+  </ul>
 
-  <p>You can store the final encrypted file on a USB stick, SD card, backup drive, or even in the cloud. Without the correct answers and valid proof-of-work, it's useless to everyone but you—and those you’ve chosen.</p>
+  <p>Every vault is cryptographically bound to the exact version of the recovery program used to create it. If an attacker modifies the recovery file—even slightly—the vault becomes undecryptable. Decryption can only occur on the original, unmodified interface.</p>
+
+  <h2>Flexible Distribution</h2>
+
+  <p>Memoro Vault supports a range of secure sharing strategies:</p>
+  <ul>
+    <li>Keep it private and self-recoverable</li>
+    <li>Distribute questions among multiple family members to require collaboration</li>
+    <li>Store vaults publicly—on cloud drives, SD cards, or IPFS—without compromising secrecy</li>
+  </ul>
+
+  <p>Without the correct answers and proof-of-work solution, the vault remains sealed—computationally and cryptographically.</p>
 
   <div class="button-container">
     <button class="button" onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
   </div>
 </div>
+
 
 <script>
   const canvas = document.getElementById('matrixCanvas');
