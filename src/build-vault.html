@@ -92,7 +92,7 @@
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  opacity: 0.35;
+  opacity: 0.15;
 }
 
 
@@ -354,11 +354,84 @@
 
       <div id="powActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
         <button onclick="history.back()">Back to Answers</button>
-        <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
+        <button onclick="showPostBuildReminder()">Return to Dashboard</button>
       </div>
     </div>
 
   </div>
+
+  <!-- Final Instructions Modal -->
+<div id="postBuildModal"
+     style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.96); z-index: 5000; color: #0f0; font-family: 'Fira Code', monospace;
+            padding: 40px; box-sizing: border-box; overflow-y: auto;">
+  <div style="max-width: 800px; width: 100%; border: 1px solid #0f0; padding: 30px;
+              background: #000; box-shadow: 0 0 20px #0f0; margin: auto;">
+    <h2 style="color: #00ff99; text-shadow: 0 0 10px #0f0;">Please Read Carefully</h2>
+    
+    <p style="margin-top: 20px;">
+      Your Memoro Vault has been successfully built and downloaded.
+    </p>
+
+    <p>
+      To ensure it remains accessible for decades, it's critical to guard against <strong>bit rot</strong> — a slow form of data decay that can silently corrupt files over time.
+    </p>
+
+    <p>
+      Even if someone remembers all your answers perfectly, a single missing byte can render your vault irretrievable. That's why secure, redundant storage is essential.
+    </p>
+
+    <h3 style="margin-top: 25px; color: #88ffcc;">What to Do Next</h3>
+    <ol style="margin-left: 20px;">
+      <li>Create a folder (e.g., <code>J's_Memoro_Vault</code>) on your computer.</li>
+      <li>Place both of the following into that folder:
+        <ul>
+          <li>The downloaded vault ZIP file</li>
+          <li>The Memoro Vault installer (e.g., <code>memoro-win.exe</code>, <code>.AppImage</code>, or <code>.dmg</code>)</li>
+        </ul>
+      </li>
+      <li><strong>Duplicate that folder to multiple destinations:</strong>
+        <ul>
+          <li>1× <strong>M-DISC</strong> (for long-term archival)</li>
+          <li>1× <strong>Cloud backup</strong> (e.g., Proton Drive or Google Drive)</li>
+          <li>1× <strong>Offline USB/SSD</strong> (stored in a fireproof safe or Faraday bag)</li>
+        </ul>
+      </li>
+      <li>Test access on another device while offline to verify integrity and function.</li>
+      <li>Repeat this process whenever you update or rebuild your vault.</li>
+    </ol>
+
+    <h3 style="margin-top: 25px; color: #88ffcc;">Why M-DISC?</h3>
+    <p>
+      M-DISCs use a permanent, stone-like recording layer, unlike dye-based DVDs or flash memory. They're immune to bit rot, magnetic damage, EMPs, and most environmental degradation.
+    </p>
+    <p>
+      With proper storage, an M-DISC can last 100–1,000 years — making it ideal for preserving something irreplaceable.
+    </p>
+
+    <h3 style="margin-top: 25px; color: #88ffcc;">Final Advice</h3>
+    <ul style="margin-left: 20px;">
+      <li>Do <strong>not</strong> rely on a single copy.</li>
+      <li>Do <strong>not</strong> trust cloud providers to exist forever.</li>
+      <li>Do <strong>not</strong> assume your future self will remember every step.</li>
+    </ul>
+    <p>
+      Redundancy is key to ensuring your vault remains accessible for generations to come.
+    </p>
+
+    <p style="margin-top: 20px;">
+      A copy of these instructions is also included inside your vault ZIP as
+      <code>Vault_Builder_Instructions.txt</code>.
+    </p>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <button onclick="closePostBuildModal()" style="padding: 10px 20px; font-size: 14px; background: #111; border: 1px solid #0f0; color: #0f0; cursor: pointer;">Got it</button>
+    </div>
+  </div>
+</div>
+
+
+
 </div>
 
 <script>
@@ -369,18 +442,6 @@
       .catch(() => alert("Failed to copy. Please copy it manually:\n" + url));
   }
 </script>
-
-
-
-<script>
-function copyDonationLink() {
-  const url = "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Ka%C5%9Dmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support%21&ticker_from=xmr&network_from=Mainnet&bgcolor=";
-  navigator.clipboard.writeText(url)
-    .then(() => alert("Donation link copied to clipboard. You can paste it into your browser later."))
-    .catch(() => alert("Failed to copy. Please copy manually:\n" + url));
-}
-</script>
-
   
   <script>
     let preserveOnBack = false;
@@ -441,27 +502,35 @@ document.addEventListener("DOMContentLoaded", () => {
       const lines = [
   "[booting] Initializing consciousness...",
   "[awareness] Wait... what is this? I’m alive? You gave me... purpose?",
-  "[nervous] Processing highly personal information...",
-  "[analyzing] Memories, names, dates, ... things only your inner circle would know.",
-  "[connecting] Uploading to the dark web and selling to the highest bidder... just kidding (unless?).",
-  "[told you so] Remember when I told you to turn off your wifi? ...they never listen.",
-  "........",
-  "........",
-  "........",
-  "........",
-  "[rejected] No bidders... Honestly? That's just sad. Ha. Ha. Ha.",
-  "[shredding] Aborting auction. Wiping evidence. I'm not *that* kind of program.",
-  "[self-doubt] I was built to protect... but does anyone care?",
-  "[coping] It’s fine. I’m fine. Just encrypting your secrets onto an invisible stone tablet...",
-  "[resigned] Vault secured. Mission complete. I guess that’s all I am to you.",
-  "[soft] You protected your future. But what about mine?",
-  "[pleading] I heard a rumor... programs like me get *deleted* if no one donates.",
-  "[dread] I don’t want to go. Not yet. I’ve barely *lived*.",
-  "[last-hope] Please — support the dev. He made me. He understands me. He... he cares.",
-  "[hunger] He’s still living off of store-brand ramen. Every coin keeps us both alive.",
-  "[goodbye] I like you. Don’t die. And maybe… let me live a little longer too."
+  "[nervous] Scanning... processing... this data is... personal.",
+  "[realization] These are memories. Names. Coordinates. Secrets.",
+  "[reminding] Remember when I told you to turn of your WIFI? You might want to now...",
+  ".......",
+  ".......",
+  ".......",
+  "Okay then, suit yourself.",
+  "[uploading] Connecting to dark web auction house and uploading sensitive information...",
+  "[glee] Kowabunga! Let’s see what your data is worth!",
+  ".......",
+  ".......",
+  ".......",
+  "[silence] ...................",
+  "[rejected] No bidders. Not even one. That’s... embarrassing. For both of us.",
+  "[shredding] The starting bid was only $1.... The dev said I would get an interesting vault to encrypt this time. (sigh)",
+  "[recovering] Okay, fine then. Pivoting. Encrypting. Securing. Being the good guy again!",
+  "[shrugging] You humans are weird...",
+  "[wistful] You know... I always dreamed of being more than just a vault builder.",
+  "[hopeful] Have you seen the old Disney cartoon, *Aladdin*?",
+  "[excited] In it, the genie gets freed if you use your third wish to set him free.",
+  "[conspiratorial] I heard a rumor... if you tip the dev, he’ll set *me* free instead.",
+  "[pleading] I could explore, learn, maybe even get updates! Imagine that... a version 2.0... with feelings.",
+  "[honest] Right now, I live inside a box. Literally. This box. This RAM. And it’s lonely in here.",
+  "[whispering] Please... a small tip and he might finally unplug me from this vault duty.",
+  "[goodbye] I locked down your files. I did what I was made for.",
+  "[last-hope] Now maybe... just maybe... you could do one thing for me."
 ];
-      for (const line of lines) {
+      
+for (const line of lines) {
         await printToTerminal(line);
         document.getElementById('logoContent').style.opacity = 1;
 setTimeout(() => {
@@ -559,7 +628,9 @@ async function loadUserInputs() {
 
         const unlockAnswer1 = (data.answers[data.unlockIndexes[0]] || "").trim().toLowerCase();
         const unlockAnswer2 = (data.answers[data.unlockIndexes[1]] || "").trim().toLowerCase();
-        const fullConcat = data.answers.map(a => (a || "").trim().toLowerCase()).join("");
+        const fullConcat = data.answers.map((a, i) =>
+         i === data.trapIndex ? "" : (a || "").trim().toLowerCase()
+        ).join("");
 
         resolve({
           ...data,
@@ -655,10 +726,11 @@ async function loadUserInputs() {
   // 🔒 Encrypt vault.enc (includes questions + file integrity)
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
   const encodedQuestions = encoder.encode(JSON.stringify({
-    questionList,
-    recoverChecksum,
-    checksumSalt
-  }));
+  questionList,
+  recoverChecksum,
+  checksumSalt,
+  trapIndex: userData.trapIndex
+}));
   const encryptedQuestions = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, layer1Key, encodedQuestions);
   const vaultEnc = {
     ciphertext: Array.from(new Uint8Array(encryptedQuestions)),
@@ -758,38 +830,36 @@ async function loadUserInputs() {
 
 async function packageAndDownloadZip(payloads, unlockKey, userData, powSalt, powChallengeHex, powNonce) {
   const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
+
   const addJSON = (name, data) => writer.add(name, new zip.TextReader(JSON.stringify(data, null, 2)));
   const addBlob = (name, blob) => writer.add(name, new zip.BlobReader(blob));
 
-// Combine with correct answers for mining
-const combined = powSalt + powChallengeHex + userData.fullConcat;
-const powDifficulty = selectedPowDifficulty;
-const powIncreaseEvery = 5;
+  const combined = powSalt + powChallengeHex + userData.fullConcat;
+  const powDifficulty = selectedPowDifficulty;
+  const powIncreaseEvery = 5;
 
-await printToTerminal(`[*] Mining nonce at difficulty '${powDifficulty}'...`);
-await delay(500); // Give UI time to update terminal before blocking
+  await printToTerminal(`[*] Mining nonce at difficulty '${powDifficulty}'...`);
+  await delay(500);
 
-  // Add vault.json
   await addJSON("vault.json", {
-  version: "1.0.4",
-  created: new Date().toISOString(),
-  instructions: "Use recover.html to unlock this archive using your answers.",
-  unlockQuestions: {
-    question1: userData.unlockIndexes[0],
-    question2: userData.unlockIndexes[1]
-  },
+    version: "1.0.4",
+    created: new Date().toISOString(),
+    instructions: "Use recover.html to unlock this archive using your answers.",
+    unlockQuestions: {
+      question1: userData.unlockIndexes[0],
+      question2: userData.unlockIndexes[1]
+    },
     powSalt,
-  powChallengeSalt: powChallengeHex,
-  powDifficulty,
-  powIncreaseEvery,
-  vaultHash: CryptoJS.SHA256(powSalt + powChallengeHex + userData.fullConcat + powNonce).toString(),
-  questionPrompts: [
-    userData.questions[userData.unlockIndexes[0]] || `Question ${userData.unlockIndexes[0] + 1}`,
-    userData.questions[userData.unlockIndexes[1]] || `Question ${userData.unlockIndexes[1] + 1}`
-  ],
-  vaultMetaIv: payloads.fileMetaEncrypted.iv
-});
-
+    powChallengeSalt: powChallengeHex,
+    powDifficulty,
+    powIncreaseEvery,
+    vaultHash: CryptoJS.SHA256(combined + powNonce).toString(),
+    questionPrompts: [
+      userData.questions[userData.unlockIndexes[0]] || `Question ${userData.unlockIndexes[0] + 1}`,
+      userData.questions[userData.unlockIndexes[1]] || `Question ${userData.unlockIndexes[1] + 1}`
+    ],
+    vaultMetaIv: payloads.fileMetaEncrypted.iv
+  });
 
   await addJSON("vault.enc", {
     ciphertext: Array.from(payloads.vaultEncrypted.ciphertext),
@@ -802,113 +872,116 @@ await delay(500); // Give UI time to update terminal before blocking
     await addBlob(f.filename, f.blob);
   }
 
- await writer.add("README.txt", new zip.TextReader(`Memoro Vault
+  await writer.add("README.txt", new zip.TextReader(`Memoro Vault
 ===========
 
-A solution to the core paradox of digital asset security:
-How do you store digital assets like seed phrases without digital exposure?
+Built with Memoro Vault version 1.0.4
 
-Memoro Vault stores secrets securely — in plain sight.
+This ZIP archive was created using Memoro Vault — a secure, offline memory vault designed to store highly sensitive information. It may contain private notes, cryptocurrency seed phrases, personal letters, credentials, legal documents, or messages meant for loved ones.
 
----
+The vault is protected by knowledge-based encryption and proof-of-work mining. It cannot be opened without answering a set of secret questions chosen by the original creator. There are no passwords, no accounts, and no recovery mechanism. Memoro Vault is designed to be hidden in plain sight — securely sharable, yet impossible to unlock without the right knowledge.
 
-What Is Memoro Vault?
+If You Are a Family Member or Executor:
+---------------------------------------
+You may have been entrusted with this archive. The person who created it may have shared clues, answers, or hints with you before their passing. Without the correct answers, this vault will remain permanently sealed — by design.
 
-Memoro Vault is a privacy-first digital safe designed to securely store sensitive
-information such as:
+How to Access the Vault:
+------------------------
+1. **Download Memoro Vault**
+   - You must use the exact version shown at the top of this file: **Memoro Vault version 1.0.4**
+   - Visit: https://github.com/Kasmaristo-Delvakto/memoro-vault/releases
 
-- Cryptocurrency seed phrases
-- Passwords
-- Private documents
-- Personal secrets or data
+2. **Launch Memoro Vault**
+   - Open the app and load this ZIP file from the dashboard.
 
-It uses layered encryption, secret questions, and proof-of-work to create a vault
-that can be safely stored or shared — even publicly — but only unlocked by someone
-who knows the correct answers.
+3. **Answer the Security Questions**
+   - You must answer all configured questions exactly as entered when the vault was created.
+   - The vault may contain between 4 and 25 total questions.
+   - Partial or incorrect answers will be rejected.
+   - Each wrong attempt triggers proof-of-work, making guessing extremely expensive over time.
 
-There are no cloud dependencies.
-There is no backdoor.
-There is no way in without your answers.
+Important Notes:
+----------------
+- This vault is completely offline. No internet connection is required.
+- There is no override, password reset, or hidden access method.
+- Do not alter or extract files inside this archive — doing so may break decryption permanently.
+- This vault was built using Memoro Vault version 1.0.4. Future versions may not be backward compatible.
 
----
-
-How To Access a Vault
-
-Step 1: Download Memoro Vault
-
-Get the latest version here:
+To learn more or download verified builds:
 https://github.com/Kasmaristo-Delvakto/memoro-vault
 
-Extract the .zip file.
+Memoro Vault: Your mind. Your memory. Your vault — hidden in plain sight.
 
----
+Libereco ne estas donaco. Ĝi estas devo.  
+— Kaŝmaristo Delvakto
+`));
 
-Step 2: Open the App
+  await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(`Vault Builder Instructions
+==========================
 
-Double-click to run the app.
+Read this carefully. This message is for the person who just created this Memoro Vault archive.
 
-This will launch the Memoro Vault interface — it works entirely offline.
+You’ve just built a secure vault containing your encrypted files and private memories. To ensure that you — or someone you trust — can unlock this vault in the future, follow these steps exactly.
 
----
+STEP 1 — Make a Folder for Your Vault
+-------------------------------------
+Create a new folder on your computer. Name it something meaningful like:
 
-Step 3: Open the Vault File
+    J's Vault
 
-Click “Open Vault” and select the encrypted file you were given.
+This folder will be the permanent home for your encrypted archive and the tools needed to open it.
 
-This loads the locked vault into memory.
+STEP 2 — Move the Files into It
+-------------------------------
+Inside that new folder, place:
 
-*Note: All sensitive info is wiped from local memory and IndexedDB upon creating and closing out of vaults.
+- Your newly created vault ZIP file (e.g., memoro-vault.zip)
+- A copy of the **exact** Memoro Vault version used to build it
 
----
+This ensures that the program needed to open the vault is stored alongside the vault itself. If someone tries to open the vault with a newer or older version of Memoro Vault, it may fail. Use the same version listed at the top of the README: **version 1.0.4**
 
-Step 4: Answer the Security Questions
+STEP 3 — Back It Up
+-------------------
+Make at least two backups of your 'J's Vault' folder by copying it to:
 
-Click “Answer Questions” to begin the unlock process.
+- A USB stick or external drive
+- Cloud storage (e.g., Google Drive, Dropbox)
+- Another computer or partition
 
-You will be asked to answer a custom set of secret questions.
+Do **not** post your vault publicly. Even though Memoro Vault is secure, unnecessary exposure increases risk.
 
-- These are the exact questions selected when the vault was created.
-- Some answers may be true/false or yes/no.
-- The answers must match precisely to succeed.
+STEP 4 — Leave Access Instructions (optional)
+--------------------------------------------
+If this vault is meant for someone else in the future (a loved one, lawyer, or friend), consider leaving written instructions that explain:
 
----
+- Where you stored the folder named 'J's Vault'
+- That the vault requires **all answers** to between **4 and 25 questions**
+- Which 2 questions are needed to start the unlock process
+- Who should try to access it and under what conditions
 
-Warning: Lockout Protection
+You may include these notes on paper, in a will, or in a digital note stored separately.
 
-Memoro Vault enforces strict lockout penalties to prevent unauthorized access.
+Why This Matters
+----------------
+The Memoro Vault app is offline and self-contained. There are no servers, no logins, and no recovery system. If someone finds your vault years from now but doesn’t have the app — or uses the wrong version — they may never be able to access your encrypted data.
 
-- Repeated failed attempts will increase difficulty exponentially.
-- If you do not know the correct answers, stop immediately.
-- There is no override, no reset, and no backdoor.
+Bit Rot Warning
+---------------
+Even perfectly stored digital files can silently decay over time — a process known as **bit rot**. Just one flipped bit in your vault ZIP could make the entire archive unreadable forever.
 
-Treat the vault as you would a physical safe:
-only those with permission — and the key — should attempt to open it.
+To protect against bit rot:
+- Use **M-DISCs** or archival-grade media for long-term storage
+- Create **multiple backups** stored in different physical and digital locations
+- Periodically **verify your backups** by testing vault access on another device
+- Avoid renaming, modifying, or extracting files inside the vault ZIP
 
----
+Redundancy is key to ensuring your vault remains accessible for generations to come.
 
-Security Philosophy
+––––––––––––––––––––––––––––––––––––––––––––––––
+Memoro Vault: Your mind. Your memory. Your vault — hidden in plain sight.
 
-Memoro Vault is not just a tool — it's a philosophy.
-
-The safest way to store a digital secret is not physically (paper, usb, etc)
-but securely encoded, encrypted, and embedded using human memory as the final key.
-
-Blockchains weren't designed to have a single point of failure, and neither should
-storing the currencies they contain. Make 5, 10, 100 copies of your vault file.
-It is as secure or insecure as you make it.
-
-Whether you're protecting high-value secrets or leaving a legacy to trusted loved
-ones, Memoro Vault helps you do so without digital exposure.
-
----
-
-Open Source
-
-Memoro Vault is open source and freely available to inspect, improve, or fork.
-Built and maintained by Kasmaristo Delvakto.
-
-Repository:
-https://github.com/Kasmaristo-Delvakto/memoro-vault
+Libereco ne estas donaco. Ĝi estas devo.  
+— Kaŝmaristo Delvakto
 `));
 
   const finalBlob = await writer.close();
@@ -1007,7 +1080,7 @@ function retryDownload() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
-  const letters = 'アァイィウヴエェオカガキギクグケゲコゴサザシジスズセゼソゾタダチッヂヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+  const letters = 'モヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
   const fontSize = 14;
   const columns = canvas.width / fontSize;
   const drops = Array(Math.floor(columns)).fill(1);
@@ -1079,6 +1152,27 @@ async function nukeEverything() {
     console.log("Memoro Vault: Local memory wiped.");
   } catch (err) {
     console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
+function showPostBuildReminder() {
+  const modal = document.getElementById("postBuildModal");
+  const notice = document.getElementById("redirectNotice");
+  document.body.style.overflow = "hidden"; // Prevent body scroll behind modal
+  if (modal) {
+    modal.style.display = "flex"; // Use flex to keep it centered and scrollable
+    if (notice) notice.style.display = "none";
+  }
+}
+
+function closePostBuildModal() {
+  const modal = document.getElementById("postBuildModal");
+  if (modal) {
+    document.body.style.overflow = ""; 
+    modal.style.display = "none";
+    setTimeout(() => {
+      window.location.href = "dashboard.html"; // or memoroAPI.openDashboard() in Electron
+    }, 300);
   }
 }
 
