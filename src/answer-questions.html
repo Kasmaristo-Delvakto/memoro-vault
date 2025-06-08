@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Answer Your Questions - Memoro Vault</title>
+  <script src="libs/zxcvbn.js"></script>
+
   <style>
   body {
     background-color: black;
@@ -15,20 +17,22 @@
     align-items: center;
   }
   canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: -2;
-  }
-  .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.75);
-    z-index: -1;
-  }
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -2;
+}
+
+.matrix-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: -1;
+}
+
   h1 {
     font-size: 32px;
     margin-bottom: 10px;
@@ -45,16 +49,17 @@
     flex-direction: column;
   }
   .question-block {
-    background-color: #111;
-    padding: 15px;
-    margin-bottom: 15px;
-    border-radius: 8px;
-    display: grid;
-    grid-template-columns: 2fr 1fr 0.5fr;
-    gap: 10px;
-    align-items: center;
-    border: 1px solid #0f0;
-  }
+  background-color: #111;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 3fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #0f0;
+}
+
   label {
     font-size: 16px;
     margin-bottom: 5px;
@@ -110,17 +115,23 @@
 }
 
   .modal {
-    display: none;
-    position: fixed;
-    z-index: 9999;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.85);
-    align-items: center;
-    justify-content: center;
-  }
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.75);
+  align-items: flex-start;  /* Top-align so scroll works naturally */
+  justify-content: center;
+  overflow: auto;
+  padding: 60px 60px; /* Add space ABOVE and BELOW the modal-content */
+  box-sizing: border-box;
+}
+
+
+
   .modal-content {
     background-color: #111;
     padding: 30px;
@@ -214,16 +225,49 @@ input[type="checkbox"]:checked::after {
   z-index: 10000;
 }
 
+.info-icon {
+  color: #00ff99;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  padding: 0 4px;
+  border: 1px solid #00ff99;
+  border-radius: 50%;
+  line-height: 1;
+  display: inline-block;
+  text-align: center;
+  width: 18px;
+  height: 18px;
+  transition: background 0.3s ease;
+}
+
+.info-icon:hover {
+  background-color: #00ff99;
+  color: #000;
+}
+
+#trapModal .modal-content {
+  max-width: 700px;
+  width: 90%;
+  padding: 40px;
+  text-align: left;
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 40px; /* add this */
+}
+
+
 </style>
 
 </head>
 
 <body>
 
-<canvas id="matrix"></canvas>
-<div class="overlay"></div>
+<canvas id="matrixCanvas"></canvas>
+<div class="matrix-overlay"></div>
 
-<h1>Answer Your Questions and Enter Your Seed</h1>
+
+<h1>Answer Your Questions and Upload Files</h1>
 <div id="countdown"></div>
 
 <form class="question-form" id="answerForm">
@@ -233,6 +277,81 @@ input[type="checkbox"]:checked::after {
 <div id="extraSeedsSection" style="margin-top: 30px; width: 100%; max-width: 900px;">
   <!-- Extra seed inputs will go here if needed -->
 </div>
+
+<div id="totalEntropyContainer" style="margin: 30px auto 0 auto; width: fit-content; text-align: center; border: 1px solid #0f0; padding: 12px 24px; border-radius: 8px; background-color: #111; box-shadow: 0 0 8px #0f0;">
+  <p style="font-size: 16px; color: #ccc;">
+    Estimated Vault Strength:
+    <span id="totalEntropyBits" style="color:#00ff99;">0.0</span> bits —
+    <span id="entropyAssessment" style="color:#ff3333;">Very Weak</span>
+    <br>
+    <span style="color:#ccc; font-size: 14px;">
+      Total Combinations: <span id="totalCombinations" style="color:#00ff99;">0</span>
+    </span>
+    <span style="color:#aaa; font-size: 13px;">
+      Estimated Crack Time: <span id="estimatedCrackTime" style="color:#ff9933;">Instantly crackable</span><br>
+      <em style="color:#777;">(assuming 1 trillion guesses/sec — botnet-level offline attack)</em>
+    </span>
+    <br>
+    <span id="crackabilityTier" style="display: block; margin-top: 8px; font-size: 14px; color: #ff3333;"></span>
+    <span style="color: #888; font-size: 13px; display: block; margin-top: 4px;">
+      This estimation does not factor in the potential for phishing, coercion, or social engineering — never share personal details.
+    </span>
+  </p>
+</div>
+
+
+<details style="margin-top: 30px; color: #0f0;">
+  <summary style="cursor: pointer; font-size: 16px;">What is entropy and how is my vault protected?</summary>
+  <div style="margin-top: 15px; font-size: 15px; color: #ccc; line-height: 1.6;">
+
+    <p><strong>Entropy</strong> is a measure of unpredictability — how many guesses an attacker would need to crack your answers. Memoro Vault uses <code>zxcvbn</code>, a password strength estimator from Dropbox, to evaluate the entropy of each response. We calculate this conservatively — assuming only 26 lowercase letters and no symbols — to ensure you're not overestimating security.</p>
+
+    <p>We assume <strong>the worst-case scenario</strong>: global adversaries with the fastest hardware on Earth.</p>
+
+    <pre style="background-color: black; color: #00ff99; padding: 15px; font-family: 'Fira Code', monospace; font-size: 14px; overflow-x: auto;">
+╔═════════════════════════════════════════════════════════════════════════╗
+║  ASSUMED ATTACKER HARDWARE         |   GUESSES/SEC   |   TIME TO CRACK     ║
+╠═════════════════════════════════════════════════════════════════════════╣
+║  Consumer GPU (RTX 4090)           |   45B/sec       |   40-bit: ~24 sec   ║
+║                                    |                 |   80-bit: ~27M yrs  ║
+║                                    |                 |   120-bit: 10²⁴ yrs ║
+╟─────────────────────────────────────────────────────────────────────────╢
+║  Enterprise Cluster (A100s)        |   1T/sec        |   40-bit: ~1.1 sec  ║
+║                                    |                 |   80-bit: ~38K yrs  ║
+║                                    |                 |   120-bit: 10²¹ yrs ║
+╟─────────────────────────────────────────────────────────────────────────╢
+║  Nation-State Supercluster         |  100T/sec       |   40-bit: ~0.01 sec ║
+║                                    |                 |   80-bit: ~384 yrs  ║
+║                                    |                 |   120-bit: 10¹⁹ yrs ║
+║                                    |                 |   180-bit: 10⁴⁰ yrs ║
+╚═════════════════════════════════════════════════════════════════════════╝
+    </pre>
+
+
+    <p>Memoro Vault uses this to classify your vault strength:</p>
+
+    <ul style="margin-left: 20px;">
+  <li><strong style="color:#ff3333;">Very Weak</strong>: under 40 bits — crackable in seconds to minutes</li>
+  <li><strong style="color:#ff9933;">Weak</strong>: 40–79 bits — crackable in minutes to months</li>
+  <li><strong style="color:#ffff66;">Moderate</strong>: 80–119 bits — could take decades to millions of years</li>
+  <li><strong style="color:#66ff66;">Strong</strong>: 120–179 bits — would take longer than the age of the universe using today’s best hardware</li>
+  <li><strong style="color:#00ff99;">Very Strong</strong>: 180+ bits — beyond the reach of any current or foreseeable brute-force attack</li>
+    </ul>
+
+
+    <p>Even one weak answer can collapse your vault. To strengthen it:</p>
+    <ul style="margin-left: 20px;">
+      <li>Use answers that only trusted people would know — not Google, Facebook, or public records</li>
+      <li>Avoid names, birthplaces, and dates — these can often be socially engineered</li>
+      <li>Use symbolic, metaphorical, or abstract memories, not surface facts</li>
+      <li>Mix short and long structures and avoid patterns (like “john2024”)</li>
+    </ul>
+
+    <p>Memoro Vault provides no hints, no partial progress, and imposes increasing <strong>proof-of-work</strong> delays after every failure. This dual-layer model blocks both casual guessing and high-speed brute-force attacks.</p>
+
+  </div>
+</details>
+
 
 <!-- Multi-seed input section -->
 <div id="multiSeedSection" style="margin-top: 40px; width: 100%; max-width: 900px;">
@@ -577,28 +696,77 @@ window.addEventListener('DOMContentLoaded', () => {
   let customHints = {};
   
   function loadQuestions() {
-    const form = document.getElementById('answerForm');
-    const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
-  
-    for (let i = 0; i < numberOfQuestions; i++) {
-      const questionText = savedQuestions[i] || defaultQuestions[i];
-  
-      const block = document.createElement('div');
-      block.className = 'question-block';
-      block.innerHTML = `
-        <div class="input-group">
-          <label><b>${i + 1}.</b> ${questionText}</label>
-          <input type="text" id="answer-${i}" placeholder="Your answer" required oninput="forceLowercase(this); refreshHintModal();" onpaste="handlePaste(event, ${i})">
-        </div>
-        
-        <div class="input-group">
-          <label><input type="checkbox" id="custom-hint-${i}" onchange="if(this.checked) openHintModal(${i})"> Custom Hint</label>
-        </div>
-      `;
-      form.appendChild(block);
-    }
+  const form = document.getElementById('answerForm');
+  const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
+
+  for (let i = 0; i < numberOfQuestions; i++) {
+    const questionText = savedQuestions[i] || defaultQuestions[i];
+
+    const block = document.createElement('div');
+    block.className = 'question-block';
+    block.innerHTML = `
+      <div class="input-group" style="grid-column: 1 / 2;">
+        <label><b>${i + 1}.</b> ${questionText}</label>
+        <input type="text"
+          id="answer-${i}"
+          placeholder="Your answer"
+          required
+          oninput="forceLowercase(this); refreshHintModal(); updateEntropy(${i})"
+          onpaste="handlePaste(event, ${i})"
+        >
+      </div>
+
+      <div style="display: flex; align-items: center;">
+  <input type="checkbox"
+    id="custom-hint-${i}"
+    onchange="if(this.checked) openHintModal(${i})"
+  >
+  <span style="line-height: 1;">Custom Hint</span>
+</div>
+
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+  <label style="margin: 0;">
+    <input type="checkbox"
+      class="trap-checkbox"
+      data-index="${i}"
+    >
+    Use as <strong style="color:#00ff99;">Red Herring</strong>
+  </label>
+  <span class="info-icon"
+        onclick="event.stopPropagation(); document.getElementById('trapModal').style.display='flex';"
+        title="What is a Red Herring?">ℹ</span>
+</div>
+
+
+      <div id="entropy-${i}" style="grid-column: 1 / -1; text-align: right; font-size: 14px; color: #0f0; margin-top: 6px;">
+        Entropy: 0.0 bits
+      </div>
+</div>
+
+    `;
+
+    form.appendChild(block);
+    updateEntropy(i); // Initialize entropy
   }
-  
+}
+
+document.querySelectorAll('.trap-checkbox').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const selectedIndex = parseInt(cb.dataset.index);
+
+    if (selectedIndex < 2 && cb.checked) {
+      cb.checked = false;
+      showMessageModal("Invalid Red Herring", "You cannot select one of the Layer 1 unlock questions as a red herring. Please choose a different question.");
+      return;
+    }
+
+    document.querySelectorAll('.trap-checkbox').forEach(other => {
+      if (other !== cb) other.checked = false;
+    });
+  });
+});
+
   function goBack() {
     window.history.back();
   }
@@ -609,6 +777,10 @@ window.addEventListener('DOMContentLoaded', () => {
   const answerInputs = document.querySelectorAll('input[id^="answer-"]');
   const seedInputs = document.querySelectorAll('input[id^="seed-"]');
   const finalMessage = document.getElementById('finalMessage').value.trim();
+  let trapIndex = -1;
+document.querySelectorAll('.trap-checkbox').forEach(cb => {
+  if (cb.checked) trapIndex = parseInt(cb.dataset.index);
+});
 
   answerInputs.forEach(input => answers.push(input.value.trim()));
   seedInputs.forEach(input => seeds.push(input.value.trim()));
@@ -645,15 +817,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const store = tx.objectStore('vaultUserData');
 
     store.put({
-      id: 'userData',
-      answers,
-      seeds: finalSeeds,
-      hints: customHints,
-      questions,
-      questionCount,
-      unlockIndexes,
-      finalMessage
-    });
+  id: 'userData',
+  answers,
+  seeds: finalSeeds,
+  hints: customHints,
+  questions,
+  questionCount,
+  unlockIndexes,
+  finalMessage,
+  trapIndex
+});
 
     tx.oncomplete = () => {
       db.close();
@@ -792,33 +965,36 @@ localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
 }
 
   function saveCustomHint() {
-    if (activeHintIndex === null) return;
-    const num = parseInt(document.getElementById('numLetters').value);
-    const indexes = [];
-    const seen = new Set();
-    let duplicateFound = false;
-  
-    for (let i = 0; i < num; i++) {
-      const value = parseInt(document.getElementById(`letter-select-${i}`).value);
-      if (seen.has(value)) {
-        duplicateFound = true;
-        break;
-      }
-      seen.add(value);
-      indexes.push(value);
+  if (activeHintIndex === null) return;
+  const num = parseInt(document.getElementById('numLetters').value);
+  const indexes = [];
+  const seen = new Set();
+  let duplicateFound = false;
+
+  for (let i = 0; i < num; i++) {
+    const value = parseInt(document.getElementById(`letter-select-${i}`).value);
+    if (seen.has(value)) {
+      duplicateFound = true;
+      break;
     }
-  
-    if (duplicateFound) {
-      showMessageModal('Duplicate Letter Chosen', 'Please choose different letters for your hints.');
-      return;
-    }
-    customHints[activeHintIndex] = {
-      letters: indexes.sort((a, b) => a - b),
-      custom: document.getElementById('customHintText').value.trim()
-    };
-    closeHintModal();
+    seen.add(value);
+    indexes.push(value);
   }
-  
+
+  if (duplicateFound) {
+    showMessageModal('Duplicate Letter Chosen', 'Please choose different letters for your hints.');
+    return;
+  }
+
+  customHints[activeHintIndex] = {
+    letters: indexes.sort((a, b) => a - b),
+    custom: document.getElementById('customHintText').value.trim()
+  };
+
+  updateEntropy(activeHintIndex); // ✅ recalculate entropy now that hint letters changed
+  closeHintModal();
+}
+
   function refreshHintModal() {
     if (document.getElementById('hintModal').style.display === 'flex') {
       buildLetterSelectors();
@@ -864,42 +1040,61 @@ localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
       el.style.display = 'none';
     });
   }
+
+  // Activate trap checkbox logic after UI loaded
+  document.querySelectorAll('.trap-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const selectedIndex = parseInt(cb.dataset.index);
+const unlockIndexes = JSON.parse(localStorage.getItem('unlockQuestions') || '[0,1]');
+if (unlockIndexes.includes(selectedIndex) && cb.checked) {
+        cb.checked = false;
+        showMessageModal("Invalid Red Herring", "You cannot select one of the Layer 1 unlock questions as a red herring. Please choose a different question.");
+        return;
+      }
+      document.querySelectorAll('.trap-checkbox').forEach(other => {
+        if (other !== cb) other.checked = false;
+      });
+    });
+  });
 };
-  </script>  
+</script>
 
 <script>
-const canvas = document.getElementById('matrix');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("matrixCanvas");
+const ctx = canvas.getContext("2d");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const columns = Math.floor(canvas.width / 20);
-const drops = Array(columns).fill(1);
+const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+const fontSize = 14;
+const columns = Math.floor(canvas.width / fontSize);
+const drops = Array(columns).fill(0);
 
 function drawMatrix() {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#00ff99';
-  ctx.font = '16px monospace';
+  ctx.font = `${fontSize}px monospace`;
 
   for (let i = 0; i < drops.length; i++) {
-    const text = String.fromCharCode(0x30A0 + Math.random() * 96);
-    ctx.fillText(text, i * 20, drops[i] * 20);
-    if (drops[i] * 20 > canvas.height || Math.random() > 0.975) {
+    const text = letters[Math.floor(Math.random() * letters.length)];
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+    drops[i]++;
+    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
       drops[i] = 0;
     }
-    drops[i]++;
   }
 }
 
-setInterval(drawMatrix, 33);
+setInterval(drawMatrix, 66);
 
-
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
 </script>
+
 
 <script>
 let namedSeeds = JSON.parse(localStorage.getItem("namedSeeds") || "[]");
@@ -972,7 +1167,246 @@ async function nukeEverything() {
   }
 }
 
+function updateEntropy(index) {
+  const input = document.getElementById(`answer-${index}`);
+  const entropyDisplay = document.getElementById(`entropy-${index}`);
+  if (!input || !entropyDisplay || typeof zxcvbn !== 'function') {
+    console.warn('Entropy calc skipped — missing input or zxcvbn not loaded');
+    return;
+  }
+
+  const answer = input.value.trim().toLowerCase();
+  const hint = customHints[index] || { letters: [] };
+  const revealed = hint.letters?.length || 0;
+
+  // Handle binary-style answers with forced 1 bit entropy
+  const binaryAnswers = ['t', 'f', 'y', 'n', 'true', 'false', 'yes', 'no'];
+  let baseEntropy;
+  if (binaryAnswers.includes(answer)) {
+    baseEntropy = 1;
+  } else {
+    const result = zxcvbn(answer);
+    baseEntropy = Math.log2(result.guesses || 1); // Use guesses, not entropy field
+  }
+
+  const penaltyPerChar = Math.log2(26); // lowercase letters only
+  const penalty = revealed * penaltyPerChar;
+  const effectiveEntropy = Math.max(0, baseEntropy - penalty);
+
+  let color = '#ff3333';
+  if (effectiveEntropy >= 40) color = '#00ff99';
+  else if (effectiveEntropy >= 20) color = '#ffff00';
+
+  entropyDisplay.textContent = `Entropy: ${effectiveEntropy.toFixed(1)} bits`;
+  entropyDisplay.style.color = color;
+  calculateTotalEntropy();
+}
+
+function calculateTotalEntropy() {
+  const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
+  let total = 0;
+
+  for (let i = 0; i < numberOfQuestions; i++) {
+    const el = document.getElementById(`entropy-${i}`);
+    if (el) {
+      const match = el.textContent.match(/([\d.]+) bits/);
+      if (match) total += parseFloat(match[1]);
+    }
+  }
+
+  // Update entropy display
+  document.getElementById('totalEntropyBits').textContent = total.toFixed(1);
+
+  const assessment = document.getElementById('entropyAssessment');
+  if (total < 40) {
+    assessment.textContent = 'Very Weak';
+    assessment.style.color = '#ff3333';
+  } else if (total < 80) {
+    assessment.textContent = 'Weak';
+    assessment.style.color = '#ff9933';
+  } else if (total < 120) {
+    assessment.textContent = 'Moderate';
+    assessment.style.color = '#ffff00';
+  } else if (total < 180) {
+    assessment.textContent = 'Strong';
+    assessment.style.color = '#66ff66';
+  } else {
+    assessment.textContent = 'Very Strong';
+    assessment.style.color = '#00ff99';
+  }
+
+  // Total combinations
+  const totalCombinationsEl = document.getElementById('totalCombinations');
+  const crackTimeEl = document.getElementById('estimatedCrackTime');
+  const guessesPerSec = 1e12; // 1 trillion guesses/sec (botnet estimate)
+
+  if (total <= 0) {
+    totalCombinationsEl.textContent = "0";
+    crackTimeEl.textContent = "Instantly crackable";
+    return;
+  }
+
+  const combinations = Math.pow(2, total);
+  const exp = Math.floor(Math.log10(combinations));
+  const base = combinations / Math.pow(10, exp);
+  totalCombinationsEl.textContent = `${base.toFixed(2)} × 10^${exp}`;
+
+  // Crack time estimate (in seconds)
+  const seconds = combinations / guessesPerSec;
+
+  let readable = "";
+  if (seconds < 1) {
+    readable = "Instantly crackable";
+  } else if (seconds < 60) {
+    readable = `~${Math.ceil(seconds)} second${seconds > 1 ? 's' : ''}`;
+  } else if (seconds < 3600) {
+    readable = `~${Math.ceil(seconds / 60)} minute${seconds > 120 ? 's' : ''}`;
+  } else if (seconds < 86400) {
+    readable = `~${Math.ceil(seconds / 3600)} hour${seconds > 7200 ? 's' : ''}`;
+  } else if (seconds < 31536000) {
+    readable = `~${Math.ceil(seconds / 86400)} day${seconds > 172800 ? 's' : ''}`;
+  } else {
+    const years = seconds / 31536000;
+    readable = `~${years.toFixed(1)} year${years > 1.1 ? 's' : ''}`;
+  }
+
+  crackTimeEl.textContent = readable;
+}
+function calculateTotalEntropy() {
+  const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
+  let totalBits = 0;
+
+  // Aggregate total entropy
+  for (let i = 0; i < numberOfQuestions; i++) {
+    const el = document.getElementById(`entropy-${i}`);
+    if (el) {
+      const match = el.textContent.match(/([\d.]+) bits/);
+      if (match) totalBits += parseFloat(match[1]);
+    }
+  }
+
+  // Display total entropy
+  document.getElementById('totalEntropyBits').textContent = totalBits.toFixed(1);
+
+  // Set strength label and color
+  const assessment = document.getElementById('entropyAssessment');
+  if (totalBits < 40) {
+    assessment.textContent = 'Very Weak';
+    assessment.style.color = '#ff3333';
+  } else if (totalBits < 80) {
+    assessment.textContent = 'Weak';
+    assessment.style.color = '#ff9933';
+  } else if (totalBits < 120) {
+    assessment.textContent = 'Moderate';
+    assessment.style.color = '#ffff00';
+  } else if (totalBits < 180) {
+    assessment.textContent = 'Strong';
+    assessment.style.color = '#66ff66';
+  } else {
+    assessment.textContent = 'Very Strong';
+    assessment.style.color = '#00ff99';
+  }
+
+  // Calculate and display total combinations
+  const combos = Math.pow(2, totalBits);
+  const totalCombinationsEl = document.getElementById('totalCombinations');
+  if (combos <= 1) {
+    totalCombinationsEl.textContent = "0";
+  } else {
+    const exp = Math.floor(Math.log10(combos));
+    const base = combos / Math.pow(10, exp);
+    totalCombinationsEl.textContent = `${base.toFixed(2)} × 10^${exp}`;
+  }
+
+  // Crack time calculation
+  const guessesPerSecond = 1e12; // 1 trillion guesses/sec
+  const seconds = combos / guessesPerSecond;
+  const crackTimeEl = document.getElementById('estimatedCrackTime');
+
+  let crackReadable;
+  if (seconds < 1) {
+    crackReadable = "Instantly crackable";
+  } else if (seconds < 60) {
+    crackReadable = `~${Math.ceil(seconds)} second${seconds > 1 ? 's' : ''}`;
+  } else if (seconds < 3600) {
+    crackReadable = `~${Math.ceil(seconds / 60)} minute${seconds >= 120 ? 's' : ''}`;
+  } else if (seconds < 86400) {
+    crackReadable = `~${Math.ceil(seconds / 3600)} hour${seconds >= 7200 ? 's' : ''}`;
+  } else if (seconds < 31536000) {
+    crackReadable = `~${Math.ceil(seconds / 86400)} day${seconds >= 172800 ? 's' : ''}`;
+  } else if (seconds < 1e21) {
+    const years = seconds / 31536000;
+    crackReadable = `~${years.toFixed(1)} year${years > 1.1 ? 's' : ''}`;
+  } else {
+    crackReadable = `~${seconds.toExponential(2)} years`;
+  }
+
+  crackTimeEl.textContent = crackReadable;
+
+  // Update tier banner
+const tier = document.getElementById("crackabilityTier");
+if (tier) {
+  if (totalBits < 40) {
+    tier.textContent = "⚠️ Crackable instantly — trivial for any attacker";
+    tier.style.color = "#ff3333";
+  } else if (totalBits < 80) {
+    tier.textContent = "🔶 Vulnerable to distributed attacks (≤ 79 bits)";
+    tier.style.color = "#ff9933";
+  } else if (totalBits < 120) {
+    tier.textContent = "🟡 Resistant to consumer + small-scale parallel attacks (≥ 80 bits)";
+    tier.style.color = "#ffff66";
+  } else if (totalBits < 180) {
+    tier.textContent = "🟢 Strong even against enterprise GPU clusters (≥ 120 bits)";
+    tier.style.color = "#66ff66";
+  } else {
+    tier.textContent = "🟢 Functionally immune to brute-force (≥ 180 bits)";
+    tier.style.color = "#00ff99";
+  }
+}
+}
+
+window.addEventListener("DOMContentLoaded", calculateTotalEntropy);
+
 </script>
+
+<div id="trapModal" class="modal">
+  <div class="modal-content">
+    <h2>What is a Red Herring?</h2>
+    <p style="font-size: 15px; color: #ccc; line-height: 1.5;">
+      A <strong>Red Herring</strong> is a decoy question: it appears like the others, but you answer it <strong>incorrectly on purpose</strong>. During recovery, the correct action is to leave it <strong>blank</strong>.<br><br>
+
+      <strong>Purpose:</strong><br>
+      Red Herrings add a powerful layer of protection against social engineering. An attacker has no way to know which question is fake, and any attempt to answer it results in failure.<br><br>
+
+      <strong>How to use it:</strong><br>
+      • Choose a <strong>real-looking question</strong> that only close friends or family would recognize.<br>
+      • Enter a <strong>wrong answer</strong> that subtly signals it’s not genuine.<br>
+      • Make sure the fake answer is at least <strong>two characters longer or shorter</strong> than the real one.<br><br>
+
+      <strong>Why length matters:</strong><br>
+      During recovery, Memoro Vault displays the expected number of characters for each answer.<br>
+      This lets trusted contacts recognize mismatches and know to leave the Red Herring blank.<br><br>
+
+      <strong>Example:</strong><br>
+      <em>Question:</em> “What was my childhood nickname?”<br>
+      <em>Real Answer:</em> <code>Squirt</code> (6 characters)<br>
+      <em>Red Herring Answer:</em> <code>Tuf</code> (3 characters)<br>
+      If someone sees the vault is expecting a 3-character answer but knows the real answer has 6 characters, they'll know to leave it blank. Vault builders can also choose to give away letter/s to help those in their inner circle recognize the Red Herring.<br><br>
+
+      <strong>Psychological Advantage:</strong><br>
+      The beauty of the Red Herring is this: even if you choose not to use one, the attacker doesn’t know that.<br>
+      They’re forced to ask themselves: <em>"Do I leave one blank? If so, which one?"</em><br>
+      This uncertainty makes brute-force and social guessing nearly impossible — whether or not a Red Herring was actually used.<br><br>
+
+      <strong>Guidelines:</strong><br>
+      • Do not use questions that can be profiled, guessed, or searched online.<br>
+      • Only one Red Herring is allowed.<br>
+      • Using one is optional — but even the possibility dramatically increases your security.
+    </p>
+    <div class="modal-buttons">
+      <button onclick="document.getElementById('trapModal').style.display='none'">Got it</button>
+    </div>
+  </div>
 
 </body>
 </html>

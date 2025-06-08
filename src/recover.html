@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <title>Recover Your Vault - Memoro Vault</title>
+  <script src="libs/crypto-js.min.js"></script>
+  <script src="libs/zip.min.js"></script>
+
   <style>
   body {
     background-color: #000;
@@ -305,6 +308,26 @@
   box-sizing: border-box;
 }
 
+.donation-heading {
+  font-size: 20px;
+  color: #00ff99;
+  font-family: 'Fira Code', monospace;
+  text-shadow: 0 0 6px #00ff99;
+  margin-bottom: 12px;
+  text-align: center;
+  position: relative;
+  padding-bottom: 12px;
+}
+
+.donation-heading::after {
+  content: "";
+  display: block;
+  width: 80%;
+  height: 1px;
+  margin: 8px auto 0;
+  background: #00ff99;
+  box-shadow: 0 0 8px #00ff99;
+}
 
 </style>
 
@@ -327,13 +350,15 @@
 
     <!-- Donation Section -->
     <div class="pow-section">
-      <h3>Support Memoro Vault</h3>
+<div class="donation-heading">
+  Support Memoro Vault
+</div>
       <img src="assets/Screenshot (691).png" alt="Monero Donation QR"
            style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
-      <p>
-        Memoro Vault is a gift to the world.<br>
-        If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
-      </p>
+<p style="color: #00ff99; font-family: 'Fira Code', monospace; font-size: 15px; line-height: 1.6; text-shadow: 0 0 6px #00ff99; margin: 10px 0;">
+  <span style="font-weight: bold;">Memoro Vault is a gift to the world.</span><br>
+  If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
+</p>
       <button onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')"
               style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
         Donate with preferred crypto
@@ -396,10 +421,40 @@
   </div>
 
   <div id="toast"></div>
-  
-<script src="libs/crypto-js.min.js"></script>
-<script src="libs/zip.min.js"></script>
-  <script>
+
+  <div id="redHerringModal" class="modal">
+  <div class="modal-content" style="max-width: 700px; padding: 40px 30px; background-color: #000; color: #00ff99; border: 1px solid #00ff99; box-shadow: 0 0 15px #00ff99;">
+    <h2 style="color:#00ff99; margin-bottom: 20px; text-shadow: 0 0 10px #00ff99;">Pay Attention Before You Begin</h2>
+    <p style="font-size: 16px; line-height: 1.7; color: #00ff99;">
+      One of these questions might be a 
+      <span style="color: #88ffcc; text-shadow: 0 0 5px #88ffcc;">Red Herring</span>
+      —a trick question that’s <u style="text-decoration-color:#44ff88;">not supposed to be answered correctly</u>.
+      <br><br>
+      If a Red Herring is present, you must 
+      <span style="color: #00ff99; text-shadow: 0 0 4px #00ff99;">leave it blank</span>. 
+      Entering an answer—even the real one—will prevent you from unlocking the vault.
+      <br><br>
+      <span style="color: #88ffcc; text-shadow: 0 0 4px #88ffcc;">How do I spot it?</span><br>
+      Look at the character hint beneath each question. 
+      If the expected character count <u style="text-decoration-color:#44ff88;">differs from the real answer by 2 or more characters</u>, it’s likely the Red Herring.
+      <br><br>
+      <span style="color:#44ff88;">Example:</span> If your favorite dog’s name was 
+      “<code style="color:#44ff88;">Samantha</code>” (8 letters), but the hint only shows 4 characters, 
+      <u style="text-decoration-color:#44ff88;">do not answer that question</u>.
+      <br><br>
+      There is either 
+      <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">exactly one</span> Red Herring 
+      or <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">none at all</span>—never more than one.
+    </p>
+    <div class="modal-buttons" style="margin-top: 30px;">
+      <button onclick="closeRedHerringModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
+
+
+    <script>
   
   const terminal = document.getElementById("powTerminal");
 
@@ -1104,6 +1159,8 @@ window.onload = async () => {
       throw new Error("Incomplete transfer object");
     }
 
+    document.getElementById("redHerringModal").style.display = "flex";
+
     // Global hydrate
     window.vaultData = { ...transfer.vaultJson, ...transfer.decryptedVaultData };
     window.vaultJsonParsed = transfer.vaultJson;
@@ -1117,18 +1174,18 @@ window.onload = async () => {
     window.vaultId = window.vaultData.vaultId || window.vaultData.vaultHash || "default";
     window.powAttempt = parseInt(localStorage.getItem(`powAttempt_${window.vaultId}`)) || 1;
 
-    // 🧩 Rehydrate blobs from raw
+    // Rehydrate blobs from raw
     for (const [filename, serialized] of Object.entries(transfer.fileMapRaw)) {
       fileMap[filename] = new Blob([new Uint8Array(serialized.data)], {
         type: serialized.type || "application/octet-stream"
       });
     }
 
-    // 🛠️ IV Fallbacks (in case only present in original vaultJson)
+    // IV Fallbacks (in case only present in original vaultJson)
     vaultData.finalMessageIv = vaultData.finalMessageIv || transfer.vaultJson.finalMessageIv;
     vaultData.vaultMetaIv = vaultData.vaultMetaIv || transfer.vaultJson.vaultMetaIv;
 
-    // 🧾 Render the question inputs
+    // Render the question inputs
     loadQuestions();
 
   } catch (err) {
@@ -1137,6 +1194,9 @@ window.onload = async () => {
   }
 };
 
+function closeRedHerringModal() {
+  document.getElementById("redHerringModal").style.display = "none";
+}
 
 </script>
 

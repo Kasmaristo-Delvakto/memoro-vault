@@ -1,5 +1,12 @@
+// Disable Electron DevTools warnings and source map errors in production
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+process.env.NODE_ENV = 'production';
+
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+
+// Disable Chromium geolocation prompt
+app.commandLine.appendSwitch('disable-features', 'Geolocation');
 
 let mainWindow;
 let audioWindow;
@@ -11,6 +18,7 @@ function createWindow() {
     height: 700,
     show: false,
     icon: path.join(__dirname, 'src', 'assets', 'memoro-vault.ico'),
+    title: 'Memoro Vault',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -48,7 +56,9 @@ function createWindow() {
       for (const win of allWindows) {
         try {
           await Promise.race([
-            win.webContents.executeJavaScript(`typeof nukeEverything === 'function' ? nukeEverything() : Promise.resolve();`),
+            win.webContents.executeJavaScript(
+              `typeof nukeEverything === 'function' ? nukeEverything() : Promise.resolve();`
+            ),
             new Promise(resolve => setTimeout(resolve, 750))
           ]);
         } catch (err) {
@@ -56,13 +66,11 @@ function createWindow() {
         }
       }
 
-      // Now destroy everything manually
       if (audioWindow && !audioWindow.isDestroyed()) {
         audioWindow.destroy();
       }
-      mainWindow.destroy(); // Don't use .close() again or loop
-
-      app.quit(); // Explicit after everything is wiped
+      mainWindow.destroy();
+      app.quit();
     }
   });
 }
