@@ -102,6 +102,3 @@ I will launch a new Memoro Vault bounty at the end of July 2025:
 - Community contributions to the bounty pool are welcome
 
 This vault will use the hardened logic described above.
-
----
-
