@@ -778,9 +778,10 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
   const seedInputs = document.querySelectorAll('input[id^="seed-"]');
   const finalMessage = document.getElementById('finalMessage').value.trim();
   let trapIndex = -1;
-document.querySelectorAll('.trap-checkbox').forEach(cb => {
-  if (cb.checked) trapIndex = parseInt(cb.dataset.index);
-});
+
+  document.querySelectorAll('.trap-checkbox').forEach(cb => {
+    if (cb.checked) trapIndex = parseInt(cb.dataset.index);
+  });
 
   answerInputs.forEach(input => answers.push(input.value.trim()));
   seedInputs.forEach(input => seeds.push(input.value.trim()));
@@ -797,13 +798,25 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
   const bulkSeed = JSON.parse(localStorage.getItem('bulkSeedPhrase') || '[]');
   const finalSeeds = bulkSeed.length > seeds.length ? bulkSeed : seeds;
 
-  // Store to IndexedDB instead of just localStorage
   const unlockIndexes = JSON.parse(localStorage.getItem('unlockQuestions')) || [0, 1];
   const questionCount = parseInt(localStorage.getItem('questionCount')) || 12;
   const questions = JSON.parse(localStorage.getItem('questions')) || [];
 
-  const req = indexedDB.open('memoroVaultDB', 2);
+  const hints = answers.map((_, i) => ({
+    letters: customHints[i]?.letters || [],
+    custom: customHints[i]?.custom || ""
+  }));
 
+  // ✅ Compute spaceIndexes for each answer
+  const spaceIndexes = answers.map(ans => {
+    const indexes = [];
+    for (let i = 0; i < ans.length; i++) {
+      if (ans[i] === " ") indexes.push(i);
+    }
+    return indexes;
+  });
+
+  const req = indexedDB.open('memoroVaultDB', 2);
   req.onupgradeneeded = function (e) {
     const db = e.target.result;
     if (!db.objectStoreNames.contains('vaultUserData')) {
@@ -817,29 +830,29 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
     const store = tx.objectStore('vaultUserData');
 
     store.put({
-  id: 'userData',
-  answers,
-  seeds: finalSeeds,
-  hints: customHints,
-  questions,
-  questionCount,
-  unlockIndexes,
-  finalMessage,
-  trapIndex
-});
+      id: 'userData',
+      answers,
+      seeds: finalSeeds,
+      hints,
+      questions,
+      questionCount,
+      unlockIndexes,
+      finalMessage,
+      trapIndex,
+      spaceIndexes // ✅ Include this to support correct underscore rendering
+    });
 
     tx.oncomplete = () => {
       db.close();
 
- const namedSeedFiles = namedSeeds.map(seed => ({
-  name: seed.name + ".txt",
-  content: seed.content
-}));
-localStorage.setItem("namedSeedFiles", JSON.stringify(namedSeedFiles));
-localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
+      // Store named seed files
+      const namedSeedFiles = namedSeeds.map(seed => ({
+        name: seed.name + ".txt",
+        content: seed.content
+      }));
+      localStorage.setItem("namedSeedFiles", JSON.stringify(namedSeedFiles));
+      localStorage.removeItem("namedSeeds");
 
-
-      // Optional: clear localStorage copies if you're confident recovery works
       window.location.href = "build-vault.html";
     };
   };

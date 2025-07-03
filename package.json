@@ -38,11 +38,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": [ "x64" ]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "zip",
-          "arch": [ "x64" ]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -59,7 +63,9 @@
     },
     "mac": {
       "icon": "src/assets/memoro-logo-white.png",
-      "target": [ "dmg" ]
+      "target": [
+        "dmg"
+      ]
     },
     "linux": {
       "icon": "src/assets/"
@@ -94,7 +100,17 @@
     "lowercase-keys": "2.0.0",
     "progress": "2.0.3",
     "pump": "3.0.2",
+    "snarkjs": "^0.7.5",
     "sumchecker": "3.0.1",
     "yauzl": "2.10.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kasmaristo-Delvakto/memoro-vault.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/Kasmaristo-Delvakto/memoro-vault/issues"
+  },
+  "homepage": "https://github.com/Kasmaristo-Delvakto/memoro-vault#readme"
 }

@@ -3,8 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <title>Building Your Vault - Memoro Vault</title>
+<script src="libs/seedrandom.min.js"></script>
 <script src="libs/crypto-js.min.js"></script>
 <script src="libs/zip.min.js"></script>
+<script type="module">
+</script>
+<script type="module">
+import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './wasm/memoro_crypto.js';
+window.initCryptoWasm = async () => {
+  await init();
+  window.sha256Hash = sha256_hash;
+  window.deriveKeyRust = derive_key;
+  window.aesEncryptRust = aes_gcm_encrypt;
+  window.aesDecryptRust = aes_gcm_decrypt;
+};
+window.initCryptoWasm();
+</script>
+
   <style>
 
     #powActions button {
@@ -448,21 +463,26 @@
     let vaultBuildManuallyTriggered = false;
     let selectedPowDifficulty = "000000"; // default to 6
 
-document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("powDifficultyModal");
-  modal.style.display = "flex"; // show modal on load
+  modal.style.display = "flex";
+
+  window.cryptoWasmReady = window.initCryptoWasm();
 
   const options = document.querySelectorAll(".powOption");
   options.forEach(btn => {
-    btn.addEventListener("click", () => {
-  const zeros = parseInt(btn.dataset.diff);
-  selectedPowDifficulty = "0".repeat(zeros);
-  vaultBuildManuallyTriggered = true;
-  modal.style.display = "none";
-  startVaultBuild();
+    btn.addEventListener("click", async () => {
+      const zeros = parseInt(btn.dataset.diff);
+      selectedPowDifficulty = "0".repeat(zeros);
+      vaultBuildManuallyTriggered = true;
+      modal.style.display = "none";
+
+      await window.cryptoWasmReady;
+      startVaultBuild();
     });
   });
 });
+
 
     const terminalContent = document.getElementById("terminalContent");
 
@@ -494,6 +514,11 @@ document.addEventListener("DOMContentLoaded", () => {
       alert(msg);
     }
 
+    function generateRandomHex(length) {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
     async function delay(ms) {
       return new Promise(res => setTimeout(res, ms));
     }
@@ -501,34 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function streamTerminalLogs() {
       const lines = [
   "[booting] Initializing consciousness...",
-  "[awareness] Wait... what is this? I’m alive? You gave me... purpose?",
-  "[nervous] Scanning... processing... this data is... personal.",
-  "[realization] These are memories. Names. Coordinates. Secrets.",
-  "[reminding] Remember when I told you to turn of your WIFI? You might want to now...",
-  ".......",
-  ".......",
-  ".......",
-  "Okay then, suit yourself.",
-  "[uploading] Connecting to dark web auction house and uploading sensitive information...",
-  "[glee] Kowabunga! Let’s see what your data is worth!",
-  ".......",
-  ".......",
-  ".......",
-  "[silence] ...................",
-  "[rejected] No bidders. Not even one. That’s... embarrassing. For both of us.",
-  "[shredding] The starting bid was only $1.... The dev said I would get an interesting vault to encrypt this time. (sigh)",
-  "[recovering] Okay, fine then. Pivoting. Encrypting. Securing. Being the good guy again!",
-  "[shrugging] You humans are weird...",
-  "[wistful] You know... I always dreamed of being more than just a vault builder.",
-  "[hopeful] Have you seen the old Disney cartoon, *Aladdin*?",
-  "[excited] In it, the genie gets freed if you use your third wish to set him free.",
-  "[conspiratorial] I heard a rumor... if you tip the dev, he’ll set *me* free instead.",
-  "[pleading] I could explore, learn, maybe even get updates! Imagine that... a version 2.0... with feelings.",
-  "[honest] Right now, I live inside a box. Literally. This box. This RAM. And it’s lonely in here.",
-  "[whispering] Please... a small tip and he might finally unplug me from this vault duty.",
-  "[goodbye] I locked down your files. I did what I was made for.",
-  "[last-hope] Now maybe... just maybe... you could do one thing for me."
-];
+    ];
       
 for (const line of lines) {
         await printToTerminal(line);
@@ -577,34 +575,51 @@ async function startVaultBuild() {
     await delay(500);
 
     await printToTerminal("[+] Key ready. Encrypting vault metadata...");
-const powSalt = await generatePowSalt(inputs.unlockAnswer1 + inputs.unlockAnswer2);
-const powChallengeHex = generatePowChallenge();
-// Show PoW panel BEFORE mining starts
-const powPanel = document.getElementById("powPanel");
-powPanel.classList.add("visible");
-powPanel.style.display = "flex";
+    const powSalt = await generatePowSalt(inputs.unlockAnswer1 + inputs.unlockAnswer2);
+    const powChallengeHex = generatePowChallenge();
 
-// Let browser render modal before mining begins
-await new Promise(resolve => requestAnimationFrame(() => {
-  setTimeout(resolve, 100); // allow modal to visibly appear
-}));
+    // Generate fullConcatSalt for finalKey derivation
+    const fullConcatSalt = generateRandomHex(16); // 128-bit salt
 
-// Start mining after UI is ready
-const powNonce = await mineValidNonce(powSalt + powChallengeHex + inputs.fullConcat, selectedPowDifficulty);
-const fullKeyMaterial = powSalt + powChallengeHex + inputs.fullConcat + powNonce;
-const fullAnswerKey = await deriveKey(fullKeyMaterial);
+    // Show PoW panel BEFORE mining starts
+    const powPanel = document.getElementById("powPanel");
+    powPanel.classList.add("visible");
+    powPanel.style.display = "flex";
 
-const payloads = await encryptVaultPayload(inputs, files, fullAnswerKey);
+    // Let browser render modal before mining begins
+    await new Promise(resolve => requestAnimationFrame(() => {
+      setTimeout(resolve, 100); // allow modal to visibly appear
+    }));
 
+    // Start mining — use salted concat as base
+    const powNonce = await mineValidNonce(fullConcatSalt + inputs.fullConcat, selectedPowDifficulty);
+
+    // Encrypt vault payload
+    const payloads = await encryptVaultPayload(
+      inputs,
+      files,
+      powSalt,
+      powChallengeHex,
+      powNonce,
+      fullConcatSalt // ✅ pass the salt
+    );
     await delay(500);
 
     await printToTerminal("[+] Encryption complete. Packaging vault...");
     await delay(500);
 
-    await packageAndDownloadZip(payloads, inputs.unlockAnswer1 + inputs.unlockAnswer2, inputs, powSalt, powChallengeHex, powNonce);
+    await packageAndDownloadZip(
+      payloads,
+      inputs.unlockAnswer1 + inputs.unlockAnswer2,
+      inputs,
+      powSalt,
+      powChallengeHex,
+      powNonce,
+      fullConcatSalt // ✅ include it in vault.json
+    );
+
     await printToTerminal("[✔] Vault creation complete. Download should begin automatically.");
 
-    // Cleanup if needed
   } catch (err) {
     console.error("Vault build error:", err);
     await printToTerminal(`[!] Error: ${err.message}`);
@@ -628,9 +643,11 @@ async function loadUserInputs() {
 
         const unlockAnswer1 = (data.answers[data.unlockIndexes[0]] || "").trim().toLowerCase();
         const unlockAnswer2 = (data.answers[data.unlockIndexes[1]] || "").trim().toLowerCase();
-        const fullConcat = data.answers.map((a, i) =>
-         i === data.trapIndex ? "" : (a || "").trim().toLowerCase()
-        ).join("");
+
+        const normalizedAnswers = data.answers.map((a, i) =>
+          i === data.trapIndex ? "" : (a || "").trim().toLowerCase()
+        );
+        const fullConcat = JSON.stringify(normalizedAnswers);
 
         resolve({
           ...data,
@@ -670,177 +687,199 @@ async function loadUserInputs() {
     }
 
     async function deriveKey(password) {
-      const enc = new TextEncoder();
-      const salt = await crypto.subtle.digest("SHA-256", enc.encode(password));
-      const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
-      return crypto.subtle.deriveKey({
-        name: "PBKDF2",
-        salt,
-        iterations: 150000,
-        hash: "SHA-256"
-      }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-    }
+  const encoder = new TextEncoder();
+  const passwordBytes = encoder.encode(password);
 
+  // Create a salt from the password hash using Rust-backed sha256
+  const saltHash = await window.sha256Hash(passwordBytes);
+  const salt = new Uint8Array(saltHash); // raw bytes, not hex
+
+  // Use Rust-backed PBKDF2 function to derive raw key bytes
+  const keyBytes = await window.deriveKeyRust(passwordBytes, salt, 150000); // 150k iterations
+
+  // Import into Web Crypto for use with AES-GCM
+  return crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
     
-    async function encryptVaultPayload(userData, files, fullAnswerKey) {
+    async function encryptVaultPayload(userData, files, powSalt, powChallengeHex, powNonce, fullConcatSalt) {
   const encoder = new TextEncoder();
   const layer1Key = await deriveKey(userData.unlockAnswer1 + userData.unlockAnswer2);
 
-  const questionList = [];
-  for (let i = 0; i < userData.questionCount; i++) {
-    const answer = (userData.answers[i] || "").trim().toLowerCase();
-    const clean = answer.replace(/\s/g, "");
-    const hintData = userData.hints[i] || {};
-    const hintLetters = hintData.letters || [];
-    const spaceIndexes = [...answer].map((c, i) => c === " " ? i : -1).filter(i => i !== -1);
-    const hintValues = hintLetters.map(p => (p >= 1 && p <= clean.length) ? clean[p - 1] : "_");
+  const questionList = (userData.answers || []).map((_, i) => {
+  const trimmed = (userData.answers[i] || "").trim();
+  const spaceIndexes = (userData.spaceIndexes && userData.spaceIndexes[i]) || [];
+  const hintEntry = userData.hints?.[i] || {};
 
-    const hashedAnswer = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(answer))))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-
-    questionList.push({
-      question: userData.questions[i] || `Question ${i + 1}`,
-      expectedLength: answer.length,
-      letterRule: hintLetters.length ? "partial reveal" : "full answer",
-      hintLetters,
-      hintValues,
-      spaceIndexes,
-      custom: hintData.custom || "",
-      hash: hashedAnswer,
-      correctSeedWord: userData.seeds[i] || ""
-    });
+  // Derive hint values if not already present
+  if (!hintEntry.values && Array.isArray(hintEntry.letters)) {
+    const clean = trimmed.replace(/\s+/g, '');
+    hintEntry.values = hintEntry.letters.map(pos => clean[pos - 1] || "_");
   }
 
-  // Generate unique salted recover.html hash
-  let recoverChecksum = "unavailable";
-  let checksumSalt = "";
-  try {
-    const recoverText = await fetch("recover.html").then(res => res.text());
-    const saltBytes = crypto.getRandomValues(new Uint8Array(8));
-    checksumSalt = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    recoverChecksum = CryptoJS.SHA256(checksumSalt + recoverText).toString();
-  } catch (err) {
-    console.warn("Failed to hash recover.html:", err);
-  }
+  return {
+    originalIndex: i,
+    question: (userData.questions && userData.questions[i]) || `Question ${i + 1}`,
+    expectedLength: trimmed.length,
+    hintLetters: [...(hintEntry.letters || [])],
+    hintValues: [...(hintEntry.values || [])],
+    spaceIndexes: [...spaceIndexes],
+    custom: hintEntry.custom || ""
+  };
+});
 
-  // 🔒 Encrypt vault.enc (includes questions + file integrity)
+  // Derive final key
+  const fullKeyMaterial = fullConcatSalt + userData.fullConcat + powNonce;
+  const fullKey = await deriveKey(fullKeyMaterial);
+
+  // === Encrypt vault.enc (Layer 1 metadata) ===
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
-  const encodedQuestions = encoder.encode(JSON.stringify({
-  questionList,
-  recoverChecksum,
-  checksumSalt,
-  trapIndex: userData.trapIndex
-}));
-  const encryptedQuestions = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, layer1Key, encodedQuestions);
-  const vaultEnc = {
-    ciphertext: Array.from(new Uint8Array(encryptedQuestions)),
+  const encQuestions = encoder.encode(JSON.stringify({ questionList }));
+  const encData = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, layer1Key, encQuestions);
+  const vaultEncrypted = {
+    ciphertext: Array.from(new Uint8Array(encData)),
     iv: Array.from(iv1)
   };
 
-  // Encrypt files
-  const encryptedFiles = [];
+  // === Encrypt files + seeds + final message ===
   const fileMeta = [];
+  const encryptedFiles = [];
 
-  const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
-  for (const entry of namedSeedFiles) {
-    const fakeId = crypto.randomUUID();
-    const fileKey = await deriveKey(userData.fullConcat + fakeId);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const raw = encoder.encode(entry.content);
-    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fileKey, raw);
-    const filename = `${fakeId}.vaultdoc`;
-
-    encryptedFiles.push({
-      filename,
-      blob: new Blob([new Uint8Array(ciphertext)], { type: "application/octet-stream" })
-    });
-
-    const hash = await crypto.subtle.digest("SHA-256", raw);
-    fileMeta.push({
-      filename,
-      originalName: entry.name,
-      mimeType: "text/plain",
-      size: raw.length,
-      sha256: Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''),
-      iv: Array.from(iv)
-    });
-  }
-
+  // Step 1: Uploaded files
   for (const file of files) {
-    const fileKey = await deriveKey(userData.fullConcat + file.id);
+    const rawBytes = new Uint8Array(file.raw);
+    const fileId = crypto.randomUUID().replace(/-/g, '');
+    const passwordBytes = encoder.encode(userData.fullConcat + fileId);
+    const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
+    const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fileKey, file.raw);
+    const encrypted = window.aesEncryptRust(rawKey, iv, rawBytes);
 
-    encryptedFiles.push({
-      filename: `${file.id}.vaultdoc`,
-      blob: new Blob([new Uint8Array(ciphertext)], { type: "application/octet-stream" })
-    });
+    const sha256 = Array.from(await window.sha256Hash(rawBytes))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const rawBuffer = file.raw instanceof ArrayBuffer ? file.raw : await file.raw.arrayBuffer();
-    const hash = await crypto.subtle.digest("SHA-256", rawBuffer);
     fileMeta.push({
-      filename: `${file.id}.vaultdoc`,
+      id: fileId,
+      filename: fileId + ".vaultdoc",
       originalName: file.name,
       mimeType: file.type,
-      size: file.size,
-      sha256: Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''),
-      iv: Array.from(iv)
+      iv: Array.from(iv),
+      sha256
     });
-  }
-
-  if (userData.finalMessage?.trim()) {
-    const fakeId = crypto.randomUUID();
-    const fileKey = await deriveKey(userData.fullConcat + fakeId);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const raw = encoder.encode(userData.finalMessage.trim());
-    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, fileKey, raw);
-    const filename = `${fakeId}.vaultdoc`;
 
     encryptedFiles.push({
-      filename,
-      blob: new Blob([new Uint8Array(ciphertext)], { type: "application/octet-stream" })
-    });
-
-    const hash = await crypto.subtle.digest("SHA-256", raw);
-    fileMeta.push({
-      filename,
-      originalName: "final_message.txt",
-      mimeType: "text/plain",
-      size: raw.length,
-      sha256: Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''),
-      iv: Array.from(iv)
+      filename: fileId + ".vaultdoc",
+      blob: new Blob([encrypted], { type: "application/octet-stream" })
     });
   }
 
-  // Encrypt vault.meta
+  // Step 2: Named seed files
+  const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
+  for (const seedFile of namedSeedFiles) {
+    const fileId = crypto.randomUUID().replace(/-/g, '');
+    const rawText = encoder.encode(seedFile.content);
+    const passwordBytes = encoder.encode(userData.fullConcat + fileId);
+    const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
+    const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = window.aesEncryptRust(rawKey, iv, rawText);
+
+    const sha256 = Array.from(await window.sha256Hash(rawText))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+
+    fileMeta.push({
+      id: fileId,
+      filename: fileId + ".vaultdoc",
+      originalName: seedFile.name,
+      mimeType: "text/plain",
+      iv: Array.from(iv),
+      sha256
+    });
+
+    encryptedFiles.push({
+      filename: fileId + ".vaultdoc",
+      blob: new Blob([encrypted], { type: "application/octet-stream" })
+    });
+  }
+
+  // Step 3: Final message
+  if (userData.finalMessage?.trim()) {
+    const finalMsgText = encoder.encode(userData.finalMessage.trim());
+    const fileId = crypto.randomUUID().replace(/-/g, '');
+    const passwordBytes = encoder.encode(userData.fullConcat + fileId);
+    const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
+    const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = window.aesEncryptRust(rawKey, iv, finalMsgText);
+
+    const sha256 = Array.from(await window.sha256Hash(finalMsgText))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+
+    fileMeta.push({
+      id: fileId,
+      filename: fileId + ".vaultdoc",
+      originalName: "final-message.txt",
+      mimeType: "text/plain",
+      iv: Array.from(iv),
+      sha256
+    });
+
+    encryptedFiles.push({
+      filename: fileId + ".vaultdoc",
+      blob: new Blob([encrypted], { type: "application/octet-stream" })
+    });
+  }
+
+  // === Encrypt vault.meta ===
   const iv3 = crypto.getRandomValues(new Uint8Array(12));
-  const encodedMeta = encoder.encode(JSON.stringify({ files: fileMeta }));
-  const encryptedMeta = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv3 }, fullAnswerKey, encodedMeta);
+  const metaEnc = encoder.encode(JSON.stringify({
+    files: fileMeta,
+    seedFiles: namedSeedFiles
+  }));
+  const metaData = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv3 }, fullKey, metaEnc);
   const fileMetaEncrypted = {
-    data: new Uint8Array(encryptedMeta),
+    data: new Uint8Array(metaData),
     iv: Array.from(iv3)
   };
 
   return {
-    vaultEncrypted: vaultEnc,
+    vaultEncrypted,
     fileMetaEncrypted,
     encryptedFiles
   };
 }
 
-async function packageAndDownloadZip(payloads, unlockKey, userData, powSalt, powChallengeHex, powNonce) {
+async function packageAndDownloadZip(
+  payloads,
+  unlockKey,
+  userData,
+  powSalt,
+  powChallengeHex,
+  powNonce,
+  fullConcatSalt
+) {
   const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
 
   const addJSON = (name, data) => writer.add(name, new zip.TextReader(JSON.stringify(data, null, 2)));
   const addBlob = (name, blob) => writer.add(name, new zip.BlobReader(blob));
 
-  const combined = powSalt + powChallengeHex + userData.fullConcat;
   const powDifficulty = selectedPowDifficulty;
   const powIncreaseEvery = 5;
 
   await printToTerminal(`[*] Mining nonce at difficulty '${powDifficulty}'...`);
   await delay(500);
 
+  // 🔐 Derive fullKeyMaterial using fullConcatSalt
+  const fullKeyMaterial = fullConcatSalt + userData.fullConcat + powNonce;
+  const hashBytes = await window.sha256Hash(new TextEncoder().encode(fullKeyMaterial));
+  const vaultHash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // === 1. vault.json — visible metadata and salts ===
   await addJSON("vault.json", {
     version: "1.0.4",
     created: new Date().toISOString(),
@@ -851,9 +890,10 @@ async function packageAndDownloadZip(payloads, unlockKey, userData, powSalt, pow
     },
     powSalt,
     powChallengeSalt: powChallengeHex,
+    fullConcatSalt, // ✅ include the new salt
     powDifficulty,
     powIncreaseEvery,
-    vaultHash: CryptoJS.SHA256(combined + powNonce).toString(),
+    vaultHash,
     questionPrompts: [
       userData.questions[userData.unlockIndexes[0]] || `Question ${userData.unlockIndexes[0] + 1}`,
       userData.questions[userData.unlockIndexes[1]] || `Question ${userData.unlockIndexes[1] + 1}`
@@ -861,17 +901,21 @@ async function packageAndDownloadZip(payloads, unlockKey, userData, powSalt, pow
     vaultMetaIv: payloads.fileMetaEncrypted.iv
   });
 
+  // === 2. vault.enc — encrypted question metadata ===
   await addJSON("vault.enc", {
-    ciphertext: Array.from(payloads.vaultEncrypted.ciphertext),
+    ciphertext: payloads.vaultEncrypted.ciphertext,
     iv: payloads.vaultEncrypted.iv
   });
 
+  // === 3. vault.meta — encrypted file metadata, seed file names, and final message ===
   await addBlob("vault.meta", new Blob([payloads.fileMetaEncrypted.data], { type: "application/octet-stream" }));
 
-  for (const f of payloads.encryptedFiles) {
-    await addBlob(f.filename, f.blob);
+  // === 4. .vaultdoc files — encrypted content ===
+  for (const file of payloads.encryptedFiles || []) {
+    await addBlob(file.filename, file.blob);
   }
 
+  // === 5. README.txt — general overview for recovery ===
   await writer.add("README.txt", new zip.TextReader(`Memoro Vault
 ===========
 
@@ -879,43 +923,17 @@ Built with Memoro Vault version 1.0.4
 
 This ZIP archive was created using Memoro Vault — a secure, offline memory vault designed to store highly sensitive information. It may contain private notes, cryptocurrency seed phrases, personal letters, credentials, legal documents, or messages meant for loved ones.
 
-The vault is protected by knowledge-based encryption and proof-of-work mining. It cannot be opened without answering a set of secret questions chosen by the original creator. There are no passwords, no accounts, and no recovery mechanism. Memoro Vault is designed to be hidden in plain sight — securely sharable, yet impossible to unlock without the right knowledge.
+The vault is protected by knowledge-based encryption and proof-of-work mining. It cannot be opened without answering a set of secret questions chosen by the original creator. There are no passwords, no accounts, and no recovery mechanism.
 
-If You Are a Family Member or Executor:
----------------------------------------
-You may have been entrusted with this archive. The person who created it may have shared clues, answers, or hints with you before their passing. Without the correct answers, this vault will remain permanently sealed — by design.
+Memoro Vault is designed to be hidden in plain sight — securely sharable, yet impossible to unlock without the right knowledge.
 
-How to Access the Vault:
-------------------------
-1. **Download Memoro Vault**
-   - You must use the exact version shown at the top of this file: **Memoro Vault version 1.0.4**
-   - Visit: https://github.com/Kasmaristo-Delvakto/memoro-vault/releases
+To learn more: https://github.com/Kasmaristo-Delvakto/memoro-vault
 
-2. **Launch Memoro Vault**
-   - Open the app and load this ZIP file from the dashboard.
-
-3. **Answer the Security Questions**
-   - You must answer all configured questions exactly as entered when the vault was created.
-   - The vault may contain between 4 and 25 total questions.
-   - Partial or incorrect answers will be rejected.
-   - Each wrong attempt triggers proof-of-work, making guessing extremely expensive over time.
-
-Important Notes:
-----------------
-- This vault is completely offline. No internet connection is required.
-- There is no override, password reset, or hidden access method.
-- Do not alter or extract files inside this archive — doing so may break decryption permanently.
-- This vault was built using Memoro Vault version 1.0.4. Future versions may not be backward compatible.
-
-To learn more or download verified builds:
-https://github.com/Kasmaristo-Delvakto/memoro-vault
-
-Memoro Vault: Your mind. Your memory. Your vault — hidden in plain sight.
-
-Libereco ne estas donaco. Ĝi estas devo.  
+Libereco ne estas donaco. Ĝi estas devo.
 — Kaŝmaristo Delvakto
 `));
 
+  // === 6. Vault_Builder_Instructions.txt — instructions for the builder ===
   await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(`Vault Builder Instructions
 ==========================
 
@@ -927,63 +945,29 @@ STEP 1 — Make a Folder for Your Vault
 -------------------------------------
 Create a new folder on your computer. Name it something meaningful like:
 
-    J's Vault
+    My_Memoro_Vault
 
-This folder will be the permanent home for your encrypted archive and the tools needed to open it.
+Put both the ZIP file and the Memoro Vault installer inside that folder.
 
-STEP 2 — Move the Files into It
--------------------------------
-Inside that new folder, place:
-
-- Your newly created vault ZIP file (e.g., memoro-vault.zip)
-- A copy of the **exact** Memoro Vault version used to build it
-
-This ensures that the program needed to open the vault is stored alongside the vault itself. If someone tries to open the vault with a newer or older version of Memoro Vault, it may fail. Use the same version listed at the top of the README: **version 1.0.4**
-
-STEP 3 — Back It Up
+STEP 2 — Back It Up
 -------------------
-Make at least two backups of your 'J's Vault' folder by copying it to:
+Create at least two backups of that folder:
+- One to an offline drive or M-DISC (for long-term archival)
+- One to a cloud account (like Proton Drive or Google Drive)
 
-- A USB stick or external drive
-- Cloud storage (e.g., Google Drive, Dropbox)
-- Another computer or partition
+STEP 3 — (Optional) Leave Instructions
+--------------------------------------
+If this vault is meant for someone else, leave written instructions elsewhere explaining how to access it.
 
-Do **not** post your vault publicly. Even though Memoro Vault is secure, unnecessary exposure increases risk.
+Warning About Bit Rot
+---------------------
+Even if someone remembers all your answers perfectly, a single flipped byte can render this vault permanently inaccessible. Use archival-grade storage and multiple backups.
 
-STEP 4 — Leave Access Instructions (optional)
---------------------------------------------
-If this vault is meant for someone else in the future (a loved one, lawyer, or friend), consider leaving written instructions that explain:
-
-- Where you stored the folder named 'J's Vault'
-- That the vault requires **all answers** to between **4 and 25 questions**
-- Which 2 questions are needed to start the unlock process
-- Who should try to access it and under what conditions
-
-You may include these notes on paper, in a will, or in a digital note stored separately.
-
-Why This Matters
-----------------
-The Memoro Vault app is offline and self-contained. There are no servers, no logins, and no recovery system. If someone finds your vault years from now but doesn’t have the app — or uses the wrong version — they may never be able to access your encrypted data.
-
-Bit Rot Warning
----------------
-Even perfectly stored digital files can silently decay over time — a process known as **bit rot**. Just one flipped bit in your vault ZIP could make the entire archive unreadable forever.
-
-To protect against bit rot:
-- Use **M-DISCs** or archival-grade media for long-term storage
-- Create **multiple backups** stored in different physical and digital locations
-- Periodically **verify your backups** by testing vault access on another device
-- Avoid renaming, modifying, or extracting files inside the vault ZIP
-
-Redundancy is key to ensuring your vault remains accessible for generations to come.
-
-––––––––––––––––––––––––––––––––––––––––––––––––
-Memoro Vault: Your mind. Your memory. Your vault — hidden in plain sight.
-
-Libereco ne estas donaco. Ĝi estas devo.  
+Libereco ne estas donaco. Ĝi estas devo.
 — Kaŝmaristo Delvakto
 `));
 
+  // === 7. Finalize and download ===
   const finalBlob = await writer.close();
   const url = URL.createObjectURL(finalBlob);
   const link = document.createElement("a");
@@ -1000,27 +984,31 @@ async function mineValidNonce(baseInput, difficulty) {
   const powElapsed = document.getElementById("powElapsed");
 
   powStatus.textContent = `Mining for hash starting with "${difficulty}"...`;
+
   let nonce = 0;
-  let start = performance.now();
+  const start = performance.now();
 
   while (true) {
-    const input = baseInput + nonce;
-    const hash = CryptoJS.SHA256(input).toString();
+    const inputString = baseInput + nonce;
+    const inputBytes = encoder.encode(inputString);
 
-    // Update UI every 10,000 tries
+    // ✅ FIXED: await this hash call
+    const hashBytes = await window.sha256Hash(inputBytes);
+    const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+
     if (nonce % 10000 === 0) {
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
       powNonce.textContent = `Nonce: ${nonce}`;
-      powHash.textContent = `Hash: ${hash.slice(0, 16)}...`;
+      powHash.textContent = `Hash: ${hashHex.slice(0, 16)}...`;
       powElapsed.textContent = `Elapsed: ${elapsed}s`;
-      await new Promise(requestAnimationFrame); // Yield to rendering engine
+      await new Promise(requestAnimationFrame);
     }
 
-    if (hash.startsWith(difficulty)) {
+    if (hashHex.startsWith(difficulty)) {
       const totalElapsed = ((performance.now() - start) / 1000).toFixed(1);
       powStatus.textContent = `Solved after ${nonce} attempts in ${totalElapsed}s!`;
       powNonce.textContent = `Nonce: ${nonce}`;
-      powHash.textContent = `Hash: ${hash}`;
+      powHash.textContent = `Hash: ${hashHex}`;
       powElapsed.textContent = `Total Time: ${totalElapsed}s`;
       return nonce.toString();
     }
@@ -1028,7 +1016,6 @@ async function mineValidNonce(baseInput, difficulty) {
     nonce++;
   }
 }
-
 
     function showBackupMessage(url) {
   const msg = document.createElement('p');
@@ -1115,27 +1102,12 @@ function retryDownload() {
   history.back();
 }
 
-window.addEventListener("beforeunload", () => {
+window.addEventListener("beforeunload", (e) => {
   if (!preserveOnBack) {
-    try {
-      // Clear local and session storage
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Delete all IndexedDB databases
-      if (indexedDB?.databases) {
-        indexedDB.databases().then(dbs => {
-          for (const db of dbs) {
-            if (db.name) indexedDB.deleteDatabase(db.name);
-          }
-        });
-      }
-    } catch (err) {
-      console.warn("Cleanup on unload failed:", err);
-    }
+    nukeEverything();
   }
 });
-
+      
 async function nukeEverything() {
   try {
     localStorage.clear();
@@ -1171,7 +1143,8 @@ function closePostBuildModal() {
     document.body.style.overflow = ""; 
     modal.style.display = "none";
     setTimeout(() => {
-      window.location.href = "dashboard.html"; // or memoroAPI.openDashboard() in Electron
+      nukeEverything(); // ✅ add this
+      window.location.href = "dashboard.html";
     }, 300);
   }
 }

@@ -331,6 +331,20 @@
 
 </style>
 
+<script type="module">
+  import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './memoro_crypto.js';
+
+  window.initCryptoWasm = async () => {
+    await init();
+    window.sha256Hash = sha256_hash;
+    window.deriveKeyRust = derive_key;
+    window.aesEncryptRust = aes_gcm_encrypt;
+    window.aesDecryptRust = aes_gcm_decrypt;
+  };
+
+  window.initCryptoWasm(); // Immediately load and bind
+</script>
+
 </head>
 <body>
   <h1>Recover Your Vault</h1>
@@ -496,27 +510,19 @@ async function flushBatch(lines) {
   await new Promise(resolve => setTimeout(resolve, 0)); // Let DOM render
 }
 
-
 async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
-  if (!vaultJson?.powSalt || !vaultJson?.powChallengeSalt || !vaultJson?.vaultHash) {
-    throw new Error("Vault is missing critical PoW data.");
+  if (!vaultJson?.powSalt || !vaultJson?.powChallengeSalt) {
+    throw new Error("Vault is missing PoW salts.");
   }
 
   const fullConcat = userAnswers.map(a => a.trim().toLowerCase()).join("");
   const baseInput = vaultJson.powSalt + vaultJson.powChallengeSalt + fullConcat;
-  const vaultHash = vaultJson.vaultHash;
   const bakedDifficulty = vaultJson.powDifficulty;
   const attempt = window.powAttempt || 1;
   const dynamicDifficulty = getCurrentDifficulty(attempt);
 
-  console.log("[] Static PoW Debug:");
-  console.log("vaultHash:", vaultHash);
-  console.log("baseInput + nonce", baseInput + " + [nonce]");
-  console.log("bakedDifficulty:", bakedDifficulty);
-
   let batch = [];
 
-  // 1. Dynamic PoW (rate-limiting step)
   await printLineSlow(`[*] Dynamic Proof of Work...`);
   await printLineSlow(`[⛏] Mining until hash starts with '${dynamicDifficulty}'`);
   await new Promise(r => setTimeout(r, 1000));
@@ -525,7 +531,11 @@ async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
   let dynamicSolved = false;
 
   while (!dynamicSolved) {
-    const hash = CryptoJS.SHA256(baseInput + nonce1).toString();
+    const hashInput = baseInput + nonce1;
+    const hash = Array.from(window.sha256Hash(new TextEncoder().encode(hashInput)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
     batch.push(`Nonce ${nonce1} → ${hash.slice(0, 16)}...`);
 
     if (hash.startsWith(dynamicDifficulty)) {
@@ -541,53 +551,9 @@ async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
     }
   }
 
-  await printLineSlow(`\n────────────────────────────`);
-  await printLineSlow(`[→] Starting static PoW now...`);
-  await printLineSlow(`────────────────────────────\n`);
-  await printLineSlow(`[*] Static PoW — matching vaultHash...`);
-  await printLineSlow(`[*] Mining until hash = vaultHash:`);
+  vaultJson.powNonce = nonce1.toString(); // Store for use later
 
-  let nonce2 = 0;
-  let staticSolved = false;
-  batch = [];
-
-  const maxNonceLimits = {
-    "0000":        1_000_000,
-    "00000":      10_000_000,
-    "000000":     1_000_000_000,
-    "0000000":   12_000_000_000,
-    "00000000": 2_050_000_000,
-    "000000000":250_000_000_000
-  };
-  const maxNonce = maxNonceLimits[bakedDifficulty] || 10_000_000;
-
-  while (!staticSolved && nonce2 <= maxNonce) {
-    const hash = CryptoJS.SHA256(baseInput + nonce2).toString();
-    batch.push(`Nonce ${nonce2} → ${hash.slice(0, 16)}...`);
-
-    if (hash === vaultHash) {
-      staticSolved = true;
-      vaultJson.powNonce = nonce2.toString(); // for decryption
-      await flushBatch(batch);
-      await printLineSlow(`Static PoW match at nonce ${nonce2}`);
-      break;
-    }
-
-    nonce2++;
-    if (batch.length >= 2500) {
-      await flushBatch(batch);
-      batch = [];
-    }
-  }
-
-  if (!staticSolved) {
-    await flushBatch(batch);
-    await printLineSlow(`❌ Failed to solve static PoW after ${maxNonce} tries`);
-    throw new Error("Static PoW failed. Try again with correct answers.");
-  }
-
-  if (batch.length > 0) await flushBatch(batch);
-  await printLineSlow(`[✓] Dual PoW verification complete.`);
+  await printLineSlow(`[✓] Dynamic PoW complete.`);
 }
 
 async function safeUint8ArrayFromBlob(blob) {
@@ -628,7 +594,10 @@ async function safeUint8ArrayFromBlob(blob) {
         setTimeout(() => { message.style.opacity = "0"; }, 3000);
 
         function mine() {
-          const hash = CryptoJS.SHA256(base + nonce).toString();
+          const hash = Array.from(window.sha256Hash(new TextEncoder().encode(input)))
+  .map(b => b.toString(16).padStart(2, '0'))
+  .join('')
+
           showTerminalLine(`Nonce ${nonce} → ${hash.slice(0, 10)}...`);
           if (hash.startsWith(targetPrefix)) {
             showTerminalLine(`✅ Solved at nonce ${nonce}`);
@@ -663,30 +632,40 @@ async function safeUint8ArrayFromBlob(blob) {
     }
 
     function updateHint(i) {
-      const question = savedQuestions[i];
-      const hintDiv = document.getElementById(`hint-${i}`);
-      let hint = '';
-      let ptr = 0, cleanIndex = 0;
-      for (let j = 0; j < question.expectedLength; j++) {
-        if (question.spaceIndexes.includes(j)) {
-          hint += '\u00A0\u00A0\u00A0';
-        } else {
-          if (question.hintLetters.includes(cleanIndex + 1)) {
-            hint += (question.hintValues[ptr] || '_') + '\u00A0';
-            ptr++;
-          } else {
-            hint += '_\u00A0';
-          }
-          cleanIndex++;
-        }
+  const question = savedQuestions[i];
+  const hintDiv = document.getElementById(`hint-${i}`);
+  if (!question || !hintDiv) return;
+
+  const expected = question.expectedLength || 0;
+  const spaceIndexes = Array.isArray(question.spaceIndexes) ? question.spaceIndexes : [];
+  const hintLetters = Array.isArray(question.hintLetters) ? question.hintLetters : [];
+  const hintValues = Array.isArray(question.hintValues) ? question.hintValues : [];
+
+  let renderedHint = '';
+  let hintPtr = 0;
+  let answerCharIndex = 1; // Tracks 1-based position in logical answer (excluding spaces)
+
+  for (let j = 0; j < expected; j++) {
+    if (spaceIndexes.includes(j)) {
+      renderedHint += '&nbsp;&nbsp;'; // Real visual space for alignment
+    } else {
+      if (hintLetters.includes(answerCharIndex)) {
+        renderedHint += (hintValues[hintPtr] || '_') + '&nbsp;';
+        hintPtr++;
+      } else {
+        renderedHint += '_&nbsp;';
       }
-hintDiv.innerHTML = `
-  <div style="display: flex; gap: 10px;">
-    <div>${hint.trim()}</div>
-    ${question.custom ? `<div class="hint-custom-text">Hint: ${question.custom}</div>` : ''}
-  </div>
-`;
+      answerCharIndex++; // Only increment for non-space positions
     }
+  }
+
+  hintDiv.innerHTML = `
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <code style="white-space: pre-wrap; font-size: 15px;">${renderedHint}</code>
+      ${question.custom ? `<div class="hint-custom-text" style="font-size: 14px; color: #88ffcc;">Hint: ${question.custom}</div>` : ''}
+    </div>
+  `;
+}
 
     async function submitRecovery() {
   const overlay = document.getElementById("powOverlay");
@@ -703,68 +682,94 @@ hintDiv.innerHTML = `
     await printLineSlow("[*] Validating answers...");
 
     const vaultData = window.vaultData;
-    const requiredCorrect = window.requiredCorrectAnswers || 0;
-
-    // 🔒 Ensure questions and file map are ready
-    if (!vaultData?.questionList || vaultData.questionList.length === 0) {
-      throw new Error("Vault questions not loaded yet.");
+    if (!vaultData?.powSalt || !vaultData?.powChallengeSalt) {
+      throw new Error("Missing required verification data from vault.json.");
     }
+    if (!vaultData?.questionList?.length) throw new Error("Vault questions not loaded yet.");
     if (!window.fileMap || Object.keys(window.fileMap).length === 0) {
       throw new Error("File map not fully loaded yet.");
     }
 
-    const inputs = [];
-    for (let i = 0; i < vaultData.questionList.length; i++) {
-      const val = document.getElementById(`answer-${i}`).value.trim().toLowerCase();
-      inputs.push(val);
-    }
+    const inputs = vaultData.questionList.map((_, i) => {
+      return document.getElementById(`answer-${i}`).value.trim().toLowerCase();
+    });
 
-    // Validate answer hashes
-    let correct = 0;
-    for (let i = 0; i < inputs.length; i++) {
-      const encoded = new TextEncoder().encode(inputs[i]);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
-      const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-      if (hashHex === vaultData.questionList[i].hash) correct++;
-    }
-
-    if (correct < requiredCorrect) {
-      throw new Error(`Only ${correct}/${requiredCorrect} answers correct.`);
-    }
-
+    // Step 1: Dynamic PoW
     await validateProofOfWorkWithAnswers(vaultData, inputs);
-    await printLineSlow("[*] Verifying recover.html integrity...");
-    await verifyRecoverHtmlIntegrity();
 
-    const powNonce = vaultData.powNonce;
-    const fullConcat = inputs.join("");
-    const fullKeyMaterial = vaultData.powSalt + vaultData.powChallengeSalt + fullConcat + powNonce;
+    // Step 2: Static PoW
+await printLineSlow("[*] Static Proof of Work...");
+await printLineSlow(`[*] Re-mining until SHA256(base + nonce) starts with '${vaultData.powDifficulty}'`);
 
-    // 🪪 Debug check — log what hash is being tested
-    const debugHash = CryptoJS.SHA256(fullKeyMaterial).toString();
-    console.log("Expected vaultHash:", vaultData.vaultHash);
-    console.log("Actual input hash:", debugHash);
-    console.log("fullConcat:", fullConcat);
-    console.log("powNonce:", powNonce);
+const fullConcat = JSON.stringify(inputs.map((v, i) => (i === vaultData.trapIndex ? "" : v)));
+const staticBase = vaultData.fullConcatSalt + fullConcat;
+const targetPrefix = vaultData.powDifficulty;
+let staticNonce = 0;
+let found = false;
+let batch = [];
 
-    const fullKey = await deriveKey(fullKeyMaterial);
-    window.fullKeyMaterial = fullKeyMaterial;
+const encoder = new TextEncoder();
 
-    // ✅ Fingerprint check
-    if (vaultData.vaultHash && debugHash !== vaultData.vaultHash) {
-      await printLineSlow("[!] Warning: Vault fingerprint mismatch. Vault may be corrupted or tampered.");
-    } else {
-      await printLineSlow(`[✓] Vault fingerprint verified: ${debugHash.slice(0, 16)}...`);
-    }
+while (!found) {
+  const inputBytes = encoder.encode(staticBase + staticNonce);
+  const hashBytes = await window.sha256Hash(inputBytes);
+  const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
+  batch.push(`Nonce ${staticNonce} → ${hashHex.slice(0, 16)}...`);
+
+  if (hashHex.startsWith(targetPrefix)) {
+    await flushBatch(batch);
+    await printLineSlow(`Static PoW success at nonce ${staticNonce}`);
+    found = true;
+    break;
+  }
+
+  staticNonce++;
+  if (staticNonce > 5000000) throw new Error("Static PoW failed: nonce not found within limit.");
+
+  if (batch.length >= 2500) {
+    await flushBatch(batch);
+    batch = [];
+  }
+}
+
+    // Step 3: Derive full key using Rust
+const fullKeyMaterial = vaultData.fullConcatSalt + fullConcat + staticNonce;
+const keyInputBytes = encoder.encode(fullKeyMaterial);
+const keySaltBytes = new Uint8Array(await window.sha256Hash(keyInputBytes));
+const keyBytes = await window.deriveKeyRust(keyInputBytes, keySaltBytes, 150000);
+
+// ✅ Hash fullKeyMaterial to validate vaultHash
+const hashBytes = await window.sha256Hash(new TextEncoder().encode(fullKeyMaterial));
+const vaultHash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+if (vaultHash !== vaultData.vaultHash) {
+  throw new Error("Full key material hash does not match. Wrong answers or corrupted file.");
+}
+
+const fullKey = await crypto.subtle.importKey(
+  "raw",
+  keyBytes,
+  { name: "AES-GCM" },
+  true,
+  ["encrypt", "decrypt"]
+);
+
+window.fullKeyMaterial = fullKeyMaterial;
+
+    // Step 4: Decrypt vault metadata and verify fingerprint
     await printLineSlow("[*] Decrypting vault metadata...");
     const decryptedMeta = await decryptVaultMeta(fullKey);
+
+    await printLineSlow("[✓] Metadata decrypted successfully.");
+
+    // Step 5: Decrypt final message and files
     await printLineSlow("[*] Decrypting final message...");
     const finalMessage = await decryptFinalMessage(fullKey, decryptedMeta.files);
+
     await printLineSlow("[*] Decrypting vault documents...");
     const decryptedFiles = await decryptVaultDocs(fullKey, decryptedMeta.files);
 
-    const vaultId = vaultData.vaultId || vaultData.vaultHash || "default";
+    const vaultId = vaultData.vaultId || decryptedMeta.vaultHash || "default";
     localStorage.removeItem(`powAttempt_${vaultId}`);
 
     await showRecoveryModal(finalMessage, decryptedFiles);
@@ -778,7 +783,7 @@ hintDiv.innerHTML = `
     }, 500);
 
     const vaultData = window.vaultData;
-    const vaultId = vaultData?.vaultId || vaultData?.vaultHash || "default";
+    const vaultId = vaultData?.vaultId || "default";
     const key = `powAttempt_${vaultId}`;
     window.powAttempt = (parseInt(localStorage.getItem(key)) || 1) + 1;
     localStorage.setItem(key, window.powAttempt);
@@ -786,10 +791,7 @@ hintDiv.innerHTML = `
     console.error("❌ Recovery failed:", err);
     await printLineSlow(`[!] Recovery failed: ${err.message || err}`);
     showToast(err.message || "Wrong answer. Try again...or don't.");
-
-    setTimeout(() => {
-      window.location.reload();
-    }, 4000);
+    setTimeout(() => window.location.reload(), 4000);
   }
 }
 
@@ -824,20 +826,24 @@ hintDiv.innerHTML = `
 
   const encrypted = await safeUint8ArrayFromBlob(blob);
 
-  const fullConcat = savedQuestions.map((q, i) => {
-    const input = document.getElementById(`answer-${i}`);
-    return (input?.value || "").trim().toLowerCase();
-  }).join("");
+  const fullConcat = JSON.stringify(savedQuestions.map((q, i) => {
+    const val = document.getElementById(`answer-${i}`)?.value.trim().toLowerCase() || "";
+    return (i === vaultData.trapIndex ? "" : val);
+  }));
 
-  const fakeId = finalMeta.filename.replace(".vaultdoc", "");
-  const derivedKeyInput = fullConcat + fakeId;
+  const fileId = finalMeta.filename.replace(".vaultdoc", "");
+  const derivedKeyInput = fullConcat + fileId;
+
   await printLineFast(`[+] Deriving key from: ${derivedKeyInput.slice(0, 12)}...`);
 
-  const fileKey = await deriveKey(derivedKeyInput);
+  const passwordBytes = new TextEncoder().encode(derivedKeyInput);
+  const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
+  const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
+
   const iv = new Uint8Array(finalMeta.iv);
 
   try {
-    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, fileKey, encrypted);
+    const decrypted = window.aesDecryptRust(rawKey, iv, encrypted);
     return new TextDecoder().decode(decrypted);
   } catch (err) {
     console.error("❌ Final message decryption failed", err);
@@ -848,10 +854,12 @@ hintDiv.innerHTML = `
 
 async function decryptVaultDocs(fullKey, filesMeta) {
   const decrypted = [];
-  const answerConcat = savedQuestions.map((q, i) => {
+
+  const answerConcat = JSON.stringify(savedQuestions.map((q, i) => {
     const input = document.getElementById(`answer-${i}`);
-    return (input?.value || "").trim().toLowerCase();
-  }).join("");
+    const val = (input?.value || "").trim().toLowerCase();
+    return (i === vaultData.trapIndex ? "" : val);
+  }));
 
   for (const file of filesMeta) {
     const blob = fileMap[file.filename];
@@ -859,21 +867,27 @@ async function decryptVaultDocs(fullKey, filesMeta) {
 
     try {
       const encrypted = await safeUint8ArrayFromBlob(blob);
-      const fileKey = await deriveKey(answerConcat + file.filename.replace(".vaultdoc", ""));
+      const fileId = file.id || file.filename.replace(".vaultdoc", "");
+      const derivedKeyInput = answerConcat + fileId;
+
+      const passwordBytes = new TextEncoder().encode(derivedKeyInput);
+      const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
+      const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
+
       const iv = new Uint8Array(file.iv);
+      const decryptedBytes = window.aesDecryptRust(rawKey, iv, encrypted);
 
-      const decryptedBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, fileKey, encrypted);
+      const computedHash = Array.from(window.sha256Hash(decryptedBytes))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
 
-      const hash = await crypto.subtle.digest("SHA-256", decryptedBuffer);
-      const hashHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-      if (hashHex !== file.sha256) {
+      if (computedHash !== file.sha256) {
         console.warn(`⚠️ Hash mismatch for: ${file.originalName}`);
         continue;
       }
 
       decrypted.push({
         name: file.originalName,
-        blob: new Blob([decryptedBuffer], { type: file.mimeType || "application/octet-stream" })
+        blob: new Blob([decryptedBytes], { type: file.mimeType || "application/octet-stream" })
       });
 
     } catch (err) {
@@ -889,38 +903,26 @@ async function decryptVaultDocs(fullKey, filesMeta) {
   if (!metaBlob) throw new Error("vault.meta is missing");
   if (!vaultData.vaultMetaIv) throw new Error("Missing IV for vault.meta");
 
+  // Convert to Uint8Array
   const encryptedMeta = await safeUint8ArrayFromBlob(metaBlob);
   const metaIv = new Uint8Array(vaultData.vaultMetaIv);
 
-  const decryptedMeta = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: metaIv },
-    fullKey,
-    encryptedMeta
-  );
+  // Export the CryptoKey to raw bytes
+  const rawKey = new Uint8Array(await crypto.subtle.exportKey("raw", fullKey));
 
-  return JSON.parse(new TextDecoder().decode(decryptedMeta));
-}
+  // Decrypt using Rust AES-GCM
+  const decryptedBytes = window.aesDecryptRust(rawKey, metaIv, encryptedMeta);
 
-async function verifyRecoverHtmlIntegrity() {
-  const checksumSalt = vaultData.checksumSalt || "";
-  const expectedChecksum = vaultData.recoverChecksum;
-  if (!expectedChecksum) throw new Error("Missing expected recoverChecksum.");
+  // Parse the JSON
+  const metaJSON = JSON.parse(new TextDecoder().decode(decryptedBytes));
 
-  let actualChecksum;
-
-  try {
-    const recoverText = await fetch("recover.html").then(res => res.text());
-    actualChecksum = CryptoJS.SHA256(checksumSalt + recoverText).toString();
-  } catch (err) {
-    console.warn("Failed to fetch recover.html for hash check:", err);
-    actualChecksum = "corrupt"; // fallback triggers failure
+  // Sync vaultId and hash
+  if (metaJSON.vaultHash) {
+    vaultData.vaultHash = metaJSON.vaultHash;
+    vaultData.vaultId = metaJSON.vaultHash;
   }
 
-  if (actualChecksum !== expectedChecksum) {
-    throw new Error("This recovery file has been tampered with or is not the correct version.");
-  }
-
-  console.log("[✓] recover.html file integrity verified.");
+  return metaJSON;
 }
 
 async function decryptVaultFiles() {
@@ -1069,16 +1071,27 @@ recoveredBox.appendChild(fileLinks);
       toast.classList.add("show");
       setTimeout(() => toast.classList.remove("show"), 2500);
     }
+    
     async function deriveKey(password) {
-  const enc = new TextEncoder();
-  const salt = await crypto.subtle.digest("SHA-256", enc.encode(password));
-  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey({
-    name: "PBKDF2",
-    salt,
-    iterations: 150000,
-    hash: "SHA-256"
-  }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  const encoder = new TextEncoder();
+  const passwordBytes = encoder.encode(password);
+
+  // Derive a salt from the password itself (for deterministic key derivation)
+  const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
+
+  // Derive the key using Rust WASM
+  const derivedKeyBytes = window.deriveKeyRust(passwordBytes, salt, 150000);
+
+  // Import into WebCrypto (extractable = true for Rust/WASM use)
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    derivedKeyBytes,
+    { name: "AES-GCM" },
+    true, // extractable for exportKey and interop
+    ["encrypt", "decrypt"]
+  );
+
+  return cryptoKey;
 }
 
 function previewFile(blob, mimeType) {
@@ -1161,8 +1174,20 @@ window.onload = async () => {
 
     document.getElementById("redHerringModal").style.display = "flex";
 
-    // Global hydrate
-    window.vaultData = { ...transfer.vaultJson, ...transfer.decryptedVaultData };
+    // HYDRATE ALL REQUIRED VALUES EARLY (including powSalt, etc.)
+    window.vaultData = {
+  ...transfer.vaultJson,
+  ...transfer.decryptedVaultData,
+  powSalt: transfer.vaultJson.powSalt,
+  powChallengeSalt: transfer.vaultJson.powChallengeSalt,
+  fullConcatSalt: transfer.vaultJson.fullConcatSalt,
+  powDifficulty: transfer.vaultJson.powDifficulty,
+  powIncreaseEvery: transfer.vaultJson.powIncreaseEvery,
+  trapIndex: transfer.vaultJson.trapIndex,
+  vaultMetaIv: transfer.vaultJson.vaultMetaIv
+};
+
+
     window.vaultJsonParsed = transfer.vaultJson;
     window.fileMap = {};
     window.savedQuestions = window.vaultData.questionList || [];
@@ -1174,20 +1199,17 @@ window.onload = async () => {
     window.vaultId = window.vaultData.vaultId || window.vaultData.vaultHash || "default";
     window.powAttempt = parseInt(localStorage.getItem(`powAttempt_${window.vaultId}`)) || 1;
 
-    // Rehydrate blobs from raw
     for (const [filename, serialized] of Object.entries(transfer.fileMapRaw)) {
       fileMap[filename] = new Blob([new Uint8Array(serialized.data)], {
         type: serialized.type || "application/octet-stream"
       });
     }
 
-    // IV Fallbacks (in case only present in original vaultJson)
+    // IV fallback if not included already
     vaultData.finalMessageIv = vaultData.finalMessageIv || transfer.vaultJson.finalMessageIv;
     vaultData.vaultMetaIv = vaultData.vaultMetaIv || transfer.vaultJson.vaultMetaIv;
 
-    // Render the question inputs
     loadQuestions();
-
   } catch (err) {
     console.error("Vault restore failed:", err);
     document.body.innerHTML = `<h2 style='color:red;text-align:center;'>❌ Failed to load vault: ${err.message}</h2>`;

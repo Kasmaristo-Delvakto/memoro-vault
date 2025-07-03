@@ -1,0 +1,26 @@
+[package]
+name = "memoro-crypto"
+version = "1.0.5"
+authors = ["Kasmaristo Delvakto <printandpray@proton.me>"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+pbkdf2 = "0.12"
+hmac = "0.12"
+sha2 = "0.10"
+aes-gcm = "0.10"
+getrandom = { version = "0.2", features = ["js"] }
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.34"
+
+[profile.release]
+opt-level = "s"
