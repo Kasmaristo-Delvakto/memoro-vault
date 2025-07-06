@@ -5,12 +5,16 @@
   <title>Setup Your Security Questions - Memoro Vault</title>
   <style>
     body { background-color: #111; color: #eee; font-family: 'Fira Code', monospace; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-    h1 { font-size: 32px; margin-bottom: 20px; }
+h1 {
+  font-size: 32px;
+  margin-bottom: 20px;
+  text-align: center;
+}
 p.instruction {
   font-size: 17px;
   color: #00ff99;
   background-color: #000;
-  padding: 15px 20px;
+  padding: 0px 20px;
   margin-top: 10px;
   margin-bottom: 30px;
   border: 1px solid #00ff99;
@@ -21,10 +25,19 @@ p.instruction {
   line-height: 1.6;
 }
     .question-list { width: 100%; max-width: 800px; display: flex; flex-direction: column; }
-    .question-item { background-color: #222; padding: 15px; margin-bottom: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .question-item {
+  background-color: #222;
+  padding: 8px 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px; /* added to ensure clean spacing between text and actions */
+}
+
 .question-text {
   flex-grow: 1;
-  margin-right: 20px;
   font-family: 'Fira Code', monospace;
   font-size: 16px;
   background-color: #000;
@@ -34,6 +47,9 @@ p.instruction {
   border: 1px solid #00ff99;
   box-shadow: 0 0 6px #00ff99;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  align-items: center; /* vertical centering */
+  height: 100%;
 }
 .edit-button {
   background-color: #002611;
@@ -115,9 +131,12 @@ p.instruction {
 
     /* Modal Styles */
     .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    
     .modal-content {
   background-color: #111;
-  padding: 35px;
+  padding: 35px 35px;              
+  padding-top: 50px;               
+  padding-bottom: 40px;           
   border-radius: 12px;
   width: 90%;
   max-width: 480px;
@@ -126,6 +145,9 @@ p.instruction {
   border: 1px solid #00ff99;
   color: #00ff99;
   font-family: 'Fira Code', monospace;
+  max-height: calc(100vh - 80px); 
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
     .modal-content input { width: 100%; padding: 10px; margin-top: 20px; margin-bottom: 20px; border: none; border-radius: 6px; background-color: #333; color: #eee; font-size: 16px; }
@@ -227,7 +249,67 @@ body {
   box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
 }
 
+.action-row {
+  display: flex;
+  margin-top: 0;
+  gap: 12px;
+  align-items: center;
+  height: 100%;
+}
 
+@media (max-width: 550px) {
+  .question-item {
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    gap: 6px; /* Reduce vertical spacing between question and actions */
+  }
+
+  .question-text {
+    margin: 0;
+    padding: 10px;
+    line-height: 1.3;
+    height: auto;
+    display: block;
+    width: 100%;
+    max-width: 90vw;
+    box-sizing: border-box;
+    text-align: left;
+  }
+
+  .action-row {
+    width: 100%;
+    position: relative;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .edit-button {
+    position: absolute;
+    left: 35%;
+    transform: translate(-50%, 0);
+    padding: 8px 14px;
+  }
+
+  .edit-button:hover {
+    transform: translate(-50%, -1px);
+  }
+
+  .unlock-checkbox {
+    position: absolute;
+    right: 35%;
+    transform: translate(50%, 0) scale(1.5);
+  }
+
+  .unlock-checkbox:hover,
+  .unlock-checkbox:checked {
+    transform: translate(50%, 0) scale(1.5);
+  }
+}
 
   </style>
 </head>
@@ -240,7 +322,34 @@ body {
 <p class="instruction">
   You can use the default questions or edit them.<br>
   Select exactly <b>two</b> questions to act as your first line of defense.
+  <br>
+  <a href="#" onclick="openHelpModal()" style="color:#00ff99; text-decoration: underline; font-size: 15px;">
+    How does unlocking work?
+  </a>
 </p>
+
+<!-- Help Modal -->
+<div id="helpModal" class="modal">
+  <div class="modal-content">
+    <h2>How Unlocking Works</h2>
+<p style="text-align: left; color: #ccc; font-size: 15px; line-height: 1.6;">
+  Memoro Vault uses a two-layer unlock system to balance convenience, encryption, and long-term security.<br><br>
+
+  <b>Layer 1 — Interface Defense:</b><br>
+  You select exactly two questions here. These are <i>not encrypted</i>, but they are protected by an exponential lockout timer. No hints are provided. If you know, you know.<br>
+  This layer is designed to stop casual snooping and ensure the rest of the vault remains hidden behind strong encryption.<br><br>
+
+  <b>Layer 2 — Full Encryption:</b><br>
+  All remaining answers, files, and vault data are encrypted using AES-GCM. To access your vault, you must enter <i>every remaining answer exactly</i>.<br>
+  This layer includes user-defined hints and answer lengths to give legitimate users the best chance of recovery, while still enforcing strict verification.<br><br>
+  Layer 2 is protected by both <b>static</b> and <b>dynamic</b> proof-of-work. If any answer is incorrect, decryption will fail. No partial credit is given.
+</p>
+    <div class="modal-buttons">
+      <button onclick="closeHelpModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 
 <div class="question-list" id="questionList"></div>
 
@@ -374,8 +483,10 @@ else {
     div.className = 'question-item';
     div.innerHTML = `
       <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${questions[i]}</div>
-      <button class="edit-button" onclick="openModal(${i})">Edit</button>
-      <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
+<div class="action-row">
+  <button class="edit-button" onclick="openModal(${i})">Edit</button>
+  <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
+</div>
     `;
     questionList.appendChild(div);
   }
@@ -690,6 +801,14 @@ window.onload = loadQuestions;
   };
   
   
+  function openHelpModal() {
+  document.getElementById('helpModal').style.display = 'flex';
+}
+
+function closeHelpModal() {
+  document.getElementById('helpModal').style.display = 'none';
+}
+
   function populateSuggestions() {
     const category = document.getElementById('categoryDropdown').value;
     const listDiv = document.getElementById('suggestionsList');

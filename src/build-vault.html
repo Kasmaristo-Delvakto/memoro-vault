@@ -38,28 +38,6 @@ window.initCryptoWasm();
   color: #000;
 }
 
-#powPanel {
-  display: none;
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.88);
-  color: #0f0;
-  font-family: 'Fira Code', monospace;
-  z-index: 2000;
-  overflow-y: auto;
-  box-sizing: border-box;
-}
-
-#powPanel.visible {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 10px 0; /* top and bottom spacing */
-}
-
 .pow-panel-wrapper {
   display: flex;
   flex-direction: column;
@@ -142,30 +120,6 @@ window.initCryptoWasm();
       overflow: hidden;
     }
     
-   #terminal {
-  padding: 10px;
-  width: 50%;
-  height: 100%;
-  background-color: #000;
-  color: #0f0;
-  box-shadow: inset 0 0 20px #0f0;
-  font-size: 14px;
-  font-family: 'Fira Code', monospace;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  box-sizing: border-box;
-  overflow-y: auto; /* 🔥 allows vertical scrolling */
-  overflow-x: hidden; /* optional: prevents horizontal scroll */
-}
-
-
-#terminalContent {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-
 
     #powDifficultyModal {
   position: fixed;
@@ -197,11 +151,6 @@ window.initCryptoWasm();
     #downloadBtn:hover {
       background-color: #007700;
     }
-    @keyframes pulseGlow {
-  0%   { filter: drop-shadow(0 0 5px #0f0); }
-  50%  { filter: drop-shadow(0 0 20px #0f0); }
-  100% { filter: drop-shadow(0 0 5px #0f0); }
-}
 
 #actionButtons button {
   background-color: #222;
@@ -248,27 +197,6 @@ window.initCryptoWasm();
   transition: opacity 1s ease;
 }
 
-
-
-
-#memoroLogo {
-  max-width: 90%;
-  max-height: 70%;
-  filter: drop-shadow(0 0 10px #0f0);
-  animation: pulseGlow 3s infinite;
-  margin-bottom: 30px;
-  margin-top: 30px;
-}
-
-
-#actionButtons {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  opacity: 0;
-  transition: opacity 1s ease;
-}
-
 #actionButtons button {
   background-color: #222;
   color: #0f0;
@@ -299,6 +227,143 @@ window.initCryptoWasm();
   color: #000;
 }
 
+#mainContainer {
+  z-index: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+#memoroLogo {
+  width: 200px;
+  max-width: 90%;
+  margin-bottom: 30px;
+}
+
+#progressBarWrapper {
+  width: 80%;
+  max-width: 400px;
+  margin: 20px auto;
+}
+
+.progress-label {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #0f0;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 20px;
+  background-color: #111;
+  border: 1px solid #0f0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 8px #0f0;
+}
+
+.progress-bar-fill {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.progress-block {
+  flex: 0 0 auto;
+  width: calc((100% - 38px) / 20); /* 20 blocks + 19 gaps × 2px = 38px total gap */
+  height: 100%;
+  background-color: #111;
+  border: 1px solid #0f0;
+  border-radius: 2px;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease;
+}
+
+.progress-block.filled {
+  background-color: #0f0;
+}
+
+
+@keyframes loading-stripes {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 0; }
+}
+
+#actionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 30px;
+  opacity: 1;
+  transition: opacity 1s ease;
+}
+
+#actionButtons button {
+  background-color: #111;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+  min-width: 140px;
+  flex: 1 1 40%;
+  max-width: 240px;
+}
+
+#actionButtons button:hover {
+  background-color: #0f0;
+  color: #000;
+}
+
+#actionButtons button {
+  background-color: #111;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+  min-width: 160px;
+  flex: 1 1 auto;
+  max-width: 220px;
+}
+
+#actionButtons button:hover {
+  background-color: #0f0;
+  color: #000;
+}
+
+
+#actionButtons button {
+  background-color: #111;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+}
+
+#actionButtons button:hover {
+  background-color: #0f0;
+  color: #000;
+}
 
 
   </style>
@@ -315,65 +380,51 @@ window.initCryptoWasm();
 "></canvas>
 
   <div id="vaultContainer">
-<pre id="terminal"><code id="terminalContent">Initializing Memoro Vault Builder...</code></pre>
-  
-    <div id="logoSection">
-      <div id="logoContent">
-        <img id="memoroLogo" src="assets/memoro-logo-with-words.png" alt="Memoro Vault">
-        <div id="actionButtons">
-          <button onclick="preserveAndGoBack()">Back to Answers</button>
-          <button onclick="retryDownload()">Retry Download</button>
-          <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
-        </div>
-      </div>
+  <canvas id="matrixCanvas"></canvas>
+
+<div id="mainContainer">
+  <img id="memoroLogo" src="assets/memoro-logo-with-words.png" alt="Memoro Vault Logo" />
+
+  <div id="progressBarWrapper">
+    <div class="progress-label" id="progressLabel">Initializing vault builder...</div>
+    <div class="progress-bar-container">
+<div class="progress-bar-fill" id="progressFill">
+  <!-- 20 blocks (adjustable) -->
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+  <div class="progress-block"></div>
+</div>
     </div>
   </div>
+
+  <p id="powStatus" style="color: #0f0; font-size: 13px; margin-top: 8px;">Waiting for proof-of-work...</p>
+
+  <div id="actionButtons">
+    <button onclick="preserveAndGoBack()">Back to Answers</button>
+    <button onclick="retryDownload()">Retry Download</button>
+    <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
+  </div>
+</div>
 
   <div id="powPanel" class="pow-panel">
   <div class="pow-panel-wrapper">
-    
-    <!-- Donation Section -->
-    <div class="pow-section">
-      <h3>Support Memoro Vault</h3>
-<img src="assets/Screenshot (691).png" alt="Monero Donation QR"
-     style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
-      <p>
-        Memoro Vault is a gift to the world.<br>
-        If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
-      </p>
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px;">
-<button onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')">
-  Donate with preferred crypto
-</button>
-  </a>
-
-  <p style="font-size: 13px; color: #0f0; margin-top: 4px;">
-        Offline? Paste it into your browser later.
-      </p>
-
-  <button onclick="copyDonationLink()"
-          style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-    Copy Donation Link
-  </button>
-</div>
-      
-    </div>
-
-    <!-- PoW Section -->
-    <div class="pow-section">
-      <h3>Solving Proof of Work...</h3>
-      <p id="powStatus">Initializing...</p>
-      <p id="powNonce">Nonce: —</p>
-      <p id="powHash">Hash: —</p>
-      <p id="powElapsed">Elapsed: 0s</p>
-
-      <div id="powActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
-        <button onclick="history.back()">Back to Answers</button>
-        <button onclick="showPostBuildReminder()">Return to Dashboard</button>
-      </div>
-    </div>
-
-  </div>
 
   <!-- Final Instructions Modal -->
 <div id="postBuildModal"
@@ -463,51 +514,31 @@ window.initCryptoWasm();
     let vaultBuildManuallyTriggered = false;
     let selectedPowDifficulty = "000000"; // default to 6
 
-    document.addEventListener("DOMContentLoaded", () => {
-  const modal = document.getElementById("powDifficultyModal");
-  modal.style.display = "flex";
+   document.addEventListener("DOMContentLoaded", async () => {
+  selectedPowDifficulty = "00000"; // default: 5 zeros
+  vaultBuildManuallyTriggered = true;
 
   window.cryptoWasmReady = window.initCryptoWasm();
-
-  const options = document.querySelectorAll(".powOption");
-  options.forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const zeros = parseInt(btn.dataset.diff);
-      selectedPowDifficulty = "0".repeat(zeros);
-      vaultBuildManuallyTriggered = true;
-      modal.style.display = "none";
-
-      await window.cryptoWasmReady;
-      startVaultBuild();
-    });
-  });
+  await window.cryptoWasmReady;
+  startVaultBuild();
 });
 
 
-    const terminalContent = document.getElementById("terminalContent");
+    function printToTerminal(labelText, percent = null) {
+  const label = document.getElementById("progressLabel");
+  const fill = document.getElementById("progressFill");
 
-    function printToTerminal(line, delay = 30) {
-  const terminalContent = document.getElementById("terminalContent");
-  const terminalContainer = document.getElementById("terminal");
+  if (label) label.textContent = labelText;
 
-  return new Promise(resolve => {
-    let i = 0;
-    const interval = setInterval(() => {
-      // Append next character
-      terminalContent.textContent += line[i] || '';
-      
-      // Scroll terminal container to bottom
-      terminalContainer.scrollTop = terminalContainer.scrollHeight;
+  if (percent !== null && fill) {
+    const blocks = fill.querySelectorAll(".progress-block");
+    const total = blocks.length;
+    const filledCount = Math.round((percent / 100) * total);
 
-      i++;
-      if (i >= line.length) {
-        clearInterval(interval);
-        terminalContent.textContent += '\n';
-        terminalContainer.scrollTop = terminalContainer.scrollHeight;
-        resolve();
-      }
-    }, delay);
-  });
+    blocks.forEach((block, i) => {
+      block.classList.toggle("filled", i < filledCount);
+    });
+  }
 }
 
     function showToast(msg) {
@@ -557,57 +588,52 @@ async function startVaultBuild() {
   }
 
   try {
-    await streamTerminalLogs();
-    await printToTerminal("[*] Loading user input...");
-    await delay(500);
+    printToTerminal("[*] Loading user input...", 5);
+    await delay(200);
 
     const inputs = await loadUserInputs();
+    printToTerminal("[+] User data loaded.", 10);
+    await delay(150);
 
-    await printToTerminal("[+] User data loaded. Preparing vault structure...");
-    await delay(500);
-
+    printToTerminal("[*] Preparing vault structure...", 15);
     const files = await loadIndexedFiles();
-    await printToTerminal(`[+] Found ${files.length} file(s) for encryption.`);
-    await delay(500);
+    printToTerminal(`[+] Found ${files.length} file(s) for encryption.`, 20);
+    await delay(150);
 
-    await printToTerminal("[*] Deriving encryption key...");
+    printToTerminal("[*] Deriving encryption key...", 25);
     const key = await deriveKey(inputs.unlockAnswer1 + inputs.unlockAnswer2);
-    await delay(500);
+    await delay(150);
 
-    await printToTerminal("[+] Key ready. Encrypting vault metadata...");
+    printToTerminal("[+] Key ready. Preparing metadata...", 30);
     const powSalt = await generatePowSalt(inputs.unlockAnswer1 + inputs.unlockAnswer2);
     const powChallengeHex = generatePowChallenge();
+    await delay(100);
 
-    // Generate fullConcatSalt for finalKey derivation
-    const fullConcatSalt = generateRandomHex(16); // 128-bit salt
+    printToTerminal("[*] Generating full key salt...", 35);
+    const fullConcatSalt = generateRandomHex(16);
+    await delay(100);
 
-    // Show PoW panel BEFORE mining starts
-    const powPanel = document.getElementById("powPanel");
-    powPanel.classList.add("visible");
-    powPanel.style.display = "flex";
+    printToTerminal("[*] Initializing proof-of-work challenge...", 40);
+    await delay(100);
 
-    // Let browser render modal before mining begins
-    await new Promise(resolve => requestAnimationFrame(() => {
-      setTimeout(resolve, 100); // allow modal to visibly appear
-    }));
-
-    // Start mining — use salted concat as base
+    printToTerminal("[⛏] Mining proof-of-work nonce...", 45);
     const powNonce = await mineValidNonce(fullConcatSalt + inputs.fullConcat, selectedPowDifficulty);
 
-    // Encrypt vault payload
+    printToTerminal("[+] PoW complete. Encrypting vault contents...", 70);
     const payloads = await encryptVaultPayload(
       inputs,
       files,
       powSalt,
       powChallengeHex,
       powNonce,
-      fullConcatSalt // ✅ pass the salt
+      fullConcatSalt
     );
-    await delay(500);
+    await delay(150);
 
-    await printToTerminal("[+] Encryption complete. Packaging vault...");
-    await delay(500);
+    printToTerminal("[*] Preparing ZIP structure...", 80);
+    await delay(100);
 
+    printToTerminal("[*] Compressing and finalizing archive...", 90);
     await packageAndDownloadZip(
       payloads,
       inputs.unlockAnswer1 + inputs.unlockAnswer2,
@@ -615,14 +641,14 @@ async function startVaultBuild() {
       powSalt,
       powChallengeHex,
       powNonce,
-      fullConcatSalt // ✅ include it in vault.json
+      fullConcatSalt
     );
 
-    await printToTerminal("[✔] Vault creation complete. Download should begin automatically.");
+    printToTerminal("[✔] Vault creation complete. Download should begin automatically.", 100);
 
   } catch (err) {
     console.error("Vault build error:", err);
-    await printToTerminal(`[!] Error: ${err.message}`);
+    printToTerminal(`[!] Error: ${err.message}`, null);
     showToast("Something went wrong while creating your vault.");
   }
 }
@@ -979,37 +1005,34 @@ Libereco ne estas donaco. Ĝi estas devo.
 async function mineValidNonce(baseInput, difficulty) {
   const encoder = new TextEncoder();
   const powStatus = document.getElementById("powStatus");
-  const powNonce = document.getElementById("powNonce");
-  const powHash = document.getElementById("powHash");
-  const powElapsed = document.getElementById("powElapsed");
-
-  powStatus.textContent = `Mining for hash starting with "${difficulty}"...`;
+  const progressFill = document.getElementById("progressFill");
+  const progressLabel = document.getElementById("progressLabel");
 
   let nonce = 0;
   const start = performance.now();
 
-  while (true) {
-    const inputString = baseInput + nonce;
-    const inputBytes = encoder.encode(inputString);
+  powStatus.textContent = `Mining for hash starting with "${difficulty}"...`;
 
-    // ✅ FIXED: await this hash call
-    const hashBytes = await window.sha256Hash(inputBytes);
+  while (true) {
+    const input = encoder.encode(baseInput + nonce);
+    const hashBytes = await window.sha256Hash(input);
     const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
     if (nonce % 10000 === 0) {
       const elapsed = ((performance.now() - start) / 1000).toFixed(1);
-      powNonce.textContent = `Nonce: ${nonce}`;
-      powHash.textContent = `Hash: ${hashHex.slice(0, 16)}...`;
-      powElapsed.textContent = `Elapsed: ${elapsed}s`;
+      powStatus.textContent = `Nonce: ${nonce} | Hash: ${hashHex.slice(0, 12)}... | ${elapsed}s elapsed`;
+
+      // Estimate progress between 55% -> 70% during PoW
+      let estProgress = 55 + Math.min(15, nonce / 100000 * 15);
+      progressLabel.textContent = "[*] Mining proof-of-work...";
+      
       await new Promise(requestAnimationFrame);
     }
 
     if (hashHex.startsWith(difficulty)) {
-      const totalElapsed = ((performance.now() - start) / 1000).toFixed(1);
-      powStatus.textContent = `Solved after ${nonce} attempts in ${totalElapsed}s!`;
-      powNonce.textContent = `Nonce: ${nonce}`;
-      powHash.textContent = `Hash: ${hashHex}`;
-      powElapsed.textContent = `Total Time: ${totalElapsed}s`;
+      const elapsed = ((performance.now() - start) / 1000).toFixed(1);
+      powStatus.textContent = `Solved in ${nonce} attempts over ${elapsed}s`;
+      progressLabel.textContent = "[+] PoW complete.";
       return nonce.toString();
     }
 
@@ -1032,33 +1055,6 @@ function retryDownload() {
 }
 
 </script>
-
-<!-- PoW Difficulty Selection Modal -->
-<div id="powDifficultyModal">
-  <h2 style="margin-bottom: 20px;">Select Proof of Work Difficulty</h2>
-  <p style="max-width: 600px; text-align: center; margin-bottom: 20px; font-size: 15px;">
-<p style="max-width: 700px; text-align: center; margin-bottom: 20px; font-size: 15px;">
-  Memoro Vault uses dual proof-of-work to protect your data during recovery.<br/>
-  Every time someone tries to unlock the vault, their device must solve both static and dynamic proof-of-work puzzles — and it only works if all of the answers are correct.<br/><br/>
-  A higher difficulty makes it much harder for hackers to guess answers, because each wrong attempt takes more time and computing power. This process is designed to completely prevent brute force attacks.<br/><br/>
-  <strong>Choose a difficulty between 4 and 9:</strong><br/>
-  4 is fast and still secure for personal use.<br/>
-  5 is recommended for most users.<br/>
-  6–7 is great for serious protection with reasonable delay.<br/>
-  8 is highly secure and ideal for sensitive or long-term storage.<br/>
-  9 is for paranoids, whistleblowers, or people who want maximum security.<br/><br/>
-</p>
-  </p>
-  <div style="display: flex; gap: 15px; margin-bottom: 30px;">
-    <button class="powOption" data-diff="4">4 zeros (≈1–3 sec)</button>
-    <button class="powOption" data-diff="5">5 zeros (≈3–8 sec)</button>
-    <button class="powOption" data-diff="6">6 zeros (≈10–30 sec)</button>
-    <button class="powOption" data-diff="7">7 zeros (≈1–2 min)</button>
-    <button class="powOption" data-diff="8">8 zeros (≈5–15 min)</button>
-    <button class="powOption" data-diff="9">9 zeros (≈1 hr+)</button>
-  </div>
-  <p style="font-size: 13px; color: #888;"><strong>Note:</strong> Higher difficulty means longer vault creation  and decryption times. Please be patient and let the program work.<br/>
-</div>
 
 <script>
   const canvas = document.getElementById('matrixCanvas');
