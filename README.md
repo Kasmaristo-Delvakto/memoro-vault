@@ -49,11 +49,6 @@ Answers are never stored. Instead, they are used to derive an AES-GCM encryption
 - The vault then requires all answers to be correct—entered exactly  
 - Optional hints and character counts may be enabled by the creator to support intended users while still deterring attackers  
 
-This phase is protected by dual proof-of-work:
-
-- A **static PoW nonce** mined during vault creation and tied to the encryption key  
-- A **dynamic PoW challenge** that must be solved at recovery time, with difficulty increasing after each failure  
-
 ---
 
 ## File and Environment Security
