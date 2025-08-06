@@ -1,0 +1,115 @@
+html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Fira Code', monospace;
+      background-color: black;
+      color: #00ff99;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
+    .content {
+      z-index: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.75);
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 16px rgba(0, 255, 153, 0.3);
+    }
+
+    p {
+      font-size: 20px;
+      color: #00ff99;
+      margin-bottom: 30px;
+      max-width: 700px;
+      line-height: 1.6;
+      white-space: pre-line;
+      text-shadow: 0 0 6px #00ff99;
+    }
+
+    button {
+      padding: 14px 32px;
+      font-size: 18px;
+      background-color: #002611;
+      color: #00ff99;
+      border: 1px solid #00ff99;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      box-shadow: 0 0 10px #00ff99;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    button:hover {
+      background-color: #004422;
+      transform: translateY(-2px);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: #111;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 0 16px #00ff99;
+      border: 1px solid #00ff99;
+    }
+
+    .modal-content h2 {
+      font-size: 24px;
+      margin-bottom: 18px;
+      color: #00ff99;
+    }
+
+    .modal-content ul {
+      text-align: left;
+      padding-left: 20px;
+      margin-bottom: 24px;
+      font-size: 16px;
+      color: #88ffcc;
+      line-height: 1.6;
+    }
+
+    .modal-buttons button {
+      background-color: #002611;
+      color: #00ff99;
+      border: 1px solid #00ff99;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    .modal-buttons button:hover {
+      background-color: #004422;
+      transform: translateY(-1px);
+    }

@@ -1,0 +1,1 @@
+// Extracted JS from original buildvault.html goes here

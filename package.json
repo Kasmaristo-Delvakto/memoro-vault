@@ -1,6 +1,6 @@
 {
   "name": "memoro-vault",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A private, offline memory-based vault for securing digital assets.",
   "main": "main.js",
   "author": "Kasmaristo Delvakto",
@@ -85,10 +85,12 @@
     "rimraf": "^6.0.1"
   },
   "dependencies": {
+    "argon2-browser": "^1.18.0",
     "buffer-crc32": "0.2.13",
     "cacheable-lookup": "5.0.4",
     "cacheable-request": "7.0.4",
     "clone-response": "1.0.3",
+    "crystals-kyber": "^5.1.0",
     "debug": "4.4.0",
     "decompress-response": "6.0.0",
     "extract-zip": "2.0.1",
@@ -102,6 +104,7 @@
     "pump": "3.0.2",
     "snarkjs": "^0.7.5",
     "sumchecker": "3.0.1",
+    "uglify-js": "^3.19.3",
     "yauzl": "2.10.0"
   },
   "repository": {

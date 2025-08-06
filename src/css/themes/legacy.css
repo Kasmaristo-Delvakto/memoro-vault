@@ -1,0 +1,23 @@
+body {
+  background-color: #111;
+  color: #f0f0f0;
+  font-family: 'Courier New', monospace;
+}
+
+button {
+  background-color: #222;
+  color: #fff;
+  border: 1px solid #666;
+}
+
+button:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+.modal {
+  background-color: #1a1a1a;
+  border: 1px solid #666;
+  box-shadow: 0 0 5px #555;
+  color: #f0f0f0;
+}

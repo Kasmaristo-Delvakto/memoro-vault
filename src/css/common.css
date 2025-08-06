@@ -1,0 +1,56 @@
+.modal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.95);
+  color: #0f0;
+  z-index: 5000;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: #000;
+  padding: 30px;
+  border: 2px solid #0f0;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.theme-btn {
+  background: #111;
+  border: 1px solid #0f0;
+  color: #0f0;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-family: 'Fira Code', monospace;
+}
+
+.theme-btn:hover {
+  background: #0f0;
+  color: #000;
+}
+
+#matrix {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+}

@@ -5,8 +5,9 @@
   <title>Memoro Vault - Dashboard</title>
 <script src="libs/crypto-js.min.js"></script>
 <script src="libs/zip.min.js"></script>
+<script src="libs/argon2-browser.min.js"></script>
 
-<style>
+  <style>
   body {
     background-color: black;
     color: #00ff99;
@@ -24,11 +25,12 @@
     margin: 0;
   }
 
- img {
-  max-width: 100%;
-  height: auto;
-}
-
+  h1 {
+    font-size: 48px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 5px;
+  }
 
   p {
     font-size: 20px;
@@ -38,61 +40,68 @@
   }
 
   .typewriter-text {
-    display: inline-block;
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid transparent;
+  color: transparent;
+  animation:
+    revealText 0s forwards,
+    typing 2s steps(40, end) forwards 0.05s,
+    blink-caret 0.75s step-end 7 2s forwards; /* 7 blinks */
+  pointer-events: none;
+}
+
+@keyframes revealText {
+  to {
+    color: #00ff99;
+    border-right-color: #00ff99;
+  }
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  0%, 100% { border-color: transparent; }
+  50% { border-color: #00ff99; }
+}
+
+
+  .button, .modal-buttons button {
+    background-color: #003322;
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 15px 30px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    position: relative;
     overflow: hidden;
-    white-space: nowrap;
-    border-right: 2px solid #00ff99;
-    animation: typing 2s steps(30, end) forwards, blink-caret 0.75s step-end 5;
+    font-family: 'Fira Code', monospace;
   }
 
-  @keyframes typing {
-    from { width: 0 }
-    to { width: 100% }
-  }
-
-  @keyframes blink-caret {
-    0%, 100% { border-color: transparent }
-    50% { border-color: #00ff99 }
+  .button:hover, .modal-buttons button:hover {
+    background-color: #005544;
   }
 
   .button-group {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 1rem;
     margin-bottom: 40px;
-    width: 70%;
-    max-width: 800px;
-    box-sizing: border-box;
-  }
-
-  .button {
-    background-color: #002611;
-    color: #00ff99;
-    border: 1px solid #00ff99;
-    padding: 8px 20px;
-    font-size: 16px;
-    font-family: 'Fira Code', monospace;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s;
-    text-align: center;
-    box-shadow: 0 0 8px #00ff99;
-    flex: 1 1 200px;
-    max-width: 250px;
-  }
-
-  .button:hover {
-    background-color: #004422;
-    transform: translateY(-2px);
+    gap: 10px;
   }
 
   .vault-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
     width: 100%;
-    max-width: 800px;
+    max-width: 1000px;
   }
 
   .vault-item {
@@ -107,16 +116,12 @@
     position: relative;
     animation: fadeIn 0.5s ease;
   }
-  
 
- .vault-item h2 {
-  margin: 0 0 10px;
-  font-size: 22px;
-  word-break: break-word;
-  max-width: 100%;   /* ✅ Constrain to container */
-  overflow-wrap: break-word;
-}
-
+  .vault-item h2 {
+    margin: 0 0 10px;
+    font-size: 22px;
+    word-break: break-word;
+  }
 
   .vault-item p {
     margin: 5px 0;
@@ -144,12 +149,12 @@
 
   .three-dots {
     position: absolute;
-    top: 5px;
+    top: 15px;
     right: 15px;
     background: none;
     border: none;
     color: #eee;
-    font-size: 30px;
+    font-size: 22px;
     cursor: pointer;
   }
 
@@ -189,6 +194,11 @@
     box-shadow: 0 0 8px #00ff99;
   }
 
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .modal-overlay {
     display: none;
     position: fixed;
@@ -213,6 +223,17 @@
     border: 1px solid #00ff99;
     text-align: center;
     animation: fadeInModal 0.3s ease-out;
+  }
+
+  @keyframes fadeInModal {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .modal h2, .modal p {
@@ -249,58 +270,86 @@
     font-family: 'Fira Code', monospace;
   }
 
-  .modal-buttons button:hover {
-    background-color: #004422;
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -2;
   }
 
-  canvas,
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: -1;
+  }
+
   #matrixCanvas {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: -3;
     width: 100vw;
     height: 100vh;
+    z-index: -3;
   }
 
-  .overlay,
   .matrix-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.75);
     z-index: -2;
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes fadeInModal {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
+  /* ✅ Responsive layout for buttons */
   @media (max-width: 600px) {
+    .button-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+
+    .button {
+      width: 100%;
+      text-align: center;
+      padding: 14px;
+      font-size: 16px;
+    }
+
+    h1 {
+      font-size: 30px;
+      text-align: center;
+    }
+
+    p {
+      font-size: 16px;
+    }
+  }
+
+@media (max-width: 600px) {
   .button-group {
     flex-direction: column;
     align-items: center;
+    gap: 12px;
   }
 
   .button {
     width: 90%;
+    max-width: 320px;
+    text-align: center;
+    padding: 12px 16px;
     font-size: 16px;
-    padding: 6px 14px;
-    height: 42px; /* ✅ FORCE height */
-    max-width: 100%;
-    flex: none;   /* ✅ Prevent stretching */
+    box-sizing: border-box;
   }
 
   h1 {
-    font-size: 32px;
+    font-size: 30px;
+    text-align: center;
   }
 
   p {
@@ -308,56 +357,33 @@
   }
 }
 
-.logo-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.logo-img {
-  max-width: 85%;
-  height: auto;
-  opacity: 0;
-  transform: scale(0.95);
-  animation: fadeInZoom 2s ease-out forwards;
-  animation-delay: 0s;
-}
-
-@keyframes fadeInZoom {
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
 
 </style>
+
 
 </head>
 
 <body>
   <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
-<div class="logo-container">
-  <img src="assets/Memoro_Vault_Horizontal-removebg.png" alt="Memoro Vault Logo" class="logo-img" />
+<div style="display: flex; justify-content: center;">
+  <h1><span class="typewriter-text" style="animation-delay: 0s;">Memoro Vault</span></h1>
 </div>
-<p class="typewriter-text" style="animation-delay: 3s; margin-bottom: 0.3em;">
-  What Matters Most.
-</p>
-<p class="typewriter-text" style="animation-delay: 6s; margin-top: 0;">
-  Hidden in plain sight.
-</p>
+<div style="position: relative; width: 100%; display: flex; justify-content: center;">
+  <p class="typewriter-text" style="animation-delay: 1.3s; margin-bottom: 0.3em; pointer-events: none;">
+    What matters most.
+  </p>
+</div>
+<div style="position: relative; width: 100%; display: flex; justify-content: center;">
+  <p class="typewriter-text" style="animation-delay: 2.5s; margin-top: 0; pointer-events: none;">
+    Hidden in plain sight.
+  </p>
+</div>
+
 
 <div class="button-group">
-  <button class="button typewriter-text" style="animation-delay: 3.5s; animation-duration: 2s; min-width: 175px;" onclick="promptOfflineWarning('create')">
-    Create New Vault
-  </button>
-
-  <button class="button typewriter-text" style="animation-delay: 5.5s; animation-duration: 2s; min-width: 175px;" onclick="promptOfflineWarning('load')">
-    Load Vault File
-  </button>
-
-  <button class="button typewriter-text" style="animation-delay: 7.5s; animation-duration: 2s; min-width: 175px;" onclick="goToHowItWorks()">
-    How Memoro Works
-  </button>
+  <button class="button" style="animation-delay: 3.5s;" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
+  <button class="button" style="animation-delay: 5.5s;" onclick="promptOfflineWarning('load')">Load Vault File</button>
+  <button class="button" style="animation-delay: 7.5s;" onclick="goToHowItWorks()">How Memoro Works</button>
 </div>
 
 <div class="vault-list" id="vaultList"></div>
@@ -474,16 +500,23 @@ function closeMessageModal() {
 
   // Vault Functions
   function saveVaultsToLocalStorage() {
-  const vaultArray = Object.entries(loadedVaults).map(([vaultId, data]) => {
-    saveFilesToIndexedDB(vaultId, data.fileMapRaw); // ⬅ Store fileMapRaw separately
+  const vaults = window.loadedVaults || {};
+  const saveList = Object.entries(vaults).map(([vaultId, vaultData]) => {
     return {
       vaultId,
-      fileName: data.fileName,
-      vaultData: data.vaultData
+      vaultBlob: vaultData.vaultBlob,
+      fileMapRaw: vaultData.fileMapRaw,
+      vaultJson: vaultData.vaultJson,
     };
   });
 
-  localStorage.setItem('savedVaults', JSON.stringify(vaultArray));
+  try {
+    const serialized = JSON.stringify(saveList);
+    localStorage.setItem("memoroVaultVaultList", serialized);
+    console.log("✔ Vault list saved to localStorage");
+  } catch (err) {
+    console.error("❌ Failed to save vault list:", err);
+  }
 }
 
   function loadVaultsFromLocalStorage() {
@@ -725,64 +758,85 @@ function startCountdown() {
       };
     }
 
+    // Ensure required files are present
     const vaultJson = fileMap['vault.json'];
     if (!vaultJson) throw new Error("Missing vault.json in ZIP");
+    const vaultData = JSON.parse(await vaultJson.text());
 
-const text = await vaultJson.text();
-const vaultData = JSON.parse(text);
+    const vaultEncBlob = fileMap['vault.enc'];
+    if (!vaultEncBlob) throw new Error("Missing vault.enc in ZIP");
+    const vaultEncText = await vaultEncBlob.text();
+    fileMapRaw['vault.enc'] = {
+      type: 'application/json',
+      data: Array.from(new TextEncoder().encode(vaultEncText))
+    };
 
-const vaultEncBlob = fileMap['vault.enc'];
-if (!vaultEncBlob) throw new Error("Missing vault.enc in ZIP");
+    const vaultMetaBlob = fileMap['vault.meta'];
+    if (!vaultMetaBlob) throw new Error("Missing vault.meta in ZIP");
+    const encodedVaultMeta = new Uint8Array(await vaultMetaBlob.arrayBuffer());
+    fileMapRaw['vault.meta'] = {
+      type: 'application/octet-stream',
+      data: Array.from(encodedVaultMeta)
+    };
 
-const encText = await vaultEncBlob.text();
-let parsedEnc;
-try {
-  parsedEnc = JSON.parse(encText); // Ensure it's valid JSON
-} catch {
-  throw new Error("vault.enc is not valid JSON.");
-}
-
-// Re-encode text just like others
-const encoded = new TextEncoder().encode(encText);
-fileMapRaw['vault.enc'] = {
-  type: 'application/json',
-  data: Array.from(encoded)
-};
-
-
+    // ✅ Save original ZIP blob (critical for recover.html)
     loadedVaults[vaultId] = {
       fileName,
       vaultData,
       fileMap,
-      fileMapRaw  // ✅ include raw version for reliable re-unlock
+      fileMapRaw,
+      zipBlob: file  // ✅ store original zip
     };
 
     addVaultToList(vaultId, fileName, vaultData);
     saveVaultsToLocalStorage();
     showMessageModal('Success', 'Vault imported successfully!');
-
     await zipReader.close();
   } catch (err) {
     console.error("ZIP Load Error:", err);
     showMessageModal('Load Failed', 'Could not load the vault ZIP file.');
   }
 }
- 
 </script>
 
 <script>
-async function deriveKey(password) {
-  const enc = new TextEncoder();
-  const salt = await crypto.subtle.digest("SHA-256", enc.encode(password));
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey({
-    name: "PBKDF2",
+async function deriveKey(password, saltHex = null, vaultData = null) {
+  const encoder = new TextEncoder();
+  const passwordBytes = encoder.encode(password);
+  const salt = saltHex 
+    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+    : new Uint8Array(await crypto.subtle.digest("SHA-256", passwordBytes));
+
+  const settings = vaultData?.argonSettings || {
+    time: 10,
+    mem: 65536,
+    parallelism: 4,
+    type: "Argon2id",
+    hashLen: 32
+  };
+
+  const argonResult = await argon2.hash({
+    pass: password,
     salt,
-    iterations: 150000,
-    hash: "SHA-256"
-  }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    time: settings.time,
+    mem: settings.mem,
+    parallelism: settings.parallelism,
+    type: argon2.ArgonType[settings.type] || argon2.ArgonType.Argon2id,
+    hashLen: settings.hashLen || 32
+  });
+
+  const keyBytes = new Uint8Array(argonResult.hash);
+  return crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function decryptAES(ciphertextArray, ivArray, key) {
@@ -822,31 +876,46 @@ async function submitUnlock() {
   }
 
   const vault = loadedVaults[currentUnlockVaultId];
-  if (!vault || !vault.vaultData || !vault.fileMapRaw) {
+  if (!vault || !vault.vaultData || !vault.fileMapRaw || !vault.zipBlob) {
     showMessageModal('Vault Error', 'Vault is missing required data.');
     return;
   }
 
   const vaultEncRaw = vault.fileMapRaw["vault.enc"];
-  if (!vaultEncRaw || !vaultEncRaw.data) {
-    showMessageModal('Vault Error', 'vault.enc is missing or incomplete.');
+  const vaultMetaRaw = vault.fileMapRaw["vault.meta"];
+  if (!vaultEncRaw || !vaultEncRaw.data|| !vaultMetaRaw || !vaultMetaRaw.data) {
+    showMessageModal('Vault Error', 'Required encrypted files are missing or incomplete.');
     return;
   }
 
   try {
-    const decoded = new TextDecoder().decode(Uint8Array.from(vaultEncRaw.data));
-    const vaultEncJson = JSON.parse(decoded);
+    console.log("🔑 Unlock attempt with answers:", answer1, answer2);
+
+    const vaultData = vault.vaultData;
+    const layer1Salt = vaultData.layer1Salt;
+    if (!layer1Salt) {
+      throw new Error("Vault metadata is incomplete: layer1Salt not found.");
+    }
+
+    const vaultEncText = new TextDecoder().decode(Uint8Array.from(vaultEncRaw.data));
+    const vaultEncJson = JSON.parse(vaultEncText);
     const { ciphertext, iv } = vaultEncJson;
 
-    const aesKey = await deriveKey(answer1 + answer2);
-    const decrypted = await decryptAES(new Uint8Array(ciphertext), new Uint8Array(iv), aesKey);
+    const aesKey = await deriveKey(answer1 + answer2, layer1Salt, vaultData);
+
+    const decryptedBuffer = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: new Uint8Array(iv) },
+      aesKey,
+      new Uint8Array(ciphertext)
+    );
+    const decrypted = new TextDecoder().decode(decryptedBuffer);
     const fullVaultData = JSON.parse(decrypted);
 
-    // Inject required metadata
-    fullVaultData.finalMessageIv = vault.vaultData.finalMessageIv;
-    fullVaultData.vaultMetaIv = vault.vaultData.vaultMetaIv;
+    // Inject metadata
+    fullVaultData.finalMessageIv = vaultData.finalMessageIv || null;
+    fullVaultData.vaultMetaIv = vaultData.vaultMetaIv;
 
-    // Serialize file map
+    // Serialize fileMap
     const serializedMap = {};
     for (const [filename, blob] of Object.entries(vault.fileMap)) {
       const buffer = await blob.arrayBuffer();
@@ -856,14 +925,23 @@ async function submitUnlock() {
       };
     }
 
+    // ✅ Use the original imported ZIP blob
+    const vaultBlob = new Uint8Array(await vault.zipBlob.arrayBuffer());
+    if (vaultBlob.length === 0) throw new Error("Original vault ZIP blob is empty.");
+
     const transferObject = {
-      vaultJson: vault.vaultData,
+      vaultJson: vaultData,
       decryptedVaultData: fullVaultData,
       baseKey: answer1 + answer2,
-      fileMapRaw: serializedMap
+      fileMapRaw: serializedMap,
+      vaultEncRaw,
+      vaultMetaRaw,
+      vaultId: currentUnlockVaultId,
+      fullSalt: vaultData.fullSalt,
+      vaultBlob: vaultBlob.buffer
     };
 
-    // Save to IndexedDB BEFORE navigating
+    // Save to IndexedDB
     await new Promise((resolve, reject) => {
       const req = indexedDB.open("memoroVaultVaultStorage", 1);
       req.onupgradeneeded = function (event) {
@@ -877,30 +955,31 @@ async function submitUnlock() {
         const tx = db.transaction("vaultFiles", "readwrite");
         const store = tx.objectStore("vaultFiles");
 
-        // Save both raw files and transfer object
-        store.put({ vaultId: currentUnlockVaultId, fileMapRaw: vault.fileMapRaw });
-        store.put({ vaultId: currentUnlockVaultId + "-transfer", ...transferObject });
+        store.put({ vaultId: currentUnlockVaultId + "-transfer", data: transferObject });
 
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject("IndexedDB write failed");
+        tx.oncomplete = () => {
+          console.log("📦 IndexedDB write completed:", currentUnlockVaultId + "-transfer");
+          resolve();
+        };
+        tx.onerror = (e) => reject("❌ IndexedDB write error: " + e.target.error.message);
       };
-      req.onerror = () => reject("Failed to open IndexedDB");
+      req.onerror = (e) => reject("❌ Failed to open IndexedDB: " + e.target.error.message);
     });
 
-    // Clear lockout and save ID
+    // Reset lockout state
     clearInterval(countdownInterval);
     localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
     localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
     localStorage.setItem("lastVaultId", currentUnlockVaultId);
 
-    // Navigate to recovery
-    window.location.href = "recover.html";
+    await delay(500); // Optional delay
 
+    window.location.href = "recover.html";
   } catch (err) {
-    console.warn("Decrypt failed:", err.message);
+    console.warn("❌ Unlock failed:", err.message);
     failedAttempts++;
-    const delay = 15000 * Math.pow(2, failedAttempts - 1);
-    lockoutUntil = Date.now() + delay;
+    const lockDelay = 15000 * Math.pow(2, failedAttempts - 1);
+    lockoutUntil = Date.now() + lockDelay;
 
     localStorage.setItem(`failedAttempts_${currentUnlockVaultId}`, failedAttempts);
     localStorage.setItem(`lockoutUntil_${currentUnlockVaultId}`, lockoutUntil);
@@ -929,27 +1008,40 @@ document.addEventListener("input", (e) => {
 });
 
 function saveFilesToIndexedDB(vaultId, fileMapRaw, transferObject = null) {
-  const req = indexedDB.open("memoroVaultVaultStorage", 1);
-  req.onupgradeneeded = function (event) {
-    const db = event.target.result;
-    if (!db.objectStoreNames.contains("vaultFiles")) {
-      db.createObjectStore("vaultFiles", { keyPath: "vaultId" });
-    }
-  };
-  req.onsuccess = function (event) {
-    const db = event.target.result;
-    const tx = db.transaction("vaultFiles", "readwrite");
-    const store = tx.objectStore("vaultFiles");
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("memoroVaultVaultStorage", 1);
+    req.onupgradeneeded = function (event) {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("vaultFiles")) {
+        db.createObjectStore("vaultFiles", { keyPath: "vaultId" });
+      }
+    };
+    req.onsuccess = function (event) {
+      const db = event.target.result;
+      const tx = db.transaction("vaultFiles", "readwrite");
+      const store = tx.objectStore("vaultFiles");
 
-    // Always store fileMapRaw for dashboard hydration
-    store.put({ vaultId, fileMapRaw });
+      // Always store fileMapRaw for dashboard hydration
+      store.put({ vaultId, fileMapRaw });
+      console.log("Saved fileMapRaw for vaultId:", vaultId);
 
-    // If this is also a recovery session, store full object
-    if (transferObject) {
-      store.put({ vaultId: vaultId + "-transfer", ...transferObject });
-      console.log("✅ Transfer stored under:", vaultId + "-transfer");
-    }
-  };
+      // Store transfer object if provided
+      if (transferObject) {
+        store.put({ vaultId: vaultId + "-transfer", ...transferObject });
+        console.log("Saved transfer object for vaultId:", vaultId + "-transfer");
+      }
+
+      tx.oncomplete = () => {
+        console.log("IndexedDB transaction completed for vaultId:", vaultId);
+        resolve();
+      };
+      tx.onerror = (e) => {
+        console.error("IndexedDB transaction error:", e.target.error);
+        reject("IndexedDB write failed: " + e.target.error.message);
+      };
+    };
+    req.onerror = (e) => reject("Failed to open IndexedDB: " + e.target.error.message);
+  });
 }
 
 function loadFilesFromIndexedDB(vaultId) {

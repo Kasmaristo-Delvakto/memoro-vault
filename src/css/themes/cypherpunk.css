@@ -1,0 +1,23 @@
+body {
+  background-color: #000;
+  color: #00ff99;
+  font-family: 'Fira Code', monospace;
+}
+
+button {
+  background-color: #003322;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+}
+
+button:hover {
+  background-color: #005544;
+  color: #0f0;
+}
+
+.modal {
+  background-color: #000;
+  border: 1px solid #00ff99;
+  box-shadow: 0 0 10px #00ff99;
+  color: #00ff99;
+}

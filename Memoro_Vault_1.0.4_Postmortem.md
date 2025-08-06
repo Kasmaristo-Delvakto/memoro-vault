@@ -2,7 +2,7 @@
 
 ## Background
 
-In June 2025, a critical vulnerability in version 1.0.4 of Memoro Vault's `build.html` logic allowed the full compromise of a high-security vault protected by a 10 XMR bounty. The issue stemmed from architectural decisions that, while originally intended to simplify Layer 2 (L2) recovery logic, ultimately allowed adversaries to extract and crack all answer hashes individually.
+In June 2025, a critical vulnerability in version 1.0.5 of Memoro Vault's `build.html` logic allowed the full compromise of a high-security vault protected by a 10 XMR bounty. The issue stemmed from architectural decisions that, while originally intended to simplify Layer 2 (L2) recovery logic, ultimately allowed adversaries to extract and crack all answer hashes individually.
 
 The vulnerability was discovered after the bounty vault was successfully cracked and claimed by user "desktop_monitor". The flaw has since been fully analyzed, and major fixes are now underway.
 

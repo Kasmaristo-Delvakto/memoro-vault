@@ -453,7 +453,7 @@
       <li>Mix short and long structures and avoid patterns (like “john2024”)</li>
     </ul>
 
-    <p>Memoro Vault provides no hints, no partial progress, and imposes increasing <strong>proof-of-work</strong> delays after every failure. This dual-layer model blocks both casual guessing and high-speed brute-force attacks.</p>
+    <p>Memoro Vault provides no hints, no partial credit, and no feedback on incorrect input. To unlock the vault, users must enter the exact correct answers for all questions, and for six of them, they must also provide the correct order. This creates a layered security model: the decryption key is only derived if every answer is 100% accurate, and the six ordered answers match the precise sequence used during vault creation. With no indication of which part is wrong, attackers must blindly guess both content and order across hundreds of possibilities—making brute-force attempts impractical and expensive.</p>
 
   </div>
 </details>
@@ -879,16 +879,30 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
   
   async function submitAnswers() {
   const answers = [];
+  const normalizedAnswers = [];
+  const spaceIndexesList = [];
   const seeds = [];
   const answerInputs = document.querySelectorAll('input[id^="answer-"]');
   const seedInputs = document.querySelectorAll('input[id^="seed-"]');
   const finalMessage = document.getElementById('finalMessage').value.trim();
   let trapIndex = -1;
-document.querySelectorAll('.trap-checkbox').forEach(cb => {
-  if (cb.checked) trapIndex = parseInt(cb.dataset.index);
-});
 
-  answerInputs.forEach(input => answers.push(input.value.trim()));
+  document.querySelectorAll('.trap-checkbox').forEach(cb => {
+    if (cb.checked) trapIndex = parseInt(cb.dataset.index);
+  });
+
+  answerInputs.forEach(input => {
+    const raw = input.value.trim();
+    answers.push(raw);
+    normalizedAnswers.push(raw.toLowerCase());
+
+    const spaceIndexes = [];
+    for (let i = 0; i < raw.length; i++) {
+      if (raw[i] === ' ') spaceIndexes.push(i);
+    }
+    spaceIndexesList.push(spaceIndexes);
+  });
+
   seedInputs.forEach(input => seeds.push(input.value.trim()));
 
   const vaultType = localStorage.getItem('selectedVaultType');
@@ -903,7 +917,6 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
   const bulkSeed = JSON.parse(localStorage.getItem('bulkSeedPhrase') || '[]');
   const finalSeeds = bulkSeed.length > seeds.length ? bulkSeed : seeds;
 
-  // Store to IndexedDB instead of just localStorage
   const unlockIndexes = JSON.parse(localStorage.getItem('unlockQuestions')) || [0, 1];
   const questionCount = parseInt(localStorage.getItem('questionCount')) || 12;
   const questions = JSON.parse(localStorage.getItem('questions')) || [];
@@ -923,29 +936,30 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
     const store = tx.objectStore('vaultUserData');
 
     store.put({
-  id: 'userData',
-  answers,
-  seeds: finalSeeds,
-  hints: customHints,
-  questions,
-  questionCount,
-  unlockIndexes,
-  finalMessage,
-  trapIndex
-});
+      id: 'userData',
+      answers,
+      normalizedAnswers,
+      spaceIndexes: spaceIndexesList,
+      seeds: finalSeeds,
+      hints: customHints,
+      questions,
+      questionCount,
+      unlockIndexes,
+      finalMessage,
+      trapIndex
+    });
 
     tx.oncomplete = () => {
       db.close();
 
- const namedSeedFiles = namedSeeds.map(seed => ({
-  name: seed.name + ".txt",
-  content: seed.content
-}));
-localStorage.setItem("namedSeedFiles", JSON.stringify(namedSeedFiles));
-localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
+      const namedSeedFiles = namedSeeds.map(seed => ({
+        name: seed.name + ".txt",
+        content: seed.content
+      }));
 
+      localStorage.setItem("namedSeedFiles", JSON.stringify(namedSeedFiles));
+      localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
 
-      // Optional: clear localStorage copies if you're confident recovery works
       window.location.href = "build-vault.html";
     };
   };

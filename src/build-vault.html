@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Building Your Vault - Memoro Vault</title>
-<script src="libs/seedrandom.min.js"></script>
-<script src="libs/crypto-js.min.js"></script>
-<script src="libs/zip.min.js"></script>
-<script type="module">
-</script>
-<script type="module">
+  <script src="libs/seedrandom.min.js"></script>
+  <script src="libs/crypto-js.min.js"></script>
+  <script src="libs/zip.min.js"></script>
+  <script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
+  <script type="module">
 import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './wasm/memoro_crypto.js';
 window.initCryptoWasm = async () => {
   await init();
@@ -18,7 +17,7 @@ window.initCryptoWasm = async () => {
   window.aesDecryptRust = aes_gcm_decrypt;
 };
 window.initCryptoWasm();
-</script>
+  </script>
 
   <style>
 
@@ -106,22 +105,74 @@ window.initCryptoWasm();
   color: #000;
 }
 
-    body {
-      background-color: #111;
-      color: #eee;
-      font-family: 'Fira Code', monospace;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
-    }
-    
+body {
+  background-color: #111;
+  color: #eee;
+  font-family: 'Fira Code', monospace;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
 
-    #powDifficultyModal {
+#vaultContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+@media (max-width: 600px), (max-height: 700px) {
+  #vaultContainer {
+    justify-content: flex-start;
+    padding-top: 20px;
+  }
+}
+
+#mainContainer {
+  z-index: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+ justify-content: flex-start;
+  width: 100%;
+  max-width: 600px;
+  padding: 40px 20px;
+  box-sizing: border-box;
+}
+
+#logoSection {
+  width: 100%;
+  background-color: #111;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px 0;
+}
+
+#logoContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+#powDifficultyModal {
   position: fixed;
   top: 0; left: 0;
   width: 100vw;
@@ -129,7 +180,7 @@ window.initCryptoWasm();
   background: rgba(0, 0, 0, 0.95);
   color: #0f0;
   font-family: 'Fira Code', monospace;
-  display: flex; /* Important: ensure it's visible by default */
+  display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
@@ -137,64 +188,27 @@ window.initCryptoWasm();
   z-index: 1000;
 }
 
-    #downloadBtn {
-      display: none;
-      margin-top: 20px;
-      padding: 12px 24px;
-      font-size: 16px;
-      border: none;
-      border-radius: 6px;
-      background-color: #00aa00;
-      color: #fff;
-      cursor: pointer;
-    }
-    #downloadBtn:hover {
-      background-color: #007700;
-    }
-
-#actionButtons button {
-  background-color: #222;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 18px;
-  border-radius: 5px;
-  font-family: 'Fira Code', monospace;
-  font-size: 14px;
+#downloadBtn {
+  display: none;
+  margin-top: 20px;
+  padding: 12px 24px;
+  font-size: 16px;
+  border: none;
+  border-radius: 6px;
+  background-color: #00aa00;
+  color: #fff;
   cursor: pointer;
 }
-#actionButtons button:hover {
-  background-color: #0f0;
-  color: #000;
-}
-#vaultContainer {
-  display: flex;
-  width: 100%;
-  max-width: 1600px; /* Optional: set max width */
-  height: 100vh;
-  overflow: hidden;
-  margin: 0 auto; /* Center on screen */
+#downloadBtn:hover {
+  background-color: #007700;
 }
 
-
-
-#logoSection {
-  width: 50%;
-  height: 100%;
-  background-color: #111;
+#actionButtons {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  align-items: center;
-}
-
-#logoContent {
-  display: flex;
-  flex-direction: column;
-  justify-content: center; /* center vertically */
-  align-items: center;
-  height: 100%;
-  padding: 20px 0;
-  opacity: 0;
-  transition: opacity 1s ease;
+  gap: 16px;
+  margin-top: 30px;
 }
 
 #actionButtons button {
@@ -203,14 +217,12 @@ window.initCryptoWasm();
   border: 1px solid #0f0;
   padding: 10px 18px;
   border-radius: 5px;
-  font-family: 'Fira Code', monospace;
   font-size: 14px;
+  font-family: 'Fira Code', monospace;
   cursor: pointer;
-}
-
-#actionButtons button:hover {
-  background-color: #0f0;
-  color: #000;
+  min-width: 140px;
+  flex: 1 1 40%;
+  max-width: 240px;
 }
 
 .powOption {
@@ -227,26 +239,53 @@ window.initCryptoWasm();
   color: #000;
 }
 
-#mainContainer {
-  z-index: 1;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  box-sizing: border-box;
+/* === Responsive Tweaks for Mobile === */
+@media (max-width: 600px), (max-height: 700px) {
+  #mainContainer {
+    padding: 20px 10px;
+  }
+
+  #logoContent {
+    padding: 10px 0;
+  }
+
+#actionButtons button {
+  background-color: #111;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+  min-width: 140px;
+  max-width: 240px;
+  flex: 1 1 auto;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+#actionButtons button:hover {
+  background-color: #0f0;
+  color: #000;
+}
+
+}
+
 
 #memoroLogo {
   width: 200px;
   max-width: 90%;
   margin-bottom: 30px;
+  transition: width 0.3s ease;
 }
+
+@media (max-width: 600px), (max-height: 700px) {
+  #memoroLogo {
+    width: 140px;
+    margin-bottom: 20px;
+  }
+}
+
 
 #progressBarWrapper {
   width: 80%;
@@ -414,8 +453,6 @@ window.initCryptoWasm();
     </div>
   </div>
 
-  <p id="powStatus" style="color: #0f0; font-size: 13px; margin-top: 8px;">Waiting for proof-of-work...</p>
-
   <div id="actionButtons">
     <button onclick="preserveAndGoBack()">Back to Answers</button>
     <button onclick="retryDownload()">Retry Download</button>
@@ -512,10 +549,8 @@ window.initCryptoWasm();
   <script>
     let preserveOnBack = false;
     let vaultBuildManuallyTriggered = false;
-    let selectedPowDifficulty = "000000"; // default to 6
 
    document.addEventListener("DOMContentLoaded", async () => {
-  selectedPowDifficulty = "00000"; // default: 5 zeros
   vaultBuildManuallyTriggered = true;
 
   window.cryptoWasmReady = window.initCryptoWasm();
@@ -545,8 +580,8 @@ window.initCryptoWasm();
       alert(msg);
     }
 
-    function generateRandomHex(length) {
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
+      function generateRandomHex(length) {
+      const bytes = crypto.getRandomValues(new Uint8Array(length / 2));
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -570,18 +605,7 @@ setTimeout(() => {
       }
     }
 
-    async function generatePowSalt(unlockKey) {
-  const encoder = new TextEncoder();
-  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(unlockKey));
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).slice(0, 16).join('');
-}
-
-function generatePowChallenge() {
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function startVaultBuild() {
+    async function startVaultBuild() {
   if (!vaultBuildManuallyTriggered) {
     console.warn("Prevented auto-start of vault build.");
     return;
@@ -600,58 +624,97 @@ async function startVaultBuild() {
     printToTerminal(`[+] Found ${files.length} file(s) for encryption.`, 20);
     await delay(150);
 
-    printToTerminal("[*] Deriving encryption key...", 25);
-    const key = await deriveKey(inputs.unlockAnswer1 + inputs.unlockAnswer2);
-    await delay(150);
-
-    printToTerminal("[+] Key ready. Preparing metadata...", 30);
-    const powSalt = await generatePowSalt(inputs.unlockAnswer1 + inputs.unlockAnswer2);
-    const powChallengeHex = generatePowChallenge();
+    printToTerminal("[*] Deriving base key...", 25);
+    const unlockConcat = inputs.unlockAnswer1 + inputs.unlockAnswer2;
     await delay(100);
 
-    printToTerminal("[*] Generating full key salt...", 35);
-    const fullConcatSalt = generateRandomHex(16);
+    printToTerminal("[*] Generating full key salt...", 38);
+    const fullSalt = generateRandomHex(32);
     await delay(100);
 
-    printToTerminal("[*] Initializing proof-of-work challenge...", 40);
+    printToTerminal("[*] Selecting and permuting 9 Layer 2 questions...", 45);
+    const numQuestions = inputs.normalizedAnswers.length;
+    const allIndices = Array.from({ length: numQuestions }, (_, i) => i);
+    const gateIndices = [inputs.unlockIndexes[0], inputs.unlockIndexes[1]];
+    const layer2Indices = allIndices.filter(i => !gateIndices.includes(i));
+    const selectedL2Indices = layer2Indices.sort(() => Math.random() - 0.5).slice(0, 6);
+    const remainingL2Indices = layer2Indices.filter(i => !selectedL2Indices.includes(i));
+
+    const fullConcat = [
+      inputs.normalizedAnswers[gateIndices[0]],
+      inputs.normalizedAnswers[gateIndices[1]],
+      ...remainingL2Indices.map(i => inputs.normalizedAnswers[i]),
+      ...selectedL2Indices.map(i => inputs.normalizedAnswers[i])
+    ].join('');
+
     await delay(100);
+    printToTerminal("[+] Selection and permutation complete. Encrypting vault contents...", 70);
 
-    printToTerminal("[⛏] Mining proof-of-work nonce...", 45);
-    const powNonce = await mineValidNonce(fullConcatSalt + inputs.fullConcat, selectedPowDifficulty);
+    const argonSettings = {
+      time: 4,
+      mem: 4096,
+      parallelism: 2,
+      type: "Argon2id",
+      hashLen: 32
+    };
 
-    printToTerminal("[+] PoW complete. Encrypting vault contents...", 70);
+    let fullKey;
+    try {
+      console.log("[BUILD] fullConcat:", fullConcat);
+      console.log("[BUILD] fullSalt:", fullSalt);
+      console.log("[BUILD] argonSettings:", argonSettings);
+
+      fullKey = await deriveKey(fullConcat, fullSalt, argonSettings);
+
+      const exported = await crypto.subtle.exportKey("raw", fullKey);
+      const fullKeyHex = Array.from(new Uint8Array(exported))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log("[BUILD] fullKey (hex):", fullKeyHex);
+    } catch (err) {
+      console.error("❌ Vault build failed during key derivation or export:", err);
+      alert("Something went wrong while creating your vault.");
+      return;
+    }
+
     const payloads = await encryptVaultPayload(
       inputs,
       files,
-      powSalt,
-      powChallengeHex,
-      powNonce,
-      fullConcatSalt
+      unlockConcat,
+      fullConcat,
+      fullSalt,
+      selectedL2Indices,
+      gateIndices,
+      remainingL2Indices,
+      argonSettings,
+      fullKey
     );
-    await delay(150);
 
+    await delay(150);
     printToTerminal("[*] Preparing ZIP structure...", 80);
     await delay(100);
 
     printToTerminal("[*] Compressing and finalizing archive...", 90);
     await packageAndDownloadZip(
       payloads,
-      inputs.unlockAnswer1 + inputs.unlockAnswer2,
+      unlockConcat,
       inputs,
-      powSalt,
-      powChallengeHex,
-      powNonce,
-      fullConcatSalt
+      fullConcat,
+      fullSalt,
+      selectedL2Indices,
+      gateIndices,
+      payloads.layer1Salt,
+      argonSettings
     );
 
     printToTerminal("[✔] Vault creation complete. Download should begin automatically.", 100);
-
+    showPostBuildModal();
   } catch (err) {
     console.error("Vault build error:", err);
     printToTerminal(`[!] Error: ${err.message}`, null);
     showToast("Something went wrong while creating your vault.");
   }
 }
+
 
 async function loadUserInputs() {
   return new Promise((resolve, reject) => {
@@ -673,13 +736,12 @@ async function loadUserInputs() {
         const normalizedAnswers = data.answers.map((a, i) =>
           i === data.trapIndex ? "" : (a || "").trim().toLowerCase()
         );
-        const fullConcat = JSON.stringify(normalizedAnswers);
 
         resolve({
           ...data,
           unlockAnswer1,
           unlockAnswer2,
-          fullConcat
+          normalizedAnswers
         });
 
         db.close();
@@ -712,160 +774,225 @@ async function loadUserInputs() {
       return result;
     }
 
-    async function deriveKey(password) {
+    // getVaultKeyMaterial.js
+function getVaultKeyMaterial({ gateAnswers, knownAnswers, bruteAnswers, gateIndices, knownAnswerIndices, bruteIndices, fullSalt }) {
+  // Answers must be placed in the correct slot
+  const allAnswers = [];
+  const totalLen = gateIndices.length + knownAnswerIndices.length + bruteIndices.length;
+  // Find max index
+  const maxIndex = Math.max(...gateIndices, ...knownAnswerIndices, ...bruteIndices);
+  for (let i = 0; i <= maxIndex; i++) allAnswers[i] = "";
+  gateIndices.forEach((idx, i) => { allAnswers[idx] = gateAnswers[i]; });
+  knownAnswerIndices.forEach((idx, i) => { allAnswers[idx] = knownAnswers[i]; });
+  bruteIndices.forEach((idx, i) => { allAnswers[idx] = bruteAnswers[i]; });
+  const fullConcat = allAnswers.join('');
+  return fullSalt + fullConcat;
+}
+
+// blankRedHerring.js
+function blankRedHerring(answers, trapIndex) {
+  if (trapIndex !== undefined && trapIndex !== null && trapIndex >= 0 && trapIndex < answers.length) {
+    answers = answers.slice();
+    answers[trapIndex] = "";
+  }
+  return answers;
+}
+    // deriveKey.js
+async function deriveKey(password, saltHex, settingsOverride) {
+
   const encoder = new TextEncoder();
   const passwordBytes = encoder.encode(password);
-
-  // Create a salt from the password hash using Rust-backed sha256
-  const saltHash = await window.sha256Hash(passwordBytes);
-  const salt = new Uint8Array(saltHash); // raw bytes, not hex
-
-  // Use Rust-backed PBKDF2 function to derive raw key bytes
-  const keyBytes = await window.deriveKeyRust(passwordBytes, salt, 150000); // 150k iterations
-
-  // Import into Web Crypto for use with AES-GCM
+  const salt = saltHex
+    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+    : new Uint8Array(await crypto.subtle.digest('SHA-256', passwordBytes));
+  const settings = settingsOverride || {
+    time: 4,
+    mem: 4096,
+    parallelism: 2,
+    type: 'Argon2id',
+    hashLen: 32
+  };
+  const argonResult = await argon2.hash({
+    pass: password,
+    salt,
+    time: settings.time,
+    mem: settings.mem,
+    parallelism: settings.parallelism,
+    type: argon2.ArgonType[settings.type] || argon2.ArgonType.Argon2id,
+    hashLen: settings.hashLen || 32
+  });
+  const keyBytes = new Uint8Array(
+    argonResult.hashHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+  );
   return crypto.subtle.importKey(
-    "raw",
+    'raw',
     keyBytes,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"]
+    { name: 'AES-GCM' },
+    true,
+    ['encrypt', 'decrypt']
   );
 }
-    
-    async function encryptVaultPayload(userData, files, powSalt, powChallengeHex, powNonce, fullConcatSalt) {
-  const encoder = new TextEncoder();
-  const layer1Key = await deriveKey(userData.unlockAnswer1 + userData.unlockAnswer2);
 
-  const questionList = (userData.answers || []).map((_, i) => {
-  const trimmed = (userData.answers[i] || "").trim();
-  const spaceIndexes = (userData.spaceIndexes && userData.spaceIndexes[i]) || [];
+    // Add generatePermutations function from recover.html
+    function generatePermutations(array) {
+      if (array.length <= 1) return [array.slice()];
+      const result = [];
+
+      for (let i = 0; i < array.length; i++) {
+        const current = array[i];
+        const remaining = array.slice(0, i).concat(array.slice(i + 1));
+        const perms = generatePermutations(remaining);
+        for (const perm of perms) {
+          result.push([current, ...perm]); // force copy
+        }
+      }
+
+      return result;
+    }
+
+    async function encryptVaultPayload(userData, files, unlockConcat, fullConcat, fullSalt, selectedL2Indices, gateIndices, remainingL2Indices) {
+  const encoder = new TextEncoder();
+
+  // 🔐 Layer 1 key: used to encrypt question metadata
+  const layer1Salt = generateRandomHex(32);
+  const layer1Key = await deriveKey(unlockConcat, layer1Salt, {
+    time: 4, mem: 4096, parallelism: 2, type: 'Argon2id', hashLen: 32
+  });
+
+  const questionList = userData.answers.map((ans, i) => {
+  const trimmed = (ans || "").trim();
+  const spaceIndexes = userData.spaceIndexes?.[i] || [];
   const hintEntry = userData.hints?.[i] || {};
 
-  // Derive hint values if not already present
-  if (!hintEntry.values && Array.isArray(hintEntry.letters)) {
-    const clean = trimmed.replace(/\s+/g, '');
-    hintEntry.values = hintEntry.letters.map(pos => clean[pos - 1] || "_");
-  }
+  let hintValuesLocal = Array.isArray(hintEntry.values)
+    ? [...hintEntry.values]
+    : Array.isArray(hintEntry.letters)
+      ? hintEntry.letters.map(pos => {
+          const char = trimmed[pos - 1];
+          return char !== undefined ? char : "_";
+        })
+      : [];
 
   return {
-    originalIndex: i,
-    question: (userData.questions && userData.questions[i]) || `Question ${i + 1}`,
+    question: userData.questions[i] || `Question ${i + 1}`,
     expectedLength: trimmed.length,
     hintLetters: [...(hintEntry.letters || [])],
-    hintValues: [...(hintEntry.values || [])],
+    hintValues: hintValuesLocal,
     spaceIndexes: [...spaceIndexes],
-    custom: hintEntry.custom || ""
+    custom: typeof hintEntry.custom === "string"
+      ? hintEntry.custom
+      : Array.isArray(hintEntry.custom)
+        ? hintEntry.custom.join(", ")
+        : typeof hintEntry.custom === "object" && hintEntry.custom !== null
+          ? JSON.stringify(hintEntry.custom)
+          : ""
   };
 });
 
-  // Derive final key
-  const fullKeyMaterial = fullConcatSalt + userData.fullConcat + powNonce;
-  const fullKey = await deriveKey(fullKeyMaterial);
 
-  // === Encrypt vault.enc (Layer 1 metadata) ===
+  // 🔐 Encrypt question metadata
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
-  const encQuestions = encoder.encode(JSON.stringify({ questionList }));
+  const encQuestions = encoder.encode(JSON.stringify({
+    questionList,
+    selectedL2Indices,
+    remainingL2Indices,
+    gateIndices
+  }));
   const encData = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, layer1Key, encQuestions);
   const vaultEncrypted = {
     ciphertext: Array.from(new Uint8Array(encData)),
     iv: Array.from(iv1)
   };
 
-  // === Encrypt files + seeds + final message ===
+  // 🔐 Choose a random permutation of selected L2 answers
+  const permutations = generatePermutations(selectedL2Indices.map(i => userData.normalizedAnswers[i]));
+  const randIndex = Math.floor(Math.random() * permutations.length);
+  const finalPermutationUsed = permutations[randIndex];
+
+  const permutedAnswers = [
+    userData.normalizedAnswers[gateIndices[0]],
+    userData.normalizedAnswers[gateIndices[1]],
+    ...remainingL2Indices.map(i => userData.normalizedAnswers[i]),
+    ...finalPermutationUsed
+  ];
+
+  const permutedConcat = permutedAnswers.join('');
+  fullConcat = permutedConcat; // ✅ Use permuted concat going forward
+
+  const fullKey = await deriveKey(fullConcat, fullSalt, {
+    time: 4, mem: 4096, parallelism: 2, type: 'Argon2id', hashLen: 32
+  });
+
+  const vaultHashRaw = await sha256Hash(encoder.encode(fullConcat));
+  const vaultHash = Array.from(vaultHashRaw).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // 📦 Encrypt files
   const fileMeta = [];
   const encryptedFiles = [];
 
-  // Step 1: Uploaded files
+  async function encryptAndPushFile(buffer, name, mime) {
+    const fileId = crypto.randomUUID().replace(/-/g, '');
+    const internalFilename = fileId + ".vaultdoc";
+
+    const fileSalt = new Uint8Array(await sha256Hash(encoder.encode(fullConcat + fileId)));
+    const argonResult = await argon2.hash({
+      pass: fullConcat + fileId,
+      salt: fileSalt,
+      time: 4,
+      mem: 4096,
+      parallelism: 2,
+      type: 'Argon2id',
+      hashLen: 32
+    });
+
+    const rawKey = argonResult.hash;
+    const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, buffer);
+
+    const encryptedUint8 = new Uint8Array(encryptedBuffer);
+    const encryptedBlob = new Blob([encryptedUint8], { type: "application/octet-stream" });
+
+    const sha256 = Array.from(await sha256Hash(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    fileMeta.push({
+      id: fileId,
+      filename: internalFilename,
+      originalName: name,
+      mimeType: mime,
+      iv: Array.from(iv),
+      sha256
+    });
+
+    encryptedFiles.push({
+      filename: internalFilename,
+      blob: encryptedBlob
+    });
+
+    if (encryptedBlob.size < 32) {
+      console.warn(`⚠️ Warning: Encrypted blob for "${name}" is suspiciously small: ${encryptedBlob.size} bytes`);
+    }
+  }
+
   for (const file of files) {
-    const rawBytes = new Uint8Array(file.raw);
-    const fileId = crypto.randomUUID().replace(/-/g, '');
-    const passwordBytes = encoder.encode(userData.fullConcat + fileId);
-    const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
-    const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = window.aesEncryptRust(rawKey, iv, rawBytes);
-
-    const sha256 = Array.from(await window.sha256Hash(rawBytes))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-
-    fileMeta.push({
-      id: fileId,
-      filename: fileId + ".vaultdoc",
-      originalName: file.name,
-      mimeType: file.type,
-      iv: Array.from(iv),
-      sha256
-    });
-
-    encryptedFiles.push({
-      filename: fileId + ".vaultdoc",
-      blob: new Blob([encrypted], { type: "application/octet-stream" })
-    });
+    await encryptAndPushFile(new Uint8Array(file.raw), file.name, file.type);
   }
 
-  // Step 2: Named seed files
   const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
-  for (const seedFile of namedSeedFiles) {
-    const fileId = crypto.randomUUID().replace(/-/g, '');
-    const rawText = encoder.encode(seedFile.content);
-    const passwordBytes = encoder.encode(userData.fullConcat + fileId);
-    const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
-    const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = window.aesEncryptRust(rawKey, iv, rawText);
-
-    const sha256 = Array.from(await window.sha256Hash(rawText))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-
-    fileMeta.push({
-      id: fileId,
-      filename: fileId + ".vaultdoc",
-      originalName: seedFile.name,
-      mimeType: "text/plain",
-      iv: Array.from(iv),
-      sha256
-    });
-
-    encryptedFiles.push({
-      filename: fileId + ".vaultdoc",
-      blob: new Blob([encrypted], { type: "application/octet-stream" })
-    });
+  for (const seed of namedSeedFiles) {
+    await encryptAndPushFile(encoder.encode(seed.content), seed.name, "text/plain");
   }
 
-  // Step 3: Final message
   if (userData.finalMessage?.trim()) {
-    const finalMsgText = encoder.encode(userData.finalMessage.trim());
-    const fileId = crypto.randomUUID().replace(/-/g, '');
-    const passwordBytes = encoder.encode(userData.fullConcat + fileId);
-    const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
-    const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = window.aesEncryptRust(rawKey, iv, finalMsgText);
-
-    const sha256 = Array.from(await window.sha256Hash(finalMsgText))
-      .map(b => b.toString(16).padStart(2, '0')).join('');
-
-    fileMeta.push({
-      id: fileId,
-      filename: fileId + ".vaultdoc",
-      originalName: "final-message.txt",
-      mimeType: "text/plain",
-      iv: Array.from(iv),
-      sha256
-    });
-
-    encryptedFiles.push({
-      filename: fileId + ".vaultdoc",
-      blob: new Blob([encrypted], { type: "application/octet-stream" })
-    });
+    await encryptAndPushFile(encoder.encode(userData.finalMessage.trim()), "final-message.txt", "text/plain");
   }
 
-  // === Encrypt vault.meta ===
+  // 🔒 Encrypt vault.meta
   const iv3 = crypto.getRandomValues(new Uint8Array(12));
   const metaEnc = encoder.encode(JSON.stringify({
     files: fileMeta,
-    seedFiles: namedSeedFiles
+    seedFiles: namedSeedFiles,
+    vaultHash
   }));
   const metaData = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv3 }, fullKey, metaEnc);
   const fileMetaEncrypted = {
@@ -876,224 +1003,169 @@ async function loadUserInputs() {
   return {
     vaultEncrypted,
     fileMetaEncrypted,
-    encryptedFiles
+    encryptedFiles,
+    layer1Salt,
+    vaultHash,
+    selectedPermutation: finalPermutationUsed
   };
 }
 
-async function packageAndDownloadZip(
+    async function packageAndDownloadZip(
   payloads,
-  unlockKey,
+  unlockConcat,
   userData,
-  powSalt,
-  powChallengeHex,
-  powNonce,
-  fullConcatSalt
+  fullConcat,
+  fullSalt,
+  selectedL2Indices,
+  gateIndices,
+  layer1Salt,
+  vaultHash,
+  selectedPermutation
 ) {
   const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
-
   const addJSON = (name, data) => writer.add(name, new zip.TextReader(JSON.stringify(data, null, 2)));
   const addBlob = (name, blob) => writer.add(name, new zip.BlobReader(blob));
 
-  const powDifficulty = selectedPowDifficulty;
-  const powIncreaseEvery = 5;
-
-  await printToTerminal(`[*] Mining nonce at difficulty '${powDifficulty}'...`);
-  await delay(500);
-
-  // 🔐 Derive fullKeyMaterial using fullConcatSalt
-  const fullKeyMaterial = fullConcatSalt + userData.fullConcat + powNonce;
-  const hashBytes = await window.sha256Hash(new TextEncoder().encode(fullKeyMaterial));
-  const vaultHash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-
-  // === 1. vault.json — visible metadata and salts ===
   await addJSON("vault.json", {
-    version: "1.0.4",
+    version: "1.0.5",
     created: new Date().toISOString(),
     instructions: "Use recover.html to unlock this archive using your answers.",
-    unlockQuestions: {
-      question1: userData.unlockIndexes[0],
-      question2: userData.unlockIndexes[1]
-    },
-    powSalt,
-    powChallengeSalt: powChallengeHex,
-    fullConcatSalt, // ✅ include the new salt
-    powDifficulty,
-    powIncreaseEvery,
-    vaultHash,
+    fullSalt,
+    layer1Salt,
     questionPrompts: [
-      userData.questions[userData.unlockIndexes[0]] || `Question ${userData.unlockIndexes[0] + 1}`,
-      userData.questions[userData.unlockIndexes[1]] || `Question ${userData.unlockIndexes[1] + 1}`
+      userData.questions[gateIndices[0]] || `Question ${gateIndices[0] + 1}`,
+      userData.questions[gateIndices[1]] || `Question ${gateIndices[1] + 1}`
     ],
-    vaultMetaIv: payloads.fileMetaEncrypted.iv
+    vaultMetaIv: payloads.fileMetaEncrypted.iv,
+    argonSettings: {
+      time: 4,
+      mem: 4096,
+      parallelism: 2,
+      type: "Argon2id",
+      hashLen: 32
+    },
+    selectedL2Answers: selectedPermutation
   });
 
-  // === 2. vault.enc — encrypted question metadata ===
-  await addJSON("vault.enc", {
-    ciphertext: payloads.vaultEncrypted.ciphertext,
-    iv: payloads.vaultEncrypted.iv
-  });
-
-  // === 3. vault.meta — encrypted file metadata, seed file names, and final message ===
+  await addJSON("vault.enc", payloads.vaultEncrypted);
   await addBlob("vault.meta", new Blob([payloads.fileMetaEncrypted.data], { type: "application/octet-stream" }));
-
-  // === 4. .vaultdoc files — encrypted content ===
-  for (const file of payloads.encryptedFiles || []) {
+  for (const file of payloads.encryptedFiles) {
     await addBlob(file.filename, file.blob);
   }
 
-  // === 5. README.txt — general overview for recovery ===
   await writer.add("README.txt", new zip.TextReader(`Memoro Vault
 ===========
+Memoro Vault  
+============
 
-Built with Memoro Vault version 1.0.4
+Built with Memoro Vault version 1.0.5
 
-This ZIP archive was created using Memoro Vault — a secure, offline memory vault designed to store highly sensitive information. It may contain private notes, cryptocurrency seed phrases, personal letters, credentials, legal documents, or messages meant for loved ones.
+This ZIP file contains an encrypted vault. To open it, you’ll need to answer a series of personal questions exactly as they were originally answered. No hints. No partial credit.
 
-The vault is protected by knowledge-based encryption and proof-of-work mining. It cannot be opened without answering a set of secret questions chosen by the original creator. There are no passwords, no accounts, and no recovery mechanism.
+Six of those answers must also be entered in the correct order. If anything is off — even one character, or the order of those six — the vault will remain locked. There is no reset, no override, and no way to guess your way in.
 
-Memoro Vault is designed to be hidden in plain sight — securely sharable, yet impossible to unlock without the right knowledge.
+This vault was secured using Argon2id encryption, designed to resist brute-force attacks even with modern hardware. It runs fully offline and does not depend on any server or cloud.
 
-To learn more: https://github.com/Kasmaristo-Delvakto/memoro-vault
+If you were meant to open this, you’ll know the answers. Be precise.
 
-Libereco ne estas donaco. Ĝi estas devo.
-— Kaŝmaristo Delvakto
+If you weren’t, there’s nothing you can do.
+
+— Kaŝmaristo Delvakto  
+“Libereco ne estas donaco. Ĝi estas devo.”
+
+---
+
+## How to Open the Vault
+
+1. **Locate the Memoro Vault app**  
+   In this ZIP file, look for a file like `memoro-win.exe`, `memoro-linux.AppImage`, or `memoro-mac.dmg`, depending on your device.
+
+2. **Run the app**  
+   No installation needed. Just open the file. If your system asks if you trust it, say yes — assuming you trust the person who gave you this.
+
+3. **Click “Recover Vault”**  
+   Choose this same ZIP file when prompted.
+
+4. **Enter the answers**  
+   Type the answers exactly as they were saved — all lowercase, no extra spaces. The vault will only open if everything is correct.
+
+If you succeed, you’ll see the contents.  
+If you don’t, keep trying — but there are no clues and no second paths.
+
+What matters now is what you remember.
 `));
 
-  // === 6. Vault_Builder_Instructions.txt — instructions for the builder ===
   await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(`Vault Builder Instructions
 ==========================
 
-Read this carefully. This message is for the person who just created this Memoro Vault archive.
+Make a folder, place this ZIP and the Memoro Vault installer in it. Duplicate that folder to:
+- M-DISC
+- Offline SSD or USB
+- Cloud backup
 
-You’ve just built a secure vault containing your encrypted files and private memories. To ensure that you — or someone you trust — can unlock this vault in the future, follow these steps exactly.
-
-STEP 1 — Make a Folder for Your Vault
--------------------------------------
-Create a new folder on your computer. Name it something meaningful like:
-
-    My_Memoro_Vault
-
-Put both the ZIP file and the Memoro Vault installer inside that folder.
-
-STEP 2 — Back It Up
--------------------
-Create at least two backups of that folder:
-- One to an offline drive or M-DISC (for long-term archival)
-- One to a cloud account (like Proton Drive or Google Drive)
-
-STEP 3 — (Optional) Leave Instructions
---------------------------------------
-If this vault is meant for someone else, leave written instructions elsewhere explaining how to access it.
-
-Warning About Bit Rot
----------------------
-Even if someone remembers all your answers perfectly, a single flipped byte can render this vault permanently inaccessible. Use archival-grade storage and multiple backups.
+Do not modify this archive. It is fragile by design. Even one flipped byte will break decryption.
 
 Libereco ne estas donaco. Ĝi estas devo.
-— Kaŝmaristo Delvakto
-`));
+— Kaŝmaristo Delvakto`));
 
-  // === 7. Finalize and download ===
-  const finalBlob = await writer.close();
-  const url = URL.createObjectURL(finalBlob);
+  const blob = await writer.close();
   const link = document.createElement("a");
-  link.href = url;
+  link.href = URL.createObjectURL(blob);
   link.download = "memoro-vault.zip";
   link.click();
 }
 
-async function mineValidNonce(baseInput, difficulty) {
-  const encoder = new TextEncoder();
-  const powStatus = document.getElementById("powStatus");
-  const progressFill = document.getElementById("progressFill");
-  const progressLabel = document.getElementById("progressLabel");
-
-  let nonce = 0;
-  const start = performance.now();
-
-  powStatus.textContent = `Mining for hash starting with "${difficulty}"...`;
-
-  while (true) {
-    const input = encoder.encode(baseInput + nonce);
-    const hashBytes = await window.sha256Hash(input);
-    const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-
-    if (nonce % 10000 === 0) {
-      const elapsed = ((performance.now() - start) / 1000).toFixed(1);
-      powStatus.textContent = `Nonce: ${nonce} | Hash: ${hashHex.slice(0, 12)}... | ${elapsed}s elapsed`;
-
-      // Estimate progress between 55% -> 70% during PoW
-      let estProgress = 55 + Math.min(15, nonce / 100000 * 15);
-      progressLabel.textContent = "[*] Mining proof-of-work...";
-      
-      await new Promise(requestAnimationFrame);
-    }
-
-    if (hashHex.startsWith(difficulty)) {
-      const elapsed = ((performance.now() - start) / 1000).toFixed(1);
-      powStatus.textContent = `Solved in ${nonce} attempts over ${elapsed}s`;
-      progressLabel.textContent = "[+] PoW complete.";
-      return nonce.toString();
-    }
-
-    nonce++;
-  }
-}
-
     function showBackupMessage(url) {
-  const msg = document.createElement('p');
-  msg.innerHTML = `If your download didn’t start, <a href="${url}" download="memoro-vault.zip">click here to download manually</a>.`;
-  msg.style.color = '#aaa';
-  msg.style.fontSize = '16px';
-  msg.style.marginTop = '30px';
-  document.body.appendChild(msg);
-}
+      const msg = document.createElement('p');
+      msg.innerHTML = `If your download didn’t start, <a href="${url}" download="memoro-vault.zip">click here to download manually</a>.`;
+      msg.style.color = '#aaa';
+      msg.style.fontSize = '16px';
+      msg.style.marginTop = '30px';
+      document.body.appendChild(msg);
+    }
 
 
 function retryDownload() {
   window.location.reload();
 }
 
-</script>
+    const canvas = document.getElementById('matrixCanvas');
+    const ctx = canvas.getContext('2d');
 
-<script>
-  const canvas = document.getElementById('matrixCanvas');
-  const ctx = canvas.getContext('2d');
-
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-
-  const letters = 'モヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
-  const fontSize = 14;
-  const columns = canvas.width / fontSize;
-  const drops = Array(Math.floor(columns)).fill(1);
-
-  function draw() {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = '#0F0';
-    ctx.font = fontSize + 'px monospace';
-
-    for (let i = 0; i < drops.length; i++) {
-      const text = letters[Math.floor(Math.random() * letters.length)];
-      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-        drops[i] = 0;
-      }
-
-      drops[i]++;
-    }
-  }
-
-  setInterval(draw, 40);
-  window.addEventListener('resize', () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-  });
 
-  function preserveAndGoBack() {
+    const letters = 'モヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+    const fontSize = 14;
+    const columns = canvas.width / fontSize;
+    const drops = Array(Math.floor(columns)).fill(1);
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#0F0';
+      ctx.font = fontSize + 'px monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+
+        drops[i]++;
+      }
+    }
+
+    setInterval(draw, 40);
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    function preserveAndGoBack() {
   preserveOnBack = true;
   history.back();
 }
@@ -1123,13 +1195,11 @@ async function nukeEverything() {
   }
 }
 
-function showPostBuildReminder() {
+function showPostBuildModal() {
   const modal = document.getElementById("postBuildModal");
-  const notice = document.getElementById("redirectNotice");
   document.body.style.overflow = "hidden"; // Prevent body scroll behind modal
   if (modal) {
     modal.style.display = "flex"; // Use flex to keep it centered and scrollable
-    if (notice) notice.style.display = "none";
   }
 }
 
@@ -1145,7 +1215,6 @@ function closePostBuildModal() {
   }
 }
 
-</script>
+  </script>
 </body> 
 </html>
-<!-- This HTML file is a simple vault builder for the Memoro Vault project. It initializes the vault, encrypts user data, and packages it into a downloadable ZIP file. The code includes functions for handling user input, encryption, and file management using IndexedDB. The UI is styled to resemble a terminal interface. -->

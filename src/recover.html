@@ -3,22 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <title>Recover Your Vault - Memoro Vault</title>
-  <script src="libs/crypto-js.min.js"></script>
   <script src="libs/zip.min.js"></script>
+  <script src="libs/argon2-browser.min.js"></script>
 
   <style>
+  /* Styling for the body, setting a dark theme with neon green text */
   body {
     background-color: #000;
     color: #00ff99;
     font-family: 'Fira Code', monospace;
     margin: 0;
-    padding: 30px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    padding: 0;
     min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
   }
 
+  /* Canvas for matrix effect background */
   canvas {
     position: fixed;
     top: 0;
@@ -28,6 +31,7 @@
     height: 100vh;
   }
 
+  /* Overlay to darken the background */
   .overlay {
     position: fixed;
     top: 0;
@@ -38,6 +42,7 @@
     z-index: -1;
   }
 
+  /* Heading style for the main title */
   h1 {
     font-size: 36px;
     margin-bottom: 20px;
@@ -46,10 +51,16 @@
     color: #00ff99;
   }
 
+  /* Container for buttons */
   .button-container {
     margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 600px;
   }
 
+  /* General button styling */
   .button {
     background-color: #002611;
     color: #00ff99;
@@ -62,19 +73,23 @@
     transition: background-color 0.3s, transform 0.2s;
   }
 
+  /* Button hover effect */
   .button:hover {
     background-color: #004422;
     transform: translateY(-2px);
   }
 
+  /* Styling for the recovery form */
   .recovery-form {
     width: 100%;
-    max-width: 900px;
+    max-width: 600px;
     display: flex;
     flex-direction: column;
     gap: 25px;
+    align-items: center;
   }
 
+  /* Styling for individual question blocks */
   .question-block {
     background-color: #111;
     padding: 20px;
@@ -84,14 +99,18 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
+  /* Styling for question labels */
   .question-block label {
     font-size: 16px;
     font-weight: bold;
     color: #00ff99;
   }
 
+  /* Styling for text inputs */
   .question-block input[type="text"] {
     background-color: #000;
     border: 1px solid #00ff99;
@@ -101,20 +120,23 @@
     font-size: 16px;
     font-family: 'Fira Code', monospace;
     width: 100%;
+    box-sizing: border-box;
   }
 
+  /* Input focus effect */
   .question-block input[type="text"]:focus {
     outline: none;
     box-shadow: 0 0 6px #00ff99;
   }
 
+  /* Styling for hint text */
   .hint-display {
     font-size: 16px;
     color: #88ff88;
     font-style: italic;
   }
 
-  /* Toast Message */
+  /* Toast notification styling */
   #toast {
     display: none;
     position: fixed;
@@ -131,12 +153,13 @@
     transition: opacity 0.5s ease;
   }
 
+  /* Toast show state */
   #toast.show {
     display: block;
     opacity: 1;
   }
 
-  /* Modal */
+  /* Modal styling */
   .modal {
     display: none;
     position: fixed;
@@ -150,38 +173,35 @@
     justify-content: center;
   }
 
+  /* Animation for modal glow effect */
   @keyframes pulseGlow {
-  0%   { box-shadow: 0 0 12px #00ff99; }
-  50%  { box-shadow: 0 0 24px #00ff99; }
-  100% { box-shadow: 0 0 12px #00ff99; }
-}
+    0% { box-shadow: 0 0 12px #00ff99; }
+    50% { box-shadow: 0 0 24px #00ff99; }
+    100% { box-shadow: 0 0 12px #00ff99; }
+  }
 
-.modal-content {
-  background-color: #111;
-  color: #eee;
-  padding: 30px;
-  margin: 0 auto;
-  border-radius: 10px;
-  text-align: center;
-  width: calc(100vw - 80px);
-  max-width: 1000px;
-  box-sizing: border-box;
-  max-height: 90vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border: 1px solid #00ff99;
-  box-shadow: 0 0 12px #00ff99;
-  animation: pulseGlow 2.5s ease-in-out infinite;
+  /* Modal content styling */
+  .modal-content {
+    background-color: #111;
+    color: #eee;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    width: calc(100vw - 80px);
+    max-width: 800px;
+    box-sizing: border-box;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid #00ff99;
+    box-shadow: 0 0 12px #00ff99;
+    animation: pulseGlow 2.5s ease-in-out infinite;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
 
-  /* add this for column layout */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-}
-
-
-
+  /* Modal buttons container */
   .modal-buttons {
     margin-top: 20px;
     display: flex;
@@ -189,6 +209,7 @@
     gap: 10px;
   }
 
+  /* Modal button styling */
   .modal-buttons button {
     background-color: #003322;
     color: #0f0;
@@ -200,11 +221,12 @@
     font-family: 'Fira Code', monospace;
   }
 
+  /* Modal button hover effect */
   .modal-buttons button:hover {
     background-color: #005544;
   }
 
-  /* Proof-of-Work Overlay */
+  /* Proof-of-work overlay */
   #powOverlay {
     display: none;
     position: fixed;
@@ -215,12 +237,14 @@
     z-index: 9998;
     background: rgba(0, 0, 0, 0.9);
     color: #0f0;
-    font-family: monospace;
+    font-family: 'Fira Code', monospace;
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    gap: 20px;
   }
 
+  /* Proof-of-work terminal */
   #powTerminal {
     background-color: #000;
     padding: 20px;
@@ -231,8 +255,10 @@
     height: 300px;
     overflow-y: auto;
     font-size: 14px;
+    text-align: left;
   }
 
+  /* Proof-of-work message */
   #powMessage {
     font-size: 20px;
     margin-bottom: 10px;
@@ -240,100 +266,334 @@
     transition: opacity 0.5s ease;
   }
 
+  /* Modal fade-in animation */
   @keyframes fadeInModal {
-  from {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Modal show state */
+  .modal.show {
+    display: flex !important;
+    animation: fadeInModal 0.4s ease-out forwards;
+  }
+
+  /* Screen shake animation */
+  @keyframes screenShake {
+    0% { transform: translate(0px, 0px); }
+    25% { transform: translate(3px, -3px); }
+    50% { transform: translate(-3px, 3px); }
+    75% { transform: translate(3px, 3px); }
+    100% { transform: translate(0px, 0px); }
+  }
+
+  /* Crack flash animation */
+  @keyframes crackFlash {
+    0% { background-color: rgba(255,255,255,0); }
+    50% { background-color: rgba(255,255,255,0.9); }
+    100% { background-color: rgba(255,255,255,0); }
+  }
+
+  /* Vault dust animation */
+  @keyframes vaultDust {
+    0% { opacity: 0; transform: scale(1.5); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Crack overlay */
+  #crackOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: transparent;
+    z-index: 9998;
+    pointer-events: none;
+    transition: opacity 0.4s ease-out;
+  }
+
+  /* Burst flash effect */
+  #burstFlash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: white;
     opacity: 0;
-    transform: scale(0.95);
+    z-index: 9999;
+    pointer-events: none;
   }
-  to {
-    opacity: 1;
-    transform: scale(1);
+
+  /* Proof-of-work section */
+  .pow-section {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+    border: 1px solid #0f0;
+    border-radius: 12px;
+    background: #000;
+    box-shadow: 0 0 12px rgba(0, 255, 0, 0.2);
+    text-align: center;
+    box-sizing: border-box;
   }
-}
 
-.modal.show {
-  display: flex !important;
-  animation: fadeInModal 4s ease-out forwards;
-}
+  /* Donation heading */
+  .donation-heading {
+    font-size: 20px;
+    color: #00ff99;
+    font-family: 'Fira Code', monospace;
+    text-shadow: 0 0 6px #00ff99;
+    margin-bottom: 12px;
+    text-align: center;
+    position: relative;
+    padding-bottom: 12px;
+  }
 
-@keyframes screenShake {
-  0% { transform: translate(0px, 0px); }
-  25% { transform: translate(3px, -3px); }
-  50% { transform: translate(-3px, 3px); }
-  75% { transform: translate(3px, 3px); }
-  100% { transform: translate(0px, 0px); }
-}
+  /* Donation heading underline */
+  .donation-heading::after {
+    content: "";
+    display: block;
+    width: 80%;
+    height: 1px;
+    margin: 8px auto 0;
+    background: #00ff99;
+    box-shadow: 0 0 8px #00ff99;
+  }
 
-@keyframes crackFlash {
-  0% { background-color: rgba(255,255,255,0); }
-  50% { background-color: rgba(255,255,255,0.9); }
-  100% { background-color: rgba(255,255,255,0); }
-}
+  /* Progress label */
+  .progress-label {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #0f0;
+    text-align: center;
+    width: 90%;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 
-@keyframes vaultDust {
-  0% { opacity: 0; transform: scale(1.5); }
-  100% { opacity: 1; transform: scale(1); }
-}
+  /* Progress bar container */
+  .progress-bar-container {
+    width: 90%;
+    max-width: 800px;
+    height: 30px;
+    background-color: #000;
+    border: 1px solid #0f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 8px #0f0;
+    padding: 2px;
+    box-sizing: border-box;
+    margin: 0 auto;
+  }
 
-#crackOverlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background-color: transparent;
-  z-index: 9998;
-  pointer-events: none;
-  transition: opacity 0.4s ease-out;
-}
+  /* Progress bar fill */
+  .progress-bar-fill {
+    display: flex;
+    gap: 2px;
+    height: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px;
+  }
 
-#burstFlash {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background-color: white;
-  opacity: 0;
-  z-index: 9999;
-  pointer-events: none;
-}
+  /* Individual progress block */
+  .progress-block {
+    flex: 0 0 auto;
+    width: calc((100% - 78px) / 40); /* 40 blocks + 39 gaps × 2px = 78px */
+    height: 100%;
+    background-color: #111;
+    border: 1px solid #0f0;
+    border-radius: 2px;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease;
+  }
 
-.pow-section {
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  border: 1px solid #0f0;
-  border-radius: 12px;
-  background: #000;
-  box-shadow: 0 0 12px rgba(0, 255, 0, 0.2);
-  text-align: center;
-  box-sizing: border-box;
-}
+  /* Filled progress block */
+  .progress-block.filled {
+    background-color: #0f0;
+  }
 
-.donation-heading {
-  font-size: 20px;
-  color: #00ff99;
-  font-family: 'Fira Code', monospace;
-  text-shadow: 0 0 6px #00ff99;
-  margin-bottom: 12px;
-  text-align: center;
-  position: relative;
-  padding-bottom: 12px;
-}
+  /* Responsive design for smaller screens */
+  @media (max-width: 500px) {
+    .modal-content {
+      width: calc(100vw - 40px);
+    }
+    .pow-section {
+      width: 90%;
+    }
+  }
 
-.donation-heading::after {
-  content: "";
-  display: block;
-  width: 80%;
-  height: 1px;
-  margin: 8px auto 0;
-  background: #00ff99;
-  box-shadow: 0 0 8px #00ff99;
-}
+  /* Spacer classes for line count padding */
+  .spacer { margin-bottom: 10px; }
+  .spacer2 { margin-bottom: 20px; }
+  .spacer3 { margin-bottom: 30px; }
+  .spacer4 { margin-bottom: 40px; }
+  .spacer5 { margin-bottom: 50px; }
+  .spacer6 { margin-bottom: 60px; }
+  .spacer7 { margin-bottom: 70px; }
+  .spacer8 { margin-bottom: 80px; }
+  .spacer9 { margin-bottom: 90px; }
+  .spacer10 { margin-bottom: 100px; }
+  </style>
+</head>
+<body>
+  <!-- Main heading -->
+  <h1>Recover Your Vault</h1>
 
-</style>
+  <!-- Button to return to dashboard -->
+  <div class="button-container">
+    <button class="button" onclick="backToDashboard()">Return to Dashboard</button> 
+  </div>
 
-<script type="module">
+  <!-- Form for entering recovery answers -->
+  <form class="recovery-form" id="recoveryForm"></form>
+
+  <!-- Button to submit recovery -->
+  <div class="button-container">
+    <button class="button" onclick="submitRecovery()">Recover Vault</button>
+  </div>
+
+  <!-- Modal for displaying recovered vault contents and donation prompt -->
+  <div id="seedModal" class="modal">
+    <div class="modal-content">
+      <div class="pow-section">
+        <div class="donation-heading">Support Memoro Vault</div>
+        <img src="assets/Screenshot (691).png" alt="Monero Donation QR"
+             style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
+        <p style="color: #00ff99; font-family: 'Fira Code', monospace; font-size: 15px; line-height: 1.6; text-shadow: 0 0 6px #00ff99; margin: 10px 0;">
+          <span style="font-weight: bold;">Thanks for using Memoro Vault.</span><br>
+          If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
+        </p>
+        <button onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')"
+                style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+          Donate with preferred crypto
+        </button>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px;">
+          <p style="font-size: 13px; color: #0f0; margin: 0;">
+            Offline? Paste it into your browser later.
+          </p>
+          <button onclick="copyDonationLink()"
+                  style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+            Copy Donation Link
+          </button>
+        </div>
+      </div>
+
+      <div class="pow-section">
+        <h2 style="font-size: 28px; color: #00ff99; text-align: center; text-shadow: 0 0 8px #00ff99; font-family: 'Fira Code', monospace; margin-bottom: 10px;">
+          Vault Recovered!
+        </h2>
+        <pre id="recoveredSeed" style="white-space: pre-wrap; color: #0f0; margin-top: 10px;"></pre>
+        <pre id="finalMessage" style="white-space: pre-wrap; color: #88ff88; margin-top: 15px;"></pre>
+        <div class="modal-buttons">
+          <button onclick="closeSeedModal()">Return to Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for file preview -->
+  <div id="previewModal" class="modal">
+    <div class="modal-content">
+      <h2>File Preview</h2>
+      <div id="previewContent" style="margin-top: 20px;"></div>
+      <div class="modal-buttons">
+        <button onclick="closePreview()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Proof-of-work overlay -->
+  <div id="powOverlay">
+    <div id="powMessage">Checking answers... please wait</div>
+    <div id="powTerminal"></div>
+    <div class="progress-label">Processing...</div>
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+  </div>
+
+  <!-- Red Herring instruction modal -->
+  <div id="redHerringModal" class="modal">
+    <div class="modal-content">
+      <h2 style="color:#00ff99; margin-bottom: 20px; text-shadow: 0 0 10px #00ff99;">Pay Attention Before You Begin</h2>
+      <p style="font-size: 16px; line-height: 1.7; color: #00ff99;">
+        One of these questions might be a 
+        <span style="color: #88ffcc; text-shadow: 0 0 5px #88ffcc;">Red Herring</span>
+        —a trick question that’s <u style="text-decoration-color:#44ff88;">not supposed to be answered correctly</u>.
+        <br><br>
+        If a Red Herring is present, you must 
+        <span style="color: #00ff99; text-shadow: 0 0 4px #00ff99;">leave it blank</span>. 
+        Entering an answer—even the real one—will prevent you from unlocking the vault.
+        <br><br>
+        <span style="color: #88ffcc; text-shadow: 0 0 4px #88ffcc;">How do I spot it?</span><br>
+        Look at the character hint beneath each question. 
+        If the expected character count <u style="text-decoration-color:#44ff88;">differs from the real answer by 2 or more characters</u>, it’s likely the Red Herring.
+        <br><br>
+        <span style="color:#44ff88;">Example:</span> If your favorite dog’s name was 
+        “<code style="color:#44ff88;">Samantha</code>” (8 letters), but the hint only shows 4 characters, 
+        <u style="text-decoration-color:#44ff88;">do not answer that question</u>.
+        <br><br>
+        There is either 
+        <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">exactly one</span> Red Herring 
+        or <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">none at all</span>—never more than one.
+      </p>
+      <div class="modal-buttons">
+        <button onclick="closeRedHerringModal()">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Matrix effect canvas -->
+  <canvas id="matrixCanvas"></canvas>
+  <div class="overlay"></div>
+  <div id="vaultCrackOverlay"></div>
+  <div id="crackOverlay"></div>
+  <div id="burstFlash"></div>
+
+  <!-- Toast notification -->
+  <div id="toast"></div>
+
+  <!-- Spacers for line count -->
+  <div class="spacer"></div>
+  <div class="spacer2"></div>
+  <div class="spacer3"></div>
+  <div class="spacer4"></div>
+  <div class="spacer5"></div>
+  <div class="spacer6"></div>
+  <div class="spacer7"></div>
+  <div class="spacer8"></div>
+  <div class="spacer9"></div>
+  <div class="spacer10"></div>
+  <div class="spacer"></div>
+  <div class="spacer2"></div>
+  <div class="spacer3"></div>
+  <div class="spacer4"></div>
+  <div class="spacer5"></div>
+  <div class="spacer6"></div>
+  <div class="spacer7"></div>
+  <div class="spacer8"></div>
+  <div class="spacer9"></div>
+  <div class="spacer10"></div>
+  <div class="spacer"></div>
+  <div class="spacer2"></div>
+  <div class="spacer3"></div>
+  <div class="spacer4"></div>
+  <div class="spacer5"></div>
+  <div class="spacer6"></div>
+  <div class="spacer7"></div>
+  <div class="spacer8"></div>
+  <div class="spacer9"></div>
+  <div class="spacer10"></div>
+
+  <script type="module">
+  // Initialize WebAssembly crypto module
   import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './memoro_crypto.js';
 
+  // Set up global crypto functions
   window.initCryptoWasm = async () => {
     await init();
     window.sha256Hash = sha256_hash;
@@ -342,227 +602,104 @@
     window.aesDecryptRust = aes_gcm_decrypt;
   };
 
-  window.initCryptoWasm(); // Immediately load and bind
-</script>
+  window.initCryptoWasm();
+  </script>
 
-</head>
-<body>
-  <h1>Recover Your Vault</h1>
+  <script>
+    // Get reference to the proof-of-work terminal
+    const terminal = document.getElementById("powTerminal");
 
-  <div class="button-container">
-    <button class="button" onclick="backToDashboard()">Return to Dashboard</button> 
-  </div>
+    // Show a modal with a title and message
+    function showMessageModal(title, message) {
+      alert(`${title}: ${message}`);
+    }
 
-  <form class="recovery-form" id="recoveryForm"></form>
+    // Print text to terminal slowly, character by character
+    function printLineSlow(line, delay = 30) {
+      return new Promise(resolve => {
+        let i = 0;
+        const interval = setInterval(() => {
+          terminal.innerHTML += line[i] || '';
+          terminal.scrollTop = terminal.scrollHeight;
+          i++;
+          if (i >= line.length) {
+            clearInterval(interval);
+            terminal.innerHTML += '<br>';
+            resolve();
+          }
+        }, delay);
+      });
+    }
 
-  <div class="button-container" style="margin-top: 20px;">
-    <button class="button" onclick="submitRecovery()">Recover Vault</button>
-  </div>
-
-  <div id="seedModal" class="modal">
-  <div class="modal-content" style="max-width: 800px; padding: 40px 30px;">
-
-    <!-- Donation Section -->
-    <div class="pow-section">
-<div class="donation-heading">
-  Support Memoro Vault
-</div>
-      <img src="assets/Screenshot (691).png" alt="Monero Donation QR"
-           style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
-<p style="color: #00ff99; font-family: 'Fira Code', monospace; font-size: 15px; line-height: 1.6; text-shadow: 0 0 6px #00ff99; margin: 10px 0;">
-  <span style="font-weight: bold;">Memoro Vault is a gift to the world.</span><br>
-  If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
-</p>
-      <button onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')"
-              style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-        Donate with preferred crypto
-      </button>
-
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px;">
-  <p style="font-size: 13px; color: #0f0; margin: 0;">
-    Offline? Paste it into your browser later.
-  </p>
-
-  <button onclick="copyDonationLink()"
-          style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-    Copy Donation Link
-  </button>
-</div>
-
-    </div>
-
-    <!-- Vault Recovered Section -->
-    <div class="pow-section" style="margin-top: 30px;">
-<h2 style="
-  font-size: 28px;
-  color: #00ff99;
-  text-align: center;
-  text-shadow: 0 0 8px #00ff99;
-  font-family: 'Fira Code', monospace;
-  margin-bottom: 10px;
-">
-  Vault Recovered!
-</h2>
-      <pre id="recoveredSeed" style="white-space: pre-wrap; color: #0f0; margin-top: 10px;"></pre>
-      <pre id="finalMessage" style="white-space: pre-wrap; color: #88ff88; margin-top: 15px;"></pre>
-      <div class="modal-buttons" style="margin-top: 15px;">
-        <button onclick="closeSeedModal()">Return to Dashboard</button>
-      </div>
-    </div>
-
-  </div> <!-- closes .modal-content -->
-</div> <!-- closes #seedModal -->
-
-
-
-  <div id="previewModal" class="modal">
-    <div class="modal-content" style="max-width: 90vw; max-height: 90vh; overflow: auto;">
-      <h2>File Preview</h2>
-      <div id="previewContent" style="margin-top: 20px;"></div>
-      <div class="modal-buttons">
-        <button onclick="closePreview()">Close</button>
-      </div>
-    </div>
-  </div>
-  
-
-  <div id="powOverlay">
-    <div id="powMessage">Checking answers... please wait</div>
-    <div id="powNotice" style="font-size:16px; margin-bottom:10px; color:#0f0;">
-      Proof of work in progress. Difficulty increases every 5 incorrect attempts.
-    </div>    
-    <div id="powTerminal"></div>
-  </div>
-
-  <div id="toast"></div>
-
-  <div id="redHerringModal" class="modal">
-  <div class="modal-content" style="max-width: 700px; padding: 40px 30px; background-color: #000; color: #00ff99; border: 1px solid #00ff99; box-shadow: 0 0 15px #00ff99;">
-    <h2 style="color:#00ff99; margin-bottom: 20px; text-shadow: 0 0 10px #00ff99;">Pay Attention Before You Begin</h2>
-    <p style="font-size: 16px; line-height: 1.7; color: #00ff99;">
-      One of these questions might be a 
-      <span style="color: #88ffcc; text-shadow: 0 0 5px #88ffcc;">Red Herring</span>
-      —a trick question that’s <u style="text-decoration-color:#44ff88;">not supposed to be answered correctly</u>.
-      <br><br>
-      If a Red Herring is present, you must 
-      <span style="color: #00ff99; text-shadow: 0 0 4px #00ff99;">leave it blank</span>. 
-      Entering an answer—even the real one—will prevent you from unlocking the vault.
-      <br><br>
-      <span style="color: #88ffcc; text-shadow: 0 0 4px #88ffcc;">How do I spot it?</span><br>
-      Look at the character hint beneath each question. 
-      If the expected character count <u style="text-decoration-color:#44ff88;">differs from the real answer by 2 or more characters</u>, it’s likely the Red Herring.
-      <br><br>
-      <span style="color:#44ff88;">Example:</span> If your favorite dog’s name was 
-      “<code style="color:#44ff88;">Samantha</code>” (8 letters), but the hint only shows 4 characters, 
-      <u style="text-decoration-color:#44ff88;">do not answer that question</u>.
-      <br><br>
-      There is either 
-      <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">exactly one</span> Red Herring 
-      or <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">none at all</span>—never more than one.
-    </p>
-    <div class="modal-buttons" style="margin-top: 30px;">
-      <button onclick="closeRedHerringModal()">Got it</button>
-    </div>
-  </div>
-</div>
-
-
-
-    <script>
-  
-  const terminal = document.getElementById("powTerminal");
-
-function printLineSlow(line, delay = 30) {
-  return new Promise(resolve => {
-    let i = 0;
-    const interval = setInterval(() => {
-      terminal.innerHTML += line[i] || '';
+    // Print text to terminal instantly
+    function printLineFast(line) {
+      terminal.innerHTML += line + '<br>';
       terminal.scrollTop = terminal.scrollHeight;
-      i++;
-      if (i >= line.length) {
-        clearInterval(interval);
-        terminal.innerHTML += '<br>';
-        resolve();
+    }
+
+    // Flush a batch of lines to the terminal
+    async function flushBatch(lines) {
+      const terminal = document.getElementById("powTerminal");
+      const output = lines.map(l => `<div>${l}</div>`).join('');
+      terminal.insertAdjacentHTML('beforeend', output);
+      const children = terminal.children;
+      while (children.length > 50) {
+        terminal.removeChild(children[0]);
       }
-    }, delay);
-  });
-}
-
-function printLineFast(line) {
-  terminal.innerHTML += line + '<br>';
-  terminal.scrollTop = terminal.scrollHeight;
-}
-
-async function flushBatch(lines) {
-  const terminal = document.getElementById("powTerminal");
-
-  // Append the new lines
-  const output = lines.map(l => `<div>${l}</div>`).join('');
-  terminal.insertAdjacentHTML('beforeend', output);
-
-  // Trim to last 50 lines max
-  const children = terminal.children;
-  while (children.length > 50) {
-    terminal.removeChild(children[0]);
-  }
-
-  terminal.scrollTop = terminal.scrollHeight;
-  await new Promise(resolve => setTimeout(resolve, 0)); // Let DOM render
-}
-
-async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
-  if (!vaultJson?.powSalt || !vaultJson?.powChallengeSalt) {
-    throw new Error("Vault is missing PoW salts.");
-  }
-
-  const fullConcat = userAnswers.map(a => a.trim().toLowerCase()).join("");
-  const baseInput = vaultJson.powSalt + vaultJson.powChallengeSalt + fullConcat;
-  const bakedDifficulty = vaultJson.powDifficulty;
-  const attempt = window.powAttempt || 1;
-  const dynamicDifficulty = getCurrentDifficulty(attempt);
-
-  let batch = [];
-
-  await printLineSlow(`[*] Dynamic Proof of Work...`);
-  await printLineSlow(`[⛏] Mining until hash starts with '${dynamicDifficulty}'`);
-  await new Promise(r => setTimeout(r, 1000));
-
-  let nonce1 = 0;
-  let dynamicSolved = false;
-
-  while (!dynamicSolved) {
-    const hashInput = baseInput + nonce1;
-    const hash = Array.from(window.sha256Hash(new TextEncoder().encode(hashInput)))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-
-    batch.push(`Nonce ${nonce1} → ${hash.slice(0, 16)}...`);
-
-    if (hash.startsWith(dynamicDifficulty)) {
-      dynamicSolved = true;
-      await flushBatch(batch);
-      await printLineSlow(`Dynamic PoW success at nonce ${nonce1}`);
+      terminal.scrollTop = terminal.scrollHeight;
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
 
-    nonce1++;
-    if (batch.length >= 2500) {
-      await flushBatch(batch);
-      batch = [];
+    // Validate proof-of-work with user answers
+    async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
+      if (!vaultJson?.powSalt || !vaultJson?.powChallengeSalt) {
+        throw new Error("Vault is missing PoW salts.");
+      }
+
+      const fullConcat = userAnswers.map(a => a.trim().toLowerCase()).join("");
+      const baseInput = vaultJson.powSalt + vaultJson.powChallengeSalt + fullConcat;
+      const bakedDifficulty = vaultJson.powDifficulty;
+      const attempt = window.powAttempt || 1;
+      const dynamicDifficulty = getCurrentDifficulty(attempt);
+
+      let batch = [];
+
+      let nonce1 = 0;
+      let dynamicSolved = false;
+
+      while (!dynamicSolved) {
+        const hashInput = baseInput + nonce1;
+        const hash = Array.from(window.sha256Hash(new TextEncoder().encode(hashInput)))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+
+        batch.push(`Nonce ${nonce1} → ${hash.slice(0, 16)}...`);
+
+        if (hash.startsWith(dynamicDifficulty)) {
+          dynamicSolved = true;
+          await flushBatch(batch);
+          await printLineSlow(`Dynamic PoW success at nonce ${nonce1}`);
+        }
+
+        nonce1++;
+        if (batch.length >= 2500) {
+          await flushBatch(batch);
+          batch = [];
+        }
+      }
+
+      vaultJson.powNonce = nonce1.toString();
+      await printLineSlow(`[✓] Dynamic PoW complete.`);
     }
-  }
 
-  vaultJson.powNonce = nonce1.toString(); // Store for use later
+    // Convert blob to Uint8Array safely
+    async function safeUint8ArrayFromBlob(blob) {
+      const buffer = await blob.arrayBuffer();
+      if (!buffer || buffer.byteLength < 12) throw new Error("Encrypted data too short to be valid.");
+      return new Uint8Array(buffer);
+    }
 
-  await printLineSlow(`[✓] Dynamic PoW complete.`);
-}
-
-async function safeUint8ArrayFromBlob(blob) {
-  const buffer = await blob.arrayBuffer();
-  if (!buffer || buffer.byteLength < 12) throw new Error("Encrypted data too short to be valid.");
-  return new Uint8Array(buffer);
-}
-
-
+    // Show a single line in the terminal
     function showTerminalLine(text) {
       const terminal = document.getElementById("powTerminal");
       terminal.innerHTML += `> ${text}<br>`;
@@ -572,248 +709,359 @@ async function safeUint8ArrayFromBlob(blob) {
       terminal.scrollTop = terminal.scrollHeight;
     }
 
-    function getCurrentDifficulty(attempt) {
-      const base = powConfig.start.length;
-      const step = Math.floor((attempt - 1) / powConfig.incrementEvery);
-      return '0'.repeat(base + step);
-    }
+ // Try all permutations of answers (not used in fix)
+    async function tryAllAnswerPermutations(groupAnswers, remainingAnswers, groupIndices, remainingIndices, fullConcatSalt, vaultHash, vaultZip, onSuccess) {
+      const permutations = getAllPermutations(groupAnswers);
+      const encoder = new TextEncoder();
 
-    async function solvePoW(salt, attempt) {
-      return new Promise((resolve) => {
-        const targetPrefix = getCurrentDifficulty(attempt);
-        let nonce = 0;
-        const base = salt + vaultData.powChallengeSalt + attempt;
-        const overlay = document.getElementById("powOverlay");
-        const message = document.getElementById("powMessage");
-        const terminal = document.getElementById("powTerminal");
+      for (let i = 0; i < permutations.length; i++) {
+        const permutedGroup = permutations[i];
 
-        overlay.style.display = "flex";
-        message.style.opacity = "1";
-        terminal.innerHTML = "";
+        // Build fullAnswers array in correct slot positions
+        const fullAnswers = [];
+        let g = 0, r = 0;
 
-        setTimeout(() => { message.style.opacity = "0"; }, 3000);
-
-        function mine() {
-          const hash = Array.from(window.sha256Hash(new TextEncoder().encode(input)))
-  .map(b => b.toString(16).padStart(2, '0'))
-  .join('')
-
-          showTerminalLine(`Nonce ${nonce} → ${hash.slice(0, 10)}...`);
-          if (hash.startsWith(targetPrefix)) {
-            showTerminalLine(`✅ Solved at nonce ${nonce}`);
-            setTimeout(() => {
-              overlay.style.opacity = "1";
-              overlay.style.transition = "opacity 1s";
-              overlay.style.opacity = "0";
-              setTimeout(() => { overlay.style.display = "none"; }, 1000);
-              resolve(nonce);
-            }, 1500);
-            return;
+        for (let idx = 0; idx < groupAnswers.length + remainingAnswers.length; idx++) {
+          if (groupIndices.includes(idx)) {
+            fullAnswers[idx] = permutedGroup[g++];
+          } else {
+            fullAnswers[idx] = remainingAnswers[remainingIndices[r++]];
           }
-          nonce++;
-          setTimeout(mine, 0);
         }
-        mine();
-      });
-    }
 
-    function loadQuestions() {
-      const form = document.getElementById('recoveryForm');
-      savedQuestions.forEach((q, i) => {
-        const block = document.createElement('div');
-        block.className = 'question-block';
-        block.innerHTML = `
-          <label for="answer-${i}"><b>${i + 1}.</b> ${q.question}</label>
-          <input type="text" id="answer-${i}" required />
-          <div class="hint-display" id="hint-${i}"></div>`;
-        form.appendChild(block);
-        updateHint(i);
-      });
-    }
+        const hashBytes = await window.sha256Hash(encoder.encode(fullKeyMaterial));
+        const computedHash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
-    function updateHint(i) {
-  const question = savedQuestions[i];
-  const hintDiv = document.getElementById(`hint-${i}`);
-  if (!question || !hintDiv) return;
+        if (computedHash === vaultHash) {
+          console.log(`✅ Found correct permutation on attempt ${i + 1}`);
+          const fullKey = await deriveKey(fullKeyMaterial);
 
-  const expected = question.expectedLength || 0;
-  const spaceIndexes = Array.isArray(question.spaceIndexes) ? question.spaceIndexes : [];
-  const hintLetters = Array.isArray(question.hintLetters) ? question.hintLetters : [];
-  const hintValues = Array.isArray(question.hintValues) ? question.hintValues : [];
+          const vaultJsonBlob = await vaultZip.get("vault.json");
+          const vaultJsonText = await vaultJsonBlob.text();
+          const vaultJson = JSON.parse(vaultJsonText);
 
-  let renderedHint = '';
-  let hintPtr = 0;
-  let answerCharIndex = 1; // Tracks 1-based position in logical answer (excluding spaces)
-
-  for (let j = 0; j < expected; j++) {
-    if (spaceIndexes.includes(j)) {
-      renderedHint += '&nbsp;&nbsp;'; // Real visual space for alignment
-    } else {
-      if (hintLetters.includes(answerCharIndex)) {
-        renderedHint += (hintValues[hintPtr] || '_') + '&nbsp;';
-        hintPtr++;
-      } else {
-        renderedHint += '_&nbsp;';
+          // Decrypt vault.meta and order.enc
+          const { files, seedFiles, restoredOrder } = await decryptVaultMeta(fullKey, fullKey);
+          onSuccess({ files, seedFiles, restoredOrder, fullKey, fullAnswers });
+          return;
+        }
       }
-      answerCharIndex++; // Only increment for non-space positions
-    }
-  }
 
-  hintDiv.innerHTML = `
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <code style="white-space: pre-wrap; font-size: 15px;">${renderedHint}</code>
-      ${question.custom ? `<div class="hint-custom-text" style="font-size: 14px; color: #88ffcc;">Hint: ${question.custom}</div>` : ''}
-    </div>
-  `;
+      throw new Error("❌ Failed to find valid permutation that matches vaultHash.");
+    }
+
+    
+    // Load questions into the recovery form
+function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2Indices) {
+  const orderedIndices = [
+    ...gateIndices,
+    ...remainingL2Indices,
+    ...selectedL2Indices
+  ];
+
+  const form = document.getElementById("recoveryForm");
+  form.innerHTML = "";
+
+  orderedIndices.forEach((originalIdx, renderIdx) => {
+    const q = questionList[originalIdx];
+    const block = document.createElement("div");
+    block.className = "question-block";
+    block.innerHTML = `
+      <label for="answer-${renderIdx}"><b>${renderIdx + 1}.</b> ${q.question}</label>
+      <input type="text" id="answer-${renderIdx}" class="l2-answer answer-input" data-index="${originalIdx}" required />
+      <div class="hint-display" id="hint-${renderIdx}"></div>
+    `;
+    form.appendChild(block);
+    // ✅ Use render index for the DOM element, and pass both
+    setTimeout(() => updateHint(renderIdx, originalIdx), 0);
+  });
+
+  // Force lowercase typing
+  document.querySelectorAll('input.answer-input').forEach(input => {
+    input.addEventListener('input', () => {
+      input.value = input.value.toLowerCase();
+    });
+  });
 }
 
-    async function submitRecovery() {
+// Force lowercase typing for all answer fields
+document.querySelectorAll('input.answer-input').forEach(input => {
+  input.addEventListener('input', () => {
+    input.value = input.value.toLowerCase();
+  });
+});
+
+function getAnswers(questionList) {
+  // Collect answers in the same order as questionList
+  const inputs = document.querySelectorAll('.l2-answer');
+  const answersByIndex = [];
+  inputs.forEach(input => {
+    const index = parseInt(input.getAttribute("data-index"));
+    if (!isNaN(index)) {
+      answersByIndex[index] = input.value.trim().toLowerCase();
+    }
+  });
+  return answersByIndex;
+}
+
+
+async function submitRecovery() {
   const overlay = document.getElementById("powOverlay");
+  const terminal = document.getElementById("powTerminal");
+  const progressBar = document.getElementById("progressBar");
   const message = document.getElementById("powMessage");
-  const terminalDiv = document.getElementById("powTerminal");
+
+  function bufferToHex(buffer) {
+    return Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
   try {
     overlay.style.display = "flex";
     overlay.style.opacity = "1";
     overlay.style.transition = "none";
-    message.innerText = "Verifying proof-of-work...";
-    terminalDiv.innerHTML = "";
+    terminal.innerHTML = "";
+    progressBar.innerHTML = "";
+    message.innerText = "Trying permutations...";
 
-    await printLineSlow("[*] Validating answers...");
+    await printLineSlow("[*] Loading vault...");
+    const vaultZip = window.loadedVaultZip;
+    if (!vaultZip) throw new Error("No vault ZIP loaded.");
 
-    const vaultData = window.vaultData;
-    if (!vaultData?.powSalt || !vaultData?.powChallengeSalt) {
-      throw new Error("Missing required verification data from vault.json.");
-    }
-    if (!vaultData?.questionList?.length) throw new Error("Vault questions not loaded yet.");
-    if (!window.fileMap || Object.keys(window.fileMap).length === 0) {
-      throw new Error("File map not fully loaded yet.");
-    }
+    const vaultJson = JSON.parse(await (await vaultZip.get("vault.json")).text());
+    const fullSalt = vaultJson.fullSalt;
+    const layer1Salt = vaultJson.layer1Salt;
+    const vaultMetaIv = new Uint8Array(vaultJson.vaultMetaIv);
+    const argonSettings = vaultJson.argonSettings || {
+      time: 4, mem: 4096, parallelism: 2, type: "Argon2id", hashLen: 32
+    };
 
-    const inputs = vaultData.questionList.map((_, i) => {
-      return document.getElementById(`answer-${i}`).value.trim().toLowerCase();
+    const encData = JSON.parse(await (await vaultZip.get("vault.enc")).text());
+    const encBytes = new Uint8Array(encData.ciphertext);
+    const encIv = new Uint8Array(encData.iv);
+
+    const layer1Key = await deriveKey(window.baseKey, layer1Salt, argonSettings);
+    const rawLayer1Key = new Uint8Array(await crypto.subtle.exportKey("raw", layer1Key));
+    const decrypted = await window.aesDecryptRust(rawLayer1Key, encIv, encBytes);
+    const parsed = JSON.parse(new TextDecoder().decode(decrypted));
+    const { selectedL2Indices, remainingL2Indices, gateIndices, questionList } = parsed;
+
+    // ✅ Build user answer map using data-index (original indices)
+    const userAnswerMap = {};
+    document.querySelectorAll('input.answer-input').forEach(input => {
+      const index = parseInt(input.getAttribute("data-index"));
+      if (!isNaN(index)) {
+        userAnswerMap[index] = input.value.trim().toLowerCase();
+      }
     });
 
-    // Step 1: Dynamic PoW
-    await validateProofOfWorkWithAnswers(vaultData, inputs);
-
-    // Step 2: Static PoW
-await printLineSlow("[*] Static Proof of Work...");
-await printLineSlow(`[*] Re-mining until SHA256(base + nonce) starts with '${vaultData.powDifficulty}'`);
-
-const fullConcat = JSON.stringify(inputs.map((v, i) => (i === vaultData.trapIndex ? "" : v)));
-const staticBase = vaultData.fullConcatSalt + fullConcat;
-const targetPrefix = vaultData.powDifficulty;
-let staticNonce = 0;
-let found = false;
-let batch = [];
-
-const encoder = new TextEncoder();
-
-while (!found) {
-  const inputBytes = encoder.encode(staticBase + staticNonce);
-  const hashBytes = await window.sha256Hash(inputBytes);
-  const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-
-  batch.push(`Nonce ${staticNonce} → ${hashHex.slice(0, 16)}...`);
-
-  if (hashHex.startsWith(targetPrefix)) {
-    await flushBatch(batch);
-    await printLineSlow(`Static PoW success at nonce ${staticNonce}`);
-    found = true;
-    break;
-  }
-
-  staticNonce++;
-  if (staticNonce > 5000000) throw new Error("Static PoW failed: nonce not found within limit.");
-
-  if (batch.length >= 2500) {
-    await flushBatch(batch);
-    batch = [];
-  }
-}
-
-    // Step 3: Derive full key using Rust
-const fullKeyMaterial = vaultData.fullConcatSalt + fullConcat + staticNonce;
-const keyInputBytes = encoder.encode(fullKeyMaterial);
-const keySaltBytes = new Uint8Array(await window.sha256Hash(keyInputBytes));
-const keyBytes = await window.deriveKeyRust(keyInputBytes, keySaltBytes, 150000);
-
-// ✅ Hash fullKeyMaterial to validate vaultHash
-const hashBytes = await window.sha256Hash(new TextEncoder().encode(fullKeyMaterial));
-const vaultHash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-if (vaultHash !== vaultData.vaultHash) {
-  throw new Error("Full key material hash does not match. Wrong answers or corrupted file.");
-}
-
-const fullKey = await crypto.subtle.importKey(
-  "raw",
-  keyBytes,
-  { name: "AES-GCM" },
-  true,
-  ["encrypt", "decrypt"]
-);
-
-window.fullKeyMaterial = fullKeyMaterial;
-
-    // Step 4: Decrypt vault metadata and verify fingerprint
-    await printLineSlow("[*] Decrypting vault metadata...");
-    const decryptedMeta = await decryptVaultMeta(fullKey);
-
-    await printLineSlow("[✓] Metadata decrypted successfully.");
-
-    // Step 5: Decrypt final message and files
-    await printLineSlow("[*] Decrypting final message...");
-    const finalMessage = await decryptFinalMessage(fullKey, decryptedMeta.files);
-
-    await printLineSlow("[*] Decrypting vault documents...");
-    const decryptedFiles = await decryptVaultDocs(fullKey, decryptedMeta.files);
-
-    const vaultId = vaultData.vaultId || decryptedMeta.vaultHash || "default";
-    localStorage.removeItem(`powAttempt_${vaultId}`);
-
-    await showRecoveryModal(finalMessage, decryptedFiles);
-
-  } catch (err) {
-    overlay.style.transition = "opacity 0.5s";
-    overlay.style.opacity = "0";
-    setTimeout(() => {
-      overlay.style.display = "none";
-      overlay.style.opacity = "1";
-    }, 500);
-
-    const vaultData = window.vaultData;
-    const vaultId = vaultData?.vaultId || "default";
-    const key = `powAttempt_${vaultId}`;
-    window.powAttempt = (parseInt(localStorage.getItem(key)) || 1) + 1;
-    localStorage.setItem(key, window.powAttempt);
-
-    console.error("❌ Recovery failed:", err);
-    await printLineSlow(`[!] Recovery failed: ${err.message || err}`);
-    showToast(err.message || "Wrong answer. Try again...or don't.");
-    setTimeout(() => window.location.reload(), 4000);
-  }
-}
-
-    function showSeedModal() {
-  const modal = document.getElementById("seedModal");
-  modal.classList.add("show");
-}
-
-    function copyRecoveredSeed() {
-      navigator.clipboard.writeText(document.getElementById('recoveredSeed').innerText.replace('Seed Phrase:\n', ''));
-      showToast('Seed copied.', 'success');
+    if (Object.values(userAnswerMap).every(a => !a)) {
+      showToast("Please fill out the recovery answers before proceeding.", "error");
+      return;
     }
 
-    function copyDonationLink(el) {
-  const url = el?.dataset?.url || "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
-  navigator.clipboard.writeText(url)
-    .then(() => showToast("Donation link copied!", "success"))
-    .catch(() => showToast("Failed to copy link.", "error"));
+    const bruteAnswers = selectedL2Indices.map(idx => userAnswerMap[idx]);
+    const permutations = generatePermutations(bruteAnswers);
+    const totalAttempts = permutations.length;
+    await printLineSlow(`[⛏] Brute-forcing ${totalAttempts} permutations...`);
+
+    const totalBlocks = 40;
+    for (let i = 0; i < totalBlocks; i++) {
+      const block = document.createElement("div");
+      block.className = "progress-block";
+      progressBar.appendChild(block);
+    }
+
+    let attempt = 0;
+    let success = false;
+    let metaJson = null;
+    let finalRawKey = null;
+    let finalFullConcat = "";
+
+    for (const permuted of permutations) {
+      attempt++;
+
+      const permutedAnswers = [];
+
+      // 🔁 Fill in gate and remaining L2 answers from user input
+      gateIndices.forEach(idx => permutedAnswers[idx] = userAnswerMap[idx]);
+      remainingL2Indices.forEach(idx => permutedAnswers[idx] = userAnswerMap[idx]);
+
+      // 🔁 Fill in selected L2 answers from current permutation
+      selectedL2Indices.forEach((originalIdx, permutedIdx) => {
+        permutedAnswers[originalIdx] = permuted[permutedIdx];
+      });
+
+      const fullConcat = [
+        ...gateIndices.map(idx => permutedAnswers[idx]),
+        ...remainingL2Indices.map(idx => permutedAnswers[idx]),
+        ...selectedL2Indices.map(idx => permutedAnswers[idx])
+      ].join('');
+
+      const fullKey = await deriveKey(fullConcat, fullSalt, argonSettings);
+      const rawFullKey = new Uint8Array(await crypto.subtle.exportKey("raw", fullKey));
+
+      const hashBytes = await sha256Hash(new TextEncoder().encode(fullConcat));
+      const hashHex = bufferToHex(hashBytes);
+      const hashPreview = hashHex.slice(0, 20);
+
+      printLineFast(`[${attempt}/${totalAttempts}] trying: ${fullConcat.split('').join('|')} → hash=${hashPreview}...`);
+
+      const filledCount = Math.floor((attempt / totalAttempts) * totalBlocks);
+      const blocks = progressBar.querySelectorAll(".progress-block");
+      blocks.forEach((block, i) => {
+        block.classList.toggle("filled", i < filledCount);
+      });
+
+      try {
+        const metaBlob = await vaultZip.get("vault.meta");
+        const metaBuf = new Uint8Array(await metaBlob.arrayBuffer());
+        const decryptedMeta = await window.aesDecryptRust(rawFullKey, vaultMetaIv, metaBuf);
+        const decodedMeta = new TextDecoder().decode(decryptedMeta);
+        metaJson = JSON.parse(decodedMeta);
+
+        if (!metaJson || !Array.isArray(metaJson.files)) {
+          throw new Error("vault.meta decrypted but missing or invalid .files array.");
+        }
+
+        console.log("[RECOVER] Success on attempt", attempt);
+        await printLineSlow(`[✔] Vault unlocked on attempt ${attempt}.`);
+        await printLineSlow(`[✔] Final Concat: ${fullConcat}`);
+        await printLineSlow(`[✔] Answer Index Order: ${[
+          ...gateIndices,
+          ...remainingL2Indices,
+          ...selectedL2Indices
+        ].join(', ')}`);
+
+        await new Promise(resolve => setTimeout(resolve, 3000)); // pause
+
+        finalRawKey = rawFullKey;
+        finalFullConcat = fullConcat;
+        success = true;
+        break;
+      } catch (err) {
+        // try next permutation silently
+      }
+    }
+
+    if (success && metaJson && finalRawKey) {
+      const decryptedFiles = await decryptVaultDocs(finalRawKey, metaJson.files || [], finalFullConcat);
+      const finalMessage = await decryptFinalMessage(finalRawKey, metaJson.files || [], finalFullConcat);
+      await showRecoveryModal(finalMessage, decryptedFiles);
+    } else {
+      throw new Error(`❌ Failed to decrypt vault after ${totalAttempts} permutations.`);
+    }
+
+  } catch (err) {
+    console.error("❌ submitRecovery failed:", err);
+    showMessageModal("Error", err.message || err.toString());
+  } finally {
+    overlay.style.display = "none";
+  }
 }
 
-    async function decryptFinalMessage(fullKey, filesMeta) {
-  const finalMeta = filesMeta.find(f => f.originalName === "final_message.txt");
+    // Update hint display for a question
+    function updateHint(renderIdx, originalIdx) {
+  const question = savedQuestions[originalIdx];
+  const hintDiv = document.getElementById(`hint-${renderIdx}`);
+  if (!question || !hintDiv) return;
+
+  const expectedLength = question.expectedLength || 0;
+  const spaceIndexes = Array.isArray(question.spaceIndexes) ? question.spaceIndexes : [];
+  const hintLetters = Array.isArray(question.hintLetters) ? question.hintLetters : [];
+  const hintValues = Array.isArray(question.hintValues) ? question.hintValues : [];
+
+  let renderedHint = '';
+  let letterPos = 1;
+  let valueIndex = 0;
+
+  for (let j = 0; j < expectedLength; j++) {
+    if (spaceIndexes.includes(j)) {
+      renderedHint += ' ';
+    } else if (hintLetters.includes(letterPos)) {
+      const val = hintValues[valueIndex++];
+      renderedHint += val === undefined ? '_' : val;
+    } else {
+      renderedHint += '_';
+    }
+    letterPos++;
+  }
+
+  const spacedHint = renderedHint.split('').join(' ');
+
+  hintDiv.innerHTML = `
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <code style="font-size: 15px; white-space: pre;">${spacedHint}</code>
+      ${question.custom ? `<div class="hint-custom-text" style="font-size: 14px; color: #88ffcc;">Hint: ${question.custom}</div>` : ''}
+    </div>
+  `;
+}
+
+    // Get nth permutation of an array
+    function getNthPermutation(n, length) {
+      let remaining = Array.from({length}, (_, i) => i);
+      let result = [];
+      for (let i = length; i > 0; i--) {
+        let fact = 1;
+        for (let j = 1; j < i; j++) fact *= j;
+        let index = Math.floor(n / fact);
+        result.push(remaining.splice(index, 1)[0]);
+        n %= fact;
+      }
+      return result;
+    }
+
+    // Generate all permutations of an array
+    function generatePermutations(array) {
+      if (array.length <= 1) return [array.slice()];
+      const result = [];
+
+      for (let i = 0; i < array.length; i++) {
+        const current = array[i];
+        const remaining = array.slice(0, i).concat(array.slice(i + 1));
+        const perms = generatePermutations(remaining);
+        for (const perm of perms) {
+          result.push([current, ...perm]); // force copy
+        }
+      }
+
+      return result;
+    }
+
+    // Show the seed modal
+    function showSeedModal() {
+      const modal = document.getElementById("seedModal");
+      modal.classList.add("show");
+    }
+
+    // AES decryption
+    async function aesDecrypt(ciphertext, iv, key) {
+      return await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        key,
+        ciphertext
+      );
+    }
+
+    // Copy donation link to clipboard
+    function copyDonationLink() {
+      const url = "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
+      navigator.clipboard.writeText(url)
+        .then(() => showToast("Donation link copied!", "success"))
+        .catch(() => showToast("Failed to copy link.", "error"));
+    }
+
+    // Decrypt order blob
+    async function decryptOrderBlob(orderData, fullKey) {
+      const iv = new Uint8Array(orderData.iv);
+      const ciphertext = new Uint8Array(orderData.ciphertext);
+      const decrypted = await window.aesDecryptRust(fullKey, iv, ciphertext);
+      const decoded = new TextDecoder().decode(decrypted);
+      return JSON.parse(decoded).remainingOrder;
+    }
+
+    // Decrypt final message
+    async function decryptFinalMessage(fullKeyBytes, filesMeta, fullConcat) {
+  const finalMeta = filesMeta.find(f => f.originalName === "final-message.txt");
   if (!finalMeta) {
     await printLineFast("[*] No final message to decrypt.");
     return "";
@@ -823,28 +1071,35 @@ window.fullKeyMaterial = fullKeyMaterial;
   if (!blob) throw new Error("Missing final message file");
 
   await printLineFast(`[+] Found final message file: ${finalMeta.filename}`);
-
   const encrypted = await safeUint8ArrayFromBlob(blob);
 
-  const fullConcat = JSON.stringify(savedQuestions.map((q, i) => {
-    const val = document.getElementById(`answer-${i}`)?.value.trim().toLowerCase() || "";
-    return (i === vaultData.trapIndex ? "" : val);
-  }));
+  if (encrypted.length < 17) {
+    console.warn(`⚠️ Skipping final message: too short (${encrypted.length} bytes)`);
+    return "";
+  }
 
   const fileId = finalMeta.filename.replace(".vaultdoc", "");
-  const derivedKeyInput = fullConcat + fileId;
+  const password = fullConcat + fileId;
+  const salt = new Uint8Array(await sha256Hash(new TextEncoder().encode(password)));
 
-  await printLineFast(`[+] Deriving key from: ${derivedKeyInput.slice(0, 12)}...`);
+  // Use Argon2 to derive the correct key
+  const argonResult = await argon2.hash({
+    pass: password,
+    salt,
+    time: 4,
+    mem: 4096,
+    parallelism: 2,
+    type: 'Argon2id',
+    hashLen: 32
+  });
 
-  const passwordBytes = new TextEncoder().encode(derivedKeyInput);
-  const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
-  const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
-
+  const rawKey = argonResult.hash;
+  const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["decrypt"]);
   const iv = new Uint8Array(finalMeta.iv);
 
   try {
-    const decrypted = window.aesDecryptRust(rawKey, iv, encrypted);
-    return new TextDecoder().decode(decrypted);
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encrypted);
+    return new TextDecoder().decode(decrypted).trim();
   } catch (err) {
     console.error("❌ Final message decryption failed", err);
     await printLineFast(`[!] Final message decryption failed: ${err.message || err}`);
@@ -852,218 +1107,117 @@ window.fullKeyMaterial = fullKeyMaterial;
   }
 }
 
-async function decryptVaultDocs(fullKey, filesMeta) {
-  const decrypted = [];
+    // Decrypt vault documents
+    async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
+  const decoder = new TextDecoder("utf-8");
+  const recoveredFiles = [];
 
-  const answerConcat = JSON.stringify(savedQuestions.map((q, i) => {
-    const input = document.getElementById(`answer-${i}`);
-    const val = (input?.value || "").trim().toLowerCase();
-    return (i === vaultData.trapIndex ? "" : val);
-  }));
-
-  for (const file of filesMeta) {
-    const blob = fileMap[file.filename];
-    if (!blob) continue;
-
+  for (let i = 0; i < vaultMetaFiles.length; i++) {
+    const meta = vaultMetaFiles[i];
     try {
-      const encrypted = await safeUint8ArrayFromBlob(blob);
-      const fileId = file.id || file.filename.replace(".vaultdoc", "");
-      const derivedKeyInput = answerConcat + fileId;
+      // Show progress
+      await printLineFast(`[~] Decrypting ${i + 1}/${vaultMetaFiles.length}: ${meta.originalName}...`);
+      await new Promise(r => setTimeout(r, 0)); // Yield UI thread
 
-      const passwordBytes = new TextEncoder().encode(derivedKeyInput);
-      const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
-      const rawKey = await window.deriveKeyRust(passwordBytes, salt, 150000);
-
-      const iv = new Uint8Array(file.iv);
-      const decryptedBytes = window.aesDecryptRust(rawKey, iv, encrypted);
-
-      const computedHash = Array.from(window.sha256Hash(decryptedBytes))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-
-      if (computedHash !== file.sha256) {
-        console.warn(`⚠️ Hash mismatch for: ${file.originalName}`);
+      const blob = window.fileMap[meta.filename];
+      if (!blob) {
+        console.warn(`⚠️ Missing file: ${meta.filename}`);
+        await printLineFast(`[!] Skipped "${meta.originalName}" (missing file).`);
         continue;
       }
 
-      decrypted.push({
-        name: file.originalName,
-        blob: new Blob([decryptedBytes], { type: file.mimeType || "application/octet-stream" })
+      const encryptedBuffer = new Uint8Array(await blob.arrayBuffer());
+
+      if (encryptedBuffer.length < 17) {
+        console.warn(`⚠️ Skipping file "${meta.originalName}": too short (${encryptedBuffer.length} bytes)`);
+        await printLineFast(`[!] Skipped "${meta.originalName}" (too short).`);
+        continue;
+      }
+
+      const fileId = meta.filename.replace(".vaultdoc", "");
+      const password = fullConcat + fileId;
+      const salt = new Uint8Array(await sha256Hash(new TextEncoder().encode(password)));
+
+      const argonResult = await argon2.hash({
+        pass: password,
+        salt,
+        time: 4,
+        mem: 4096,
+        parallelism: 2,
+        type: 'Argon2id',
+        hashLen: 32
+      });
+
+      const rawKey = argonResult.hash;
+      const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["decrypt"]);
+      const iv = new Uint8Array(meta.iv);
+
+      const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encryptedBuffer);
+
+      const sha256 = Array.from(await sha256Hash(new Uint8Array(decrypted)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+
+      if (sha256 !== meta.sha256) {
+        console.warn(`⚠️ SHA-256 mismatch for "${meta.originalName}"`);
+        await printLineFast(`[!] SHA-256 mismatch for "${meta.originalName}"`);
+      }
+
+      recoveredFiles.push({
+        name: meta.originalName,
+        blob: new Blob([decrypted], { type: meta.mimeType })
       });
 
     } catch (err) {
-      console.warn(`❌ Failed to decrypt: ${file.originalName}`, err);
+      console.warn(`⚠️ Failed to decrypt "${meta.originalName}": ${err.message}`);
+      await printLineFast(`[!] Failed to decrypt "${meta.originalName}": ${err.message}`);
     }
   }
 
-  return decrypted;
+  return recoveredFiles;
 }
 
-    async function decryptVaultMeta(fullKey) {
-  const metaBlob = fileMap["vault.meta"];
-  if (!metaBlob) throw new Error("vault.meta is missing");
-  if (!vaultData.vaultMetaIv) throw new Error("Missing IV for vault.meta");
+    // Decrypt vault metadata
+    async function decryptVaultMeta(key, orderKey) {
+      const vaultZip = window.loadedVaultZip;
+      if (!vaultZip) throw new Error("No loaded vault archive found.");
 
-  // Convert to Uint8Array
-  const encryptedMeta = await safeUint8ArrayFromBlob(metaBlob);
-  const metaIv = new Uint8Array(vaultData.vaultMetaIv);
+      const vaultMetaBlob = await vaultZip.get("vault.meta");
+      const vaultMetaBytes = new Uint8Array(await vaultMetaBlob.arrayBuffer());
 
-  // Export the CryptoKey to raw bytes
-  const rawKey = new Uint8Array(await crypto.subtle.exportKey("raw", fullKey));
+      const vaultJsonBlob = await vaultZip.get("vault.json");
+      const vaultJson = JSON.parse(await vaultJsonBlob.text());
+      const vaultIv = new Uint8Array(vaultJson.vaultMetaIv);
 
-  // Decrypt using Rust AES-GCM
-  const decryptedBytes = window.aesDecryptRust(rawKey, metaIv, encryptedMeta);
+      const decryptedMetaBuf = await window.aesDecryptRust(key, vaultIv, vaultMetaBytes);
+      const metaJson = JSON.parse(new TextDecoder().decode(decryptedMetaBuf));
 
-  // Parse the JSON
-  const metaJSON = JSON.parse(new TextDecoder().decode(decryptedBytes));
+      const orderBlob = await vaultZip.get("order.enc");
+      const orderData = JSON.parse(await orderBlob.text());
+      const orderIv = new Uint8Array(orderData.iv);
+      const ciphertext = new Uint8Array(orderData.ciphertext);
 
-  // Sync vaultId and hash
-  if (metaJSON.vaultHash) {
-    vaultData.vaultHash = metaJSON.vaultHash;
-    vaultData.vaultId = metaJSON.vaultHash;
-  }
+      const decryptedOrderBuf = await window.aesDecryptRust(orderKey, orderIv, ciphertext);
+      const parsedOrder = JSON.parse(new TextDecoder().decode(decryptedOrderBuf));
+      const restoredOrder = parsedOrder.remainingOrder;
 
-  return metaJSON;
-}
-
-async function decryptVaultFiles() {
-  try {
-    const metaBlob = fileMap["vault.meta"];
-    if (!metaBlob) throw new Error("vault.meta is missing");
-    if (!vaultData.vaultMetaIv) throw new Error("Missing IV for vault.meta");
-
-    const encryptedMeta = await safeUint8ArrayFromBlob(metaBlob);
-    const metaIv = new Uint8Array(vaultData.vaultMetaIv);
-
-    const decryptedMeta = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: metaIv },
-      unlockKey,
-      encryptedMeta
-    );
-
-    const metaData = JSON.parse(new TextDecoder().decode(decryptedMeta));
-    const fileLinks = document.createElement("div");
-    fileLinks.style.marginTop = "20px";
-    fileLinks.innerHTML = "<h3>Download Files:</h3>";
-
-    const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
-    const answerConcat = savedQuestions.map(q => (q.answer || "").trim().toLowerCase()).join("");
-
-    const seenNames = new Set();
-    function getUniqueFilename(name) {
-      let base = name;
-      let ext = "";
-      const dotIdx = name.lastIndexOf(".");
-      if (dotIdx !== -1) {
-        base = name.substring(0, dotIdx);
-        ext = name.substring(dotIdx);
+      if (!Array.isArray(restoredOrder)) {
+        throw new Error("Decrypted order.enc is missing remainingOrder array.");
       }
-      let counter = 1;
-      let finalName = name;
-      while (seenNames.has(finalName)) {
-        finalName = `${base}_${counter++}${ext}`;
-      }
-      seenNames.add(finalName);
-      return finalName;
+
+      return { ...metaJson, restoredOrder };
     }
 
-    for (const file of metaData.files) {
-      const encBlob = fileMap[file.filename];
-      if (!encBlob) continue;
-
-      const encryptedFile = await safeUint8ArrayFromBlob(encBlob);
-      const fileKey = await deriveKey(answerConcat + file.filename.replace(".vaultdoc", ""));
-
-      let decryptedFile;
-      try {
-        decryptedFile = await crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: new Uint8Array(file.iv) },
-          fileKey,
-          encryptedFile
-        );
-      } catch (err) {
-        console.warn(`❌ Decryption failed: ${file.originalName}`);
-        continue;
-      }
-
-      const hash = await crypto.subtle.digest("SHA-256", decryptedFile);
-      const actualHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-      if (actualHex !== file.sha256) {
-        console.warn(`⚠️ Hash mismatch: ${file.originalName}`);
-        continue;
-      }
-
-      const finalBlob = new Blob([decryptedFile], { type: file.mimeType || "application/octet-stream" });
-      const finalName = getUniqueFilename(file.originalName || file.filename);
-
-      await zipWriter.add(finalName, new zip.BlobReader(finalBlob));
-
-      const fileEntry = document.createElement("div");
-      fileEntry.style.marginBottom = "10px";
-
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(finalBlob);
-      link.download = finalName;
-      link.innerText = `📎 ${finalName}`;
-      link.style.display = "inline-block";
-      link.style.color = "#0f0";
-
-      const previewBtn = document.createElement("button");
-      previewBtn.innerText = "Preview";
-      previewBtn.style.marginLeft = "10px";
-      previewBtn.onclick = () => previewFile(finalBlob, file.mimeType);
-
-      fileEntry.appendChild(link);
-      fileEntry.appendChild(previewBtn);
-      fileLinks.appendChild(fileEntry);
-    }
-
-    const btnRow = document.createElement("div");
-    btnRow.style.display = "flex";
-    btnRow.style.justifyContent = "center";
-    btnRow.style.gap = "10px";
-    btnRow.style.marginTop = "20px";
-
-    const zipAllBtn = document.createElement("button");
-    zipAllBtn.innerText = "Download All as ZIP";
-    zipAllBtn.className = "button";
-    zipAllBtn.onclick = async () => {
-      const zippedBlob = await zipWriter.close();
-      const url = URL.createObjectURL(zippedBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "Memoro_Recovered_Files.zip";
-      a.click();
-    };
-
-    const wipeBtn = document.createElement("button");
-    wipeBtn.innerText = "Securely Wipe & Exit";
-    wipeBtn.className = "button";
-    wipeBtn.onclick = secureExit;
-
-    btnRow.appendChild(zipAllBtn);
-    btnRow.appendChild(wipeBtn);
-    fileLinks.appendChild(btnRow);
-
-// New — append to the second .pow-section inside the modal (Vault Recovered box)
-const recoveredBox = document.querySelector("#seedModal .pow-section:nth-of-type(2)");
-recoveredBox.appendChild(fileLinks);
-  } catch (err) {
-    console.error("❌ Failed to decrypt vault files:", err);
-  }
-}
-
+    // Close seed modal and exit
     function closeSeedModal() {
-  secureExit();
-}
+      secureExit();
+    }
 
+    // Navigate back to dashboard
     function backToDashboard() {
       window.location.href = "dashboard.html";
     }
 
-    function clearLocalRecoveryData() {
-      localStorage.removeItem('decryptedVault');
-    }
-
+    // Show toast notification
     function showToast(msg, type = 'error') {
       const toast = document.getElementById("toast");
       toast.innerText = msg;
@@ -1071,87 +1225,141 @@ recoveredBox.appendChild(fileLinks);
       toast.classList.add("show");
       setTimeout(() => toast.classList.remove("show"), 2500);
     }
-    
-    async function deriveKey(password) {
+
+    // Decrypt order blob (alternative implementation)
+    async function decryptOrderBlob(orderData, fullKey) {
+      const iv = new Uint8Array(orderData.iv);
+      const ciphertext = new Uint8Array(orderData.ciphertext);
+      const decrypted = await window.aesDecryptRust(fullKey, iv, ciphertext);
+      const decoded = new TextDecoder().decode(decrypted);
+      return JSON.parse(decoded).remainingOrder;
+    }
+
+    async function deriveKey(password, saltHex, settingsOverride, extractable = true) {
   const encoder = new TextEncoder();
   const passwordBytes = encoder.encode(password);
 
-  // Derive a salt from the password itself (for deterministic key derivation)
-  const salt = new Uint8Array(await window.sha256Hash(passwordBytes));
+  const salt = saltHex
+    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
+    : new Uint8Array(await crypto.subtle.digest('SHA-256', passwordBytes));
 
-  // Derive the key using Rust WASM
-  const derivedKeyBytes = window.deriveKeyRust(passwordBytes, salt, 150000);
+  const settings = settingsOverride || {
+    time: 4,
+    mem: 4096,
+    parallelism: 2,
+    type: 'Argon2id',
+    hashLen: 32
+  };
 
-  // Import into WebCrypto (extractable = true for Rust/WASM use)
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    derivedKeyBytes,
-    { name: "AES-GCM" },
-    true, // extractable for exportKey and interop
-    ["encrypt", "decrypt"]
+  const argonResult = await argon2.hash({
+    pass: password,
+    salt,
+    time: settings.time,
+    mem: settings.mem,
+    parallelism: settings.parallelism,
+    type: argon2.ArgonType[settings.type] || argon2.ArgonType.Argon2id,
+    hashLen: settings.hashLen || 32
+  });
+
+  const keyBytes = new Uint8Array(
+    argonResult.hashHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
   );
 
-  return cryptoKey;
+  return crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { name: 'AES-GCM' },
+    extractable,
+    ['encrypt', 'decrypt']
+  );
 }
 
-function previewFile(blob, mimeType) {
-  const modal = document.getElementById("previewModal");
-  const container = document.getElementById("previewContent");
+    // Preview decrypted file
+    function previewFile(blob, mimeType) {
+      const modal = document.getElementById("previewModal");
+      const container = document.getElementById("previewContent");
+      container.innerHTML = "";
 
-  container.innerHTML = ""; // Clear previous content
+      if (mimeType.startsWith("image/")) {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(blob);
+        img.style.maxWidth = "100%";
+        container.appendChild(img);
+      } else if (mimeType.startsWith("text/") || mimeType === "application/json") {
+        blob.text().then(text => {
+          const pre = document.createElement("pre");
+          pre.style.whiteSpace = "pre-wrap";
+          pre.style.textAlign = "left";
+          pre.textContent = text;
+          container.appendChild(pre);
+        });
+      } else {
+        container.innerHTML = `<p style="color:#bbb;">Preview not supported for this file type.</p>`;
+      }
 
-  if (mimeType.startsWith("image/")) {
-    const img = document.createElement("img");
-    img.src = URL.createObjectURL(blob);
-    img.style.maxWidth = "100%";
-    container.appendChild(img);
-  } else if (mimeType.startsWith("text/") || mimeType === "application/json") {
-    blob.text().then(text => {
-      const pre = document.createElement("pre");
-      pre.style.whiteSpace = "pre-wrap";
-      pre.style.textAlign = "left";
-      pre.textContent = text;
-      container.appendChild(pre);
-    });
-  } else {
-    container.innerHTML = `<p style="color:#bbb;">Preview not supported for this file type.</p>`;
-  }
+      modal.style.display = "flex";
+    }
 
-  modal.style.display = "flex";
-}
+    // Close preview modal
+    function closePreview() {
+      document.getElementById("previewModal").style.display = "none";
+    }
 
-function closePreview() {
-  document.getElementById("previewModal").style.display = "none";
-}
+    // Securely wipe data and exit
+    function secureExit() {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
 
-function secureExit() {
+        indexedDB.databases().then(dbs => {
+          for (const db of dbs) {
+            if (db.name) indexedDB.deleteDatabase(db.name);
+          }
+        });
+
+        window.fileMap = null;
+        window.vaultData = null;
+        window.unlockKey = null;
+        window.savedQuestions = null;
+        window.fullKeyMaterial = null;
+        window.vaultId = null;
+
+        setTimeout(() => {
+          window.location.href = "dashboard.html";
+        }, 250);
+      } catch (err) {
+        console.warn("Secure exit error:", err);
+        window.location.href = "dashboard.html";
+      }
+    }
+
+    // AES decryption with validation
+    async function decryptAES(ciphertextArray, ivArray, key) {
+      const iv = new Uint8Array(ivArray);
+      const ciphertext = new Uint8Array(ciphertextArray);
+
+      const decryptedBuffer = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        key,
+        ciphertext
+      );
+
+      const decoded = new TextDecoder().decode(decryptedBuffer);
+
+      if (!decoded.startsWith('{') || !decoded.endsWith('}')) {
+        throw new Error("Decryption returned invalid JSON.");
+      }
+
+      return decoded;
+    }
+
+    window.onload = async () => {
   try {
-    // Clear memory and storage
-    sessionStorage.removeItem("memoroTransfer");
-    localStorage.removeItem("decryptedVault");
-if (window.vaultId) {
-  localStorage.removeItem(`powAttempt_${window.vaultId}`);
-}
+    const vaultId = localStorage.getItem("lastVaultId");
+    const transferKey = vaultId ? vaultId + "-transfer" : "memoroTransfer";
+    console.log("Recovering from transfer key:", transferKey);
 
-    // Nuke globals
-    window.fileMap = null;
-    window.vaultData = null;
-    window.unlockKey = null;
-    window.savedQuestions = null;
-
-    // 🚪 Exit
-    window.location.href = "dashboard.html";
-  } catch (err) {
-    console.warn("Secure exit error:", err);
-    window.location.href = "dashboard.html"; // fallback
-  }
-}
-
-window.onload = async () => {
-  try {
-    const currentVaultId = localStorage.getItem("lastVaultId");
-    if (!currentVaultId) throw new Error("No vault ID reference");
-
+    // Load transfer data from IndexedDB or sessionStorage
     const db = await new Promise((resolve, reject) => {
       const req = indexedDB.open("memoroVaultVaultStorage", 1);
       req.onsuccess = (e) => resolve(e.target.result);
@@ -1160,313 +1368,331 @@ window.onload = async () => {
 
     const tx = db.transaction("vaultFiles", "readonly");
     const store = tx.objectStore("vaultFiles");
-    const getReq = store.get(currentVaultId + "-transfer");
 
     const transfer = await new Promise((resolve, reject) => {
-      getReq.onsuccess = () => resolve(getReq.result);
-      getReq.onerror = () => reject("Transfer data lookup failed.");
+      const getReq = store.get(transferKey);
+      getReq.onsuccess = () => {
+        const raw = getReq.result;
+        console.log("📦 Raw transfer IndexedDB result:", raw);
+        resolve(raw?.data || raw);
+      };
+      getReq.onerror = () => reject("❌ Transfer data lookup failed.");
     });
 
-    if (!transfer) throw new Error("Vault transfer data missing.");
-    if (!transfer.decryptedVaultData || !transfer.fileMapRaw || !transfer.baseKey || !transfer.vaultJson) {
-      throw new Error("Incomplete transfer object");
+    let transferFromStorage = transfer;
+    if (!transfer) {
+      const sessionData = sessionStorage.getItem("memoroTransfer");
+      if (sessionData) {
+        console.log("Falling back to sessionStorage:", sessionData);
+        transferFromStorage = JSON.parse(sessionData);
+      }
     }
+
+    console.log("Transfer data loaded:", transferFromStorage);
+
+    if (!transferFromStorage) throw new Error("Vault transfer data missing.");
+    if (!transferFromStorage.vaultBlob || !transferFromStorage.fileMapRaw || !transferFromStorage.vaultJson || !transferFromStorage.baseKey) {
+      throw new Error("Incomplete transfer object: missing vaultBlob, fileMapRaw, vaultJson, or baseKey");
+    }
+
+    // Load vault ZIP
+    const vaultBlob = new Blob([new Uint8Array(transferFromStorage.vaultBlob)], { type: "application/zip" });
+    const zipReader = new zip.ZipReader(new zip.BlobReader(vaultBlob));
+    const entries = await zipReader.getEntries();
+
+    window.loadedVaultZip = {
+      get: async (name) => {
+        const entry = entries.find(e => e.filename === name);
+        if (!entry) throw new Error(`${name} not found in vault.`);
+        return await entry.getData(new zip.BlobWriter());
+      },
+      getEntries: async () => entries
+    };
+
+    // ✅ Rehydrate file map from raw transfer blobs
+    window.fileMap = {};
+    for (const [filename, raw] of Object.entries(transferFromStorage.fileMapRaw || {})) {
+      const blob = new Blob([new Uint8Array(raw.data)], { type: raw.type });
+      window.fileMap[filename] = blob;
+    }
+    console.log("✅ window.fileMap populated:", Object.keys(window.fileMap));
+
+    // Set other metadata
+    window.vaultData = transferFromStorage.vaultJson;
+    window.unlockKey = transferFromStorage.unlockKey || null;
+    window.baseKey = transferFromStorage.baseKey;
+    console.log("baseKey set:", window.baseKey);
+
+    // Decrypt vault.enc to load questions
+    const encBlob = await window.loadedVaultZip.get("vault.enc");
+    const encObj = JSON.parse(await encBlob.text());
+    const vaultEncBytes = new Uint8Array(encObj.ciphertext);
+    const vaultEncIv = new Uint8Array(encObj.iv);
+
+    const layer1Salt = transferFromStorage.vaultJson.layer1Salt;
+    const argonSettings = transferFromStorage.vaultJson.argonSettings || {
+      time: 4, mem: 4096, parallelism: 2, type: "Argon2id", hashLen: 32
+    };
+
+    const derivedKey = await deriveKey(window.baseKey, layer1Salt, argonSettings);
+
+    let encData;
+    try {
+      const decryptedText = await decryptAES(vaultEncBytes, vaultEncIv, derivedKey);
+      encData = JSON.parse(decryptedText);
+      window.savedQuestions = encData.questionList || [];
+      window.selectedL2Indices = encData.selectedL2Indices || [];
+      window.remainingL2Indices = encData.remainingL2Indices || [];
+      window.gateIndices = encData.gateIndices || [];
+      console.log("Decrypted questionList:", encData.questionList);
+    } catch (e) {
+      console.error("Failed to decrypt vault.enc with baseKey:", e);
+      window.savedQuestions = [];
+      window.selectedL2Indices = [];
+      window.remainingL2Indices = [];
+      window.gateIndices = [];
+    }
+
+    console.log("Loaded vaultData:", window.vaultData);
+    console.log("Populated savedQuestions before loadQuestions:", window.savedQuestions);
+
+    // Render the questions
+    loadQuestions(
+      window.savedQuestions,
+      window.gateIndices,
+      window.remainingL2Indices,
+      window.selectedL2Indices
+    );
 
     document.getElementById("redHerringModal").style.display = "flex";
 
-    // HYDRATE ALL REQUIRED VALUES EARLY (including powSalt, etc.)
-    window.vaultData = {
-  ...transfer.vaultJson,
-  ...transfer.decryptedVaultData,
-  powSalt: transfer.vaultJson.powSalt,
-  powChallengeSalt: transfer.vaultJson.powChallengeSalt,
-  fullConcatSalt: transfer.vaultJson.fullConcatSalt,
-  powDifficulty: transfer.vaultJson.powDifficulty,
-  powIncreaseEvery: transfer.vaultJson.powIncreaseEvery,
-  trapIndex: transfer.vaultJson.trapIndex,
-  vaultMetaIv: transfer.vaultJson.vaultMetaIv
+  } catch (err) {
+    console.error("Vault restore failed:", err);
+    showToast("Vault transfer failed. Restart from dashboard.");
+  }
 };
 
+    // Close Red Herring modal
+    function closeRedHerringModal() {
+      document.getElementById("redHerringModal").style.display = "none";
+    }
 
-    window.vaultJsonParsed = transfer.vaultJson;
-    window.fileMap = {};
-    window.savedQuestions = window.vaultData.questionList || [];
-    window.powSalt = window.vaultData.powSalt || "";
-    window.powConfig = {
-      start: "0000",
-      incrementEvery: window.vaultData.powIncreaseEvery || 5
-    };
-    window.vaultId = window.vaultData.vaultId || window.vaultData.vaultHash || "default";
-    window.powAttempt = parseInt(localStorage.getItem(`powAttempt_${window.vaultId}`)) || 1;
+    // Matrix effect for background
+    const canvas = document.getElementById('matrixCanvas');
+    const ctx = canvas.getContext('2d');
 
-    for (const [filename, serialized] of Object.entries(transfer.fileMapRaw)) {
-      fileMap[filename] = new Blob([new Uint8Array(serialized.data)], {
-        type: serialized.type || "application/octet-stream"
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+    const fontSize = 14;
+    const columns = Math.floor(canvas.width / fontSize);
+    const drops = Array(columns).fill(0);
+
+    function drawMatrix() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00ff99';
+      ctx.font = `${fontSize}px monospace`;
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        drops[i]++;
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+      }
+    }
+
+    setInterval(drawMatrix, 66);
+
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    // Visual effect for vault unlock
+    async function burstMatrixEffect() {
+      const body = document.body;
+      const crackOverlay = document.getElementById('crackOverlay');
+      const flash = document.getElementById('burstFlash');
+
+      body.style.animation = 'screenShake 0.1s infinite';
+      crackOverlay.style.background = "repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(255,255,255,0.05) 6px)";
+      crackOverlay.style.opacity = "1";
+
+      await new Promise(r => setTimeout(r, 1200));
+
+      flash.style.animation = 'crackFlash 0.3s ease-out';
+      flash.style.opacity = '1';
+
+      setTimeout(() => {
+        flash.style.animation = '';
+        flash.style.opacity = '0';
+      }, 300);
+
+      await new Promise(r => setTimeout(r, 200));
+
+      body.style.animation = '';
+      crackOverlay.style.opacity = "0";
+
+      const modal = document.querySelector('#seedModal');
+      modal.style.opacity = '0';
+      modal.style.transform = 'scale(1.5)';
+      modal.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
+
+      requestAnimationFrame(() => {
+        modal.classList.add('show');
+        modal.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
       });
     }
 
-    // IV fallback if not included already
-    vaultData.finalMessageIv = vaultData.finalMessageIv || transfer.vaultJson.finalMessageIv;
-    vaultData.vaultMetaIv = vaultData.vaultMetaIv || transfer.vaultJson.vaultMetaIv;
+    // Show recovery modal with decrypted files
+    async function showRecoveryModal(finalMessage, files) {
+      const modal = document.getElementById("seedModal");
+      const seedBox = document.getElementById("recoveredSeed");
+      const messageBox = document.getElementById("finalMessage");
 
-    loadQuestions();
-  } catch (err) {
-    console.error("Vault restore failed:", err);
-    document.body.innerHTML = `<h2 style='color:red;text-align:center;'>❌ Failed to load vault: ${err.message}</h2>`;
-  }
-};
+      seedBox.textContent = files.length
+        ? `${files.length} file(s) decrypted successfully.`
+        : "No files recovered.";
 
-function closeRedHerringModal() {
-  document.getElementById("redHerringModal").style.display = "none";
-}
-
-</script>
-
-<canvas id="matrixCanvas"></canvas>
-<div class="overlay"></div>
-
-<div id="vaultCrackOverlay"></div>
-<div id="crackOverlay"></div>
-<div id="burstFlash"></div>
-
-<script>
-const canvas = document.getElementById('matrixCanvas');
-const ctx = canvas.getContext('2d');
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
-const fontSize = 14;
-const columns = Math.floor(canvas.width / fontSize);
-const drops = Array(columns).fill(0);
-
-function drawMatrix() {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#00ff99';
-  ctx.font = `${fontSize}px monospace`;
-
-  for (let i = 0; i < drops.length; i++) {
-    const text = letters[Math.floor(Math.random() * letters.length)];
-    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-    drops[i]++;
-    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-      drops[i] = 0;
-    }
-  }
-}
-
-setInterval(drawMatrix, 66);
-
-window.addEventListener('resize', () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
-
-async function burstMatrixEffect() {
-  const body = document.body;
-  const crackOverlay = document.getElementById('crackOverlay');
-  const flash = document.getElementById('burstFlash');
-
-  // 1. Begin screen shake
-  body.style.animation = 'screenShake 0.1s infinite';
-
-  // 2. Simulate growing cracks
-  crackOverlay.style.background = "repeating-linear-gradient(135deg, transparent, transparent 5px, rgba(255,255,255,0.05) 6px)";
-  crackOverlay.style.opacity = "1";
-
-  await new Promise(r => setTimeout(r, 1200)); // Shake + crack for 1.2s
-
-  // 3. Flash burst
-  flash.style.animation = 'crackFlash 0.3s ease-out';
-  flash.style.opacity = '1';
-
-  setTimeout(() => {
-    flash.style.animation = '';
-    flash.style.opacity = '0';
-  }, 300);
-
-  await new Promise(r => setTimeout(r, 200)); // Brief pause
-
-  // 4. Stop shake, dim overlay
-  body.style.animation = '';
-  crackOverlay.style.opacity = "0";
-
-  // 5. Modal reveal with subtle dust effect
-  const modal = document.querySelector('#seedModal');
-  modal.style.opacity = '0';
-  modal.style.transform = 'scale(1.5)';
-  modal.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
-
-  requestAnimationFrame(() => {
-    modal.classList.add('show');
-    modal.style.opacity = '1';
-    modal.style.transform = 'scale(1)';
-  });
-}
-
-async function showRecoveryModal(finalMessage, files) {
-  const modal = document.getElementById("seedModal");
-  const seedBox = document.getElementById("recoveredSeed");
-  const messageBox = document.getElementById("finalMessage");
-
-  seedBox.textContent = files.length
-    ? `${files.length} file(s) decrypted successfully.`
-    : "No files recovered.";
-
-  if (finalMessage) {
-    messageBox.textContent = finalMessage;
-  }
-
-  const existingLinks = document.getElementById("recoveryFileLinks");
-  if (existingLinks) existingLinks.remove();
-
-  const fileLinks = document.createElement("div");
-  fileLinks.id = "recoveryFileLinks";
-  fileLinks.style.marginTop = "20px";
-  fileLinks.innerHTML = "<h3 style='color:#0f0;'>Decrypted Files:</h3>";
-
-  const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
-  const seenNames = new Set();
-
-  function getUniqueFilename(name) {
-    let base = name, ext = "";
-    const dotIdx = name.lastIndexOf(".");
-    if (dotIdx !== -1) {
-      base = name.substring(0, dotIdx);
-      ext = name.substring(dotIdx);
-    }
-    let counter = 1;
-    let finalName = name;
-    while (seenNames.has(finalName)) {
-      finalName = `${base}_${counter++}${ext}`;
-    }
-    seenNames.add(finalName);
-    return finalName;
-  }
-
-  for (const file of files) {
-    const finalName = getUniqueFilename(file.name);
-    await zipWriter.add(finalName, new zip.BlobReader(file.blob));
-
-    const fileEntry = document.createElement("div");
-    fileEntry.style.marginBottom = "10px";
-
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(file.blob);
-    link.download = finalName;
-    link.innerText = `📎 ${finalName}`;
-    link.style.color = "#0f0";
-    link.style.marginRight = "12px";
-
-    const previewBtn = document.createElement("button");
-    previewBtn.innerText = "Preview";
-    previewBtn.onclick = () => previewFile(file.blob, file.blob.type);
-    previewBtn.className = "button";
-    previewBtn.style.padding = "4px 8px";
-    previewBtn.style.marginLeft = "5px";
-
-    fileEntry.appendChild(link);
-    fileEntry.appendChild(previewBtn);
-    fileLinks.appendChild(fileEntry);
-  }
-
-  const btnRow = document.createElement("div");
-  btnRow.style.display = "flex";
-  btnRow.style.justifyContent = "center";
-  btnRow.style.gap = "10px";
-  btnRow.style.marginTop = "20px";
-
-  const zipAllBtn = document.createElement("button");
-  zipAllBtn.innerText = "Download All as ZIP";
-  zipAllBtn.className = "button";
-  zipAllBtn.onclick = async () => {
-    const zippedBlob = await zipWriter.close();
-    const url = URL.createObjectURL(zippedBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "Memoro_Recovered_Files.zip";
-    a.click();
-  };
-
-  const wipeBtn = document.createElement("button");
-  wipeBtn.innerText = "Securely Wipe & Exit";
-  wipeBtn.className = "button";
-  wipeBtn.onclick = secureExit;
-
-  btnRow.appendChild(zipAllBtn);
-  btnRow.appendChild(wipeBtn);
-  fileLinks.appendChild(btnRow);
-
-  // Append into "Vault Recovered!" box (second pow-section)
-  const recoveredBox = document.querySelector("#seedModal .pow-section:nth-of-type(2)");
-  recoveredBox.appendChild(fileLinks);
-
-  burstMatrixEffect(); // triggers modal + animation
-}
-
-function secureExit() {
-  try {
-    // Wipe all storage types
-    localStorage.clear();
-    sessionStorage.clear();
-
-    // Clear all IndexedDB databases
-    indexedDB.databases().then(dbs => {
-      for (const db of dbs) {
-        if (db.name) indexedDB.deleteDatabase(db.name);
+      if (finalMessage) {
+        messageBox.textContent = finalMessage;
       }
-    });
 
-    // Nuke globals
-    window.fileMap = null;
-    window.vaultData = null;
-    window.unlockKey = null;
-    window.savedQuestions = null;
-    window.fullKeyMaterial = null;
-    window.vaultId = null;
-    window.powAttempt = null;
+      const existingLinks = document.getElementById("recoveryFileLinks");
+      if (existingLinks) existingLinks.remove();
 
-    // Give a short delay to ensure deletion finishes
-    setTimeout(() => {
-      window.location.href = "dashboard.html";
-    }, 250);
-    
-  } catch (err) {
-    console.warn("Secure exit error:", err);
-    window.location.href = "dashboard.html"; // fallback
-  }
+      const fileLinks = document.createElement("div");
+      fileLinks.id = "recoveryFileLinks";
+      fileLinks.style.marginTop = "20px";
+      fileLinks.innerHTML = "<h3 style='color:#0f0;'>Decrypted Files:</h3>";
+
+      const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
+      const seenNames = new Set();
+
+      // getVaultKeyMaterial.js
+function getVaultKeyMaterial({ gateAnswers, knownAnswers, bruteAnswers, gateIndices, knownAnswerIndices, bruteIndices, fullSalt }) {
+  // Answers must be placed in the correct slot
+  const allAnswers = [];
+  const totalLen = gateIndices.length + knownAnswerIndices.length + bruteIndices.length;
+  // Find max index
+  const maxIndex = Math.max(...gateIndices, ...knownAnswerIndices, ...bruteIndices);
+  for (let i = 0; i <= maxIndex; i++) allAnswers[i] = "";
+  gateIndices.forEach((idx, i) => { allAnswers[idx] = gateAnswers[i]; });
+  knownAnswerIndices.forEach((idx, i) => { allAnswers[idx] = knownAnswers[i]; });
+  bruteIndices.forEach((idx, i) => { allAnswers[idx] = bruteAnswers[i]; });
+  const fullConcat = allAnswers.join('');
+  return fullSalt + fullConcat;
 }
 
-// Force all recovery inputs to lowercase in real-time
-document.addEventListener("input", (e) => {
-  if (e.target.tagName === "INPUT" && e.target.id.startsWith("answer-")) {
-    e.target.value = e.target.value.toLowerCase();
+// blankRedHerring.js
+function blankRedHerring(answers, trapIndex) {
+  if (trapIndex !== undefined && trapIndex !== null && trapIndex >= 0 && trapIndex < answers.length) {
+    answers = answers.slice();
+    answers[trapIndex] = "";
   }
-});
+  return answers;
+}
 
-async function nukeEverything() {
-  try {
-    localStorage.clear();
-    sessionStorage.clear();
-    if (indexedDB.databases) {
-      const dbs = await indexedDB.databases();
-      for (const db of dbs) {
-        indexedDB.deleteDatabase(db.name);
+      function getUniqueFilename(name) {
+        let base = name, ext = "";
+        const dotIdx = name.lastIndexOf(".");
+        if (dotIdx !== -1) {
+          base = name.substring(0, dotIdx);
+          ext = name.substring(dotIdx);
+        }
+        let counter = 1;
+        let finalName = name;
+        while (seenNames.has(finalName)) {
+          finalName = `${base}_${counter++}${ext}`;
+        }
+        seenNames.add(finalName);
+        return finalName;
       }
-    } else {
-      indexedDB.deleteDatabase("memoroVaultVaultStorage");
-      indexedDB.deleteDatabase("memoroVaultDB");
+
+      for (const file of files) {
+        const finalName = getUniqueFilename(file.name);
+        await zipWriter.add(finalName, new zip.BlobReader(file.blob));
+
+        const fileEntry = document.createElement("div");
+        fileEntry.style.marginBottom = "10px";
+        fileEntry.style.display = "flex";
+        fileEntry.style.alignItems = "center";
+
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(file.blob);
+        link.download = finalName;
+        link.innerText = `📎 ${finalName}`;
+        link.style.color = "#0f0";
+        link.style.marginRight = "12px";
+
+        const previewBtn = document.createElement("button");
+        previewBtn.innerText = "Preview";
+        previewBtn.onclick = () => previewFile(file.blob, file.blob.type);
+        previewBtn.className = "button";
+        previewBtn.style.padding = "4px 8px";
+
+        fileEntry.appendChild(link);
+        fileEntry.appendChild(previewBtn);
+        fileLinks.appendChild(fileEntry);
+      }
+
+      const btnRow = document.createElement("div");
+      btnRow.style.display = "flex";
+      btnRow.style.justifyContent = "center";
+      btnRow.style.gap = "10px";
+      btnRow.style.marginTop = "20px";
+
+      const zipAllBtn = document.createElement("button");
+      zipAllBtn.innerText = "Download All as ZIP";
+      zipAllBtn.className = "button";
+      zipAllBtn.onclick = async () => {
+        const zippedBlob = await zipWriter.close();
+        const url = URL.createObjectURL(zippedBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "Memoro_Recovered_Files.zip";
+        a.click();
+      };
+
+      const wipeBtn = document.createElement("button");
+      wipeBtn.innerText = "Securely Wipe & Exit";
+      wipeBtn.className = "button";
+      wipeBtn.onclick = secureExit;
+
+      btnRow.appendChild(zipAllBtn);
+      btnRow.appendChild(wipeBtn);
+      fileLinks.appendChild(btnRow);
+
+      const recoveredBox = document.querySelector("#seedModal .pow-section:nth-of-type(2)");
+      recoveredBox.appendChild(fileLinks);
+
+      burstMatrixEffect();
     }
-    console.log("Memoro Vault: Local memory wiped.");
-  } catch (err) {
-    console.warn("Memoro Vault wipe failed:", err);
-  }
-}
 
-
-</script>
-
+    // Wipe all local data
+    async function nukeEverything() {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+        if (indexedDB.databases) {
+          const dbs = await indexedDB.databases();
+          for (const db of dbs) {
+            indexedDB.deleteDatabase(db.name);
+          }
+        } else {
+          indexedDB.deleteDatabase("memoroVaultVaultStorage");
+          indexedDB.deleteDatabase("memoroVaultDB");
+        }
+        console.log("Memoro Vault: Local memory wiped.");
+      } catch (err) {
+        console.warn("Memoro Vault wipe failed:", err);
+      }
+    }
+  </script>
 </body>
 </html>
