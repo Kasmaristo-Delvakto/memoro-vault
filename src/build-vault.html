@@ -1053,10 +1053,8 @@ async function deriveKey(password, saltHex, settingsOverride) {
     await addBlob(file.filename, file.blob);
   }
 
-  await writer.add("README.txt", new zip.TextReader(`Memoro Vault
+await writer.add("README.txt", new zip.TextReader(`Memoro Vault
 ===========
-Memoro Vault  
-============
 
 Built with Memoro Vault version 1.0.5
 
@@ -1071,19 +1069,19 @@ If you were meant to open this, you’ll know the answers. Be precise.
 If you weren’t, there’s nothing you can do.
 
 — Kaŝmaristo Delvakto  
-“Libereco ne estas donaco. Ĝi estas devo.”
+"Libereco ne estas donaco. Ĝi estas devo."
 
 ---
 
 ## How to Open the Vault
 
 1. **Locate the Memoro Vault app**  
-   In this ZIP file, look for a file like `memoro-win.exe`, `memoro-linux.AppImage`, or `memoro-mac.dmg`, depending on your device.
+   In this ZIP file, look for a file like \`memoro-win.exe\`, \`memoro-linux.AppImage\`, or \`memoro-mac.dmg\`, depending on your device.
 
 2. **Run the app**  
    No installation needed. Just open the file. If your system asks if you trust it, say yes — assuming you trust the person who gave you this.
 
-3. **Click “Recover Vault”**  
+3. **Click "Recover Vault"**  
    Choose this same ZIP file when prompted.
 
 4. **Enter the answers**  
@@ -1095,7 +1093,7 @@ If you don’t, keep trying — but there are no clues and no second paths.
 What matters now is what you remember.
 `));
 
-  await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(`Vault Builder Instructions
+await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(`Vault Builder Instructions
 ==========================
 
 Make a folder, place this ZIP and the Memoro Vault installer in it. Duplicate that folder to:

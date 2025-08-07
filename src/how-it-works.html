@@ -111,13 +111,13 @@
   <p>The rise of decentralized technologies has created new forms of digital value—cryptocurrency wallets, identity keys, encrypted archives—but the means of preserving them remain fragile. A lost password, corrupted drive, or compromised platform can erase everything.</p>
 
   <p><strong>Memoro Vault changes that.</strong><br>
-  It enables anyone to encrypt critical files, instructions, and credentials into a portable, tamper-evident vault that can be stored anywhere and unlocked only through exact knowledge.</p>
+  It enables anyone to encrypt critical files, instructions, and credentials into a portable, tamper-evident vault that can be stored anywhere and unlocked only through exact memory-based knowledge.</p>
 
-  <p>There are no servers, no logins, and no trusted intermediaries. Just a sealed vault file and a locally installed recovery program that runs entirely offline. Memoro Vault doesn’t manage access—it makes you prove it.</p>
+  <p>There are no servers, no logins, and no trusted intermediaries. Just a sealed vault file and a recovery program that runs entirely offline.</p>
 
   <h2>The Problem Memoro Vault Solves</h2>
 
-  <p>Access to long-term digital preservation is uneven. Some individuals rely on legal structures—trusts, foundations, estate attorneys—to transfer intent and assets across generations. Most do not. When someone passes away or loses capacity, accounts and data often remain locked behind proprietary systems or forgotten credentials.</p>
+  <p>Access to long-term preservation is uneven. Some individuals rely on legal structures—trusts, foundations, estate attorneys—to transfer intent and assets across generations. Most do not. When someone passes away or loses capacity, accounts and data often remain locked behind proprietary systems or forgotten credentials.</p>
 
   <p>The problem extends far beyond cryptocurrency:</p>
   <ul>
@@ -127,50 +127,55 @@
     <li>Refugees or stateless persons needing durable access to identity documents</li>
   </ul>
 
-  <p>Memoro Vault allows users to define the conditions for recovery with cryptographic precision. You can split knowledge across multiple trusted people—ensuring no one can access the vault alone, but collaboration enables recovery. It's inheritance without institutions, privacy without infrastructure, and permanence without fragility.</p>
+  <p>Memoro Vault allows users to define the conditions for recovery with cryptographic precision. You can split knowledge across multiple trusted people—ensuring no one can access the vault alone, but collaboration enables recovery.</p>
 
   <h2>Memory-Based Encryption</h2>
 
-  <p>During creation, users define between <strong>4 and 25 custom memory questions</strong>. These can be personal, obscure, or collaboratively known. Answers are never stored. Instead, they are used to derive an AES-GCM encryption key using <strong>PBKDF2</strong>, a hardened key-stretching algorithm trusted in high-security systems.</p>
+  <p>During creation, users define between <strong>9 and 25 custom memory questions</strong>. These can be personal, obscure, or collaboratively known. Answers are never stored. Instead, they are used to derive a cryptographic key using <strong>Argon2</strong>, a modern memory-hard key derivation function designed to resist brute-force attacks—even with specialized hardware.</p>
 
   <h2>Layered Access Control</h2>
 
   <p><strong>Phase One: Initial Gatekeeping</strong><br>
-  The first two answers act as a strict gate. Each incorrect attempt triggers an exponentially increasing lockout, slowing down brute-force attacks. No hints or feedback are given.</p>
+  The first two answers act as a strict gate. Each incorrect attempt triggers an exponentially increasing lockout, slowing down brute-force attempts. No hints or feedback are given.</p>
 
-  <p><strong>Phase Two: Full Cryptographic Challenge</strong><br>
-  The vault then requires all answers to be correct—entered exactly. At this stage, optional hints and character counts may be enabled by the creator to support intended users while still deterring attackers.</p>
+  <p><strong>Phase Two: Permutation-Based Recovery</strong><br>
+  Once Layer One is passed, the user must enter <strong>exactly the correct answers in the correct order</strong>. Memoro Vault stores the required answer sequence as a cryptographic hash. Even if an attacker knows all correct answers, they must still guess the correct permutation.</strong>.</p>
 
-  <p>This phase is protected by dual proof-of-work:</p>
+  <p>This makes brute-force infeasible. Instead of wasting CPU cycles on proof-of-work, attackers face a combinatorial explosion of possible valid sequences—an elegant shift from compute-bound to knowledge-bound security.</p>
+
+  <p>To make the vault accessible to the right people, and to prevent self-lockout:</p>
   <ul>
-    <li>A <strong>static PoW nonce</strong> mined during vault creation and tied to the encryption key</li>
-    <li>A <strong>dynamic PoW challenge</strong> that must be solved at recovery time, with difficulty increasing after each failure</li>
+    <li>Optional character or letter hints may be revealed by the vault builder.</li>
+    <li>Red herring ("trap") questions can be included to confuse adversaries</li>
+    <li>All answers are forced lowercase and trimmed to prevent unintentional lockouts</li>
   </ul>
 
   <h2>File and Environment Security</h2>
   <ul>
-    <li>All files are encrypted individually with AES-256</li>
-    <li>Metadata, filenames, and messages are encrypted</li>
-    <li>Final output is a portable, tamper-evident ZIP archive</li>
+    <li>All files are encrypted using AES-GCM with 256-bit keys</li>
+    <li>Metadata, filenames, and final messages are encrypted</li>
+    <li>Vaults are output as tamper-evident, portable ZIP files</li>
+    <li>The vault cannot be recovered if the vault file is altered.</li>
   </ul>
 
-  <p>Every vault is cryptographically bound to the exact version of the recovery program used to create it. If an attacker modifies the recovery file—even slightly—the vault becomes undecryptable. Decryption can only occur on the original, unmodified interface.</p>
+  <p>Decryption only succeeds if the exact vault structure, cryptographic parameters, and answer order are preserved. This binds each vault to its original interface without revealing any secrets.</p>
 
   <h2>Flexible Distribution</h2>
 
-  <p>Memoro Vault supports a range of secure sharing strategies:</p>
+  <p>Memoro Vault supports a wide range of secure sharing strategies:</p>
   <ul>
-    <li>Keep it private and self-recoverable</li>
-    <li>Distribute questions among multiple family members to require collaboration</li>
-    <li>Store vaults publicly—on cloud drives, SD cards, or IPFS—without compromising secrecy</li>
+    <li>Keep it private and fully self-recoverable</li>
+    <li>Distribute questions among trusted collaborators</li>
+    <li>Store vaults publicly (USB, IPFS, cloud)—without risk of exposure</li>
   </ul>
 
-  <p>Without the correct answers and proof-of-work solution, the vault remains sealed—computationally and cryptographically.</p>
+  <p><strong>There is no backdoor.</strong> Without the exact answer sequence and matching vault version, recovery is mathematically impossible.</p>
 
   <div class="button-container">
     <button class="button" onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
   </div>
 </div>
+
 
 
 <script>

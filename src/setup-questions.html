@@ -341,8 +341,8 @@ body {
 
   <b>Layer 2 — Full Encryption:</b><br>
   All remaining answers, files, and vault data are encrypted using AES-GCM. To access your vault, you must enter <i>every remaining answer exactly</i>.<br>
-  During vault creation, <b>six answers</b> are secretly selected and their order is <b>randomized using cryptographic entropy</b>. This randomized order is securely embedded in the vault, and <i>not even the creator knows which six are affected</i>.<br><br>
-  To decrypt the vault, you must still answer <b>all</b> questions correctly — but six of them must also be entered in the precise hidden order. In a 25-question vault, this introduces <b>720 possible permutations</b> (6!), and there's no indication which answers are out of order if you fail.<br><br>
+  During vault creation, <b>six answers</b> are secretly selected and their order is <b>randomized using cryptographic entropy</b>. This randomized order is securely embedded in the vault, and <i>not even the creator knows the true order</i>.<br><br>
+  To decrypt the vault, you must answer <b>all</b> questions correctly — but six of them must also be entered in the precise hidden order. This introduces <b>720 possible permutations</b> (6!), and there's no indication which answers are out of order if you fail.<br><br>
   <i>Don’t worry — Memoro Vault handles the permutations for you automatically during recovery.</i> This design makes brute-force attacks (e.g. with tools like Hashcat) exponentially harder, without adding complexity for legitimate users.
 </p>
     <div class="modal-buttons">
