@@ -864,6 +864,8 @@ async function deriveKey(password, saltHex, settingsOverride) {
   const spaceIndexes = userData.spaceIndexes?.[i] || [];
   const hintEntry = userData.hints?.[i] || {};
 
+  const showLength = typeof hintEntry.showLength === "boolean" ? hintEntry.showLength : true;
+
   let hintValuesLocal = Array.isArray(hintEntry.values)
     ? [...hintEntry.values]
     : Array.isArray(hintEntry.letters)
@@ -875,7 +877,8 @@ async function deriveKey(password, saltHex, settingsOverride) {
 
   return {
     question: userData.questions[i] || `Question ${i + 1}`,
-    expectedLength: trimmed.length,
+    // Only include the exact length if allowed; otherwise null
+    expectedLength: showLength ? trimmed.length : null,
     hintLetters: [...(hintEntry.letters || [])],
     hintValues: hintValuesLocal,
     spaceIndexes: [...spaceIndexes],
@@ -885,12 +888,14 @@ async function deriveKey(password, saltHex, settingsOverride) {
         ? hintEntry.custom.join(", ")
         : typeof hintEntry.custom === "object" && hintEntry.custom !== null
           ? JSON.stringify(hintEntry.custom)
-          : ""
+          : "",
+    // Optional: keep a copy for future UI logic (won’t break anything)
+    showLength
   };
 });
 
 
-  // 🔐 Encrypt question metadata
+  // Encrypt question metadata
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
   const encQuestions = encoder.encode(JSON.stringify({
     questionList,

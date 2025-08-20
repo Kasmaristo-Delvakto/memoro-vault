@@ -69,6 +69,14 @@
     border: 1px solid #0f0;
   }
 
+  /* Force Red Herring checkbox to drop below earlier */
+@media (max-width: 650px) {
+  .question-block {
+    grid-template-columns: 1fr;  /* stack everything */
+    gap: 12px;
+  }
+}
+
   label {
     font-size: 16px;
     margin-bottom: 5px;
@@ -363,6 +371,46 @@
       padding: 8px 16px;
     }
   }
+
+  /* Default: scrollable on larger screens */
+.ascii-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.ascii-table {
+  background-color: black;
+  color: #00ff99;
+  padding: 15px;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  line-height: 1.3;
+  white-space: pre;
+  display: block;
+  border-radius: 6px;
+  min-width: fit-content;
+  margin: 0;
+}
+
+/* 📱 Small screens: shrink to fit instead of scrolling */
+@media (max-width: 600px) {
+  .ascii-table-wrapper {
+    overflow-x: hidden;   /* no horizontal scroll */
+  }
+  .ascii-table {
+    display: block;
+    white-space: pre-wrap; /* ✅ wrap long lines */
+    word-break: break-word; 
+    font-size: 10px;       /* ✅ shrink font size */
+    width: 100%;           /* ✅ force full width of screen */
+    min-width: unset;      /* ✅ no forced min-width */
+    overflow-wrap: anywhere;
+  }
+}
+
 </style>
 
 </head>
@@ -414,7 +462,8 @@
 
     <p>We assume <strong>the worst-case scenario</strong>: global adversaries with the fastest hardware on Earth.</p>
 
-    <pre style="background-color: black; color: #00ff99; padding: 15px; font-family: 'Fira Code', monospace; font-size: 14px; overflow-x: auto;">
+    <div class="ascii-table-wrapper">
+  <pre class="ascii-table">
 ╔═════════════════════════════════════════════════════════════════════════╗
 ║  ASSUMED ATTACKER HARDWARE         |   GUESSES/SEC   |   TIME TO CRACK     ║
 ╠═════════════════════════════════════════════════════════════════════════╣
@@ -431,7 +480,9 @@
 ║                                    |                 |   120-bit: 10¹⁹ yrs ║
 ║                                    |                 |   180-bit: 10⁴⁰ yrs ║
 ╚═════════════════════════════════════════════════════════════════════════╝
-    </pre>
+  </pre>
+</div>
+
 
 
     <p>Memoro Vault uses this to classify your vault strength:</p>
@@ -511,21 +562,33 @@
 
 <div id="hintModal" class="modal">
   <div class="modal-content">
-    <h2>Customize Your Hint</h2>
-    <div class="input-group">
-      <label>How many characters to reveal?</label>
-      <select id="numLetters" onchange="buildLetterSelectors()"></select>
-    </div>
-    <div id="letterSelectors" class="input-group" style="margin-top: 15px;"></div>
-    <div class="input-group" style="margin-top: 20px;">
-      <label>Optional: Custom Hint Text</label>
-      <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
-    </div>
-    <div class="modal-buttons">
-      <button onclick="saveCustomHint()">Save</button>
-      <button onclick="closeHintModal()">Cancel</button>
-    </div>
+  <h2>Hint Options</h2>
+
+  <!-- NEW: show length toggle -->
+  <div class="input-group" style="margin-bottom: 14px;">
+    <label>
+      <input type="checkbox" id="showLength" checked>
+      Show answer length during unlock
+    </label>
   </div>
+
+  <!-- Existing letter/position hint controls -->
+  <div class="input-group">
+    <label>Reveal specific letters from the answer</label>
+    <select id="numLetters" onchange="buildLetterSelectors()"></select>
+  </div>
+  <div id="letterSelectors" class="input-group" style="margin-top: 15px;"></div>
+
+  <div class="input-group" style="margin-top: 20px;">
+    <label>Optional: Custom Hint Text</label>
+    <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
+  </div>
+
+  <div class="modal-buttons">
+    <button onclick="saveCustomHint()">Save</button>
+    <button onclick="closeHintModal()">Cancel</button>
+  </div>
+</div>
 </div>
 
 <script>
@@ -600,75 +663,6 @@ async function handleFileStorageUpload(event) {
 });
 
 }
-
-function displayUploadedFiles() {
-  const container = document.getElementById('uploadedFileList');
-  const status = document.getElementById('fileUploadStatus');
-  if (!container) return;
-
-  container.innerHTML = '';
-
-  const storedFiles = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
-
-  storedFiles.forEach(file => {
-    const entry = document.createElement('div');
-    entry.style.display = 'flex';
-    entry.style.justifyContent = 'space-between';
-    entry.style.alignItems = 'center';
-    entry.style.marginBottom = '6px';
-    entry.style.border = '1px solid #0f0';
-    entry.style.borderRadius = '6px';
-    entry.style.padding = '10px';
-    entry.style.backgroundColor = '#111';
-
-    const fileLabel = document.createElement('span');
-    fileLabel.textContent = `📄 ${file.name} (${Math.round(file.size / 1024)} KB)`;
-    fileLabel.style.color = '#0f0';
-
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.style.marginLeft = '10px';
-    removeBtn.style.padding = '6px 12px';
-    removeBtn.style.backgroundColor = '#550000';
-    removeBtn.style.color = '#fff';
-    removeBtn.style.border = 'none';
-    removeBtn.style.borderRadius = '4px';
-    removeBtn.style.cursor = 'pointer';
-
-    removeBtn.onclick = () => {
-      const updatedMeta = storedFiles.filter(f => f.id !== file.id);
-      localStorage.setItem('uploadedFileMeta', JSON.stringify(updatedMeta));
-
-      const req = indexedDB.open('memoroVaultDB');
-      req.onsuccess = function () {
-        const db = req.result;
-        const tx = db.transaction('vaultFiles', 'readwrite');
-        const store = tx.objectStore('vaultFiles');
-        store.delete(file.id);
-        tx.oncomplete = () => {
-          db.close();
-          displayUploadedFiles();
-        };
-      };
-    };
-
-    entry.appendChild(fileLabel);
-    entry.appendChild(removeBtn);
-    container.appendChild(entry);
-  });
-
-  if (status) {
-    const count = storedFiles.length;
-    status.textContent = count === 0 ? 'No files uploaded' : `${count} file${count > 1 ? 's' : ''} uploaded`;
-  }
-}
-
-// Activate listeners after page load
-window.addEventListener('DOMContentLoaded', () => {
-  const fileUpload = document.getElementById('fileUpload');
-  if (fileUpload) fileUpload.addEventListener('change', handleFileStorageUpload);
-  displayUploadedFiles();
-});
 
 function displayUploadedFiles() {
   const container = document.getElementById('uploadedFileList');
@@ -824,10 +818,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
       <div style="display: flex; align-items: center;">
   <input type="checkbox"
-    id="custom-hint-${i}"
+    id="hint-options-${i}"
     onchange="if(this.checked) openHintModal(${i})"
   >
-  <span style="line-height: 1;">Custom Hint</span>
+  <span style="line-height: 1;">Hint Options</span>
 </div>
 
 
@@ -854,24 +848,46 @@ window.addEventListener('DOMContentLoaded', () => {
 
     form.appendChild(block);
     updateEntropy(i); // Initialize entropy
+
+    if (i === numberOfQuestions - 1) {
+  attachTrapCheckboxHandlers();
+}
+
   }
 }
 
-document.querySelectorAll('.trap-checkbox').forEach(cb => {
-  cb.addEventListener('change', () => {
-    const selectedIndex = parseInt(cb.dataset.index);
+    function attachTrapCheckboxHandlers() {
+  const checkboxes = document.querySelectorAll('.trap-checkbox');
 
-    if (selectedIndex < 2 && cb.checked) {
-      cb.checked = false;
-      showMessageModal("Invalid Red Herring", "You cannot select one of the Layer 1 unlock questions as a red herring. Please choose a different question.");
-      return;
-    }
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const selectedIndex = parseInt(cb.dataset.index);
 
-    document.querySelectorAll('.trap-checkbox').forEach(other => {
-      if (other !== cb) other.checked = false;
+      // Prevent selecting a Layer 1 question as Red Herring
+      if (selectedIndex < 2 && cb.checked) {
+        cb.checked = false;
+        showMessageModal(
+          "Invalid Red Herring",
+          "You cannot select one of the Layer 1 unlock questions as a red herring. Please choose a different question."
+        );
+        return;
+      }
+
+      if (cb.checked) {
+        // Check if any other is already selected
+        const alreadySelected = Array.from(checkboxes).find(other => other !== cb && other.checked);
+        if (alreadySelected) {
+          // ❌ Disallow second selection
+          cb.checked = false;
+          showMessageModal(
+            "Only One Red Herring Allowed",
+            "You can only select one question as the Red Herring."
+          );
+        }
+      }
     });
   });
-});
+}
 
   function goBack() {
     window.history.back();
@@ -934,6 +950,13 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
     const db = req.result;
     const tx = db.transaction('vaultUserData', 'readwrite');
     const store = tx.objectStore('vaultUserData');
+    const finalTrapIndex = getSelectedTrapIndex();
+if (finalTrapIndex >= 0) {
+  if (!customHints[finalTrapIndex]) {
+    customHints[finalTrapIndex] = { letters: [], custom: "", showLength: true };
+  }
+  customHints[finalTrapIndex].showLength = true;
+}
 
     store.put({
       id: 'userData',
@@ -1022,20 +1045,92 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
   }
 }
 
+// Returns the currently selected Red Herring index, or -1 if none selected
+function getSelectedTrapIndex() {
+  let idx = -1;
+  document.querySelectorAll('.trap-checkbox').forEach(cb => {
+    if (cb.checked) idx = parseInt(cb.dataset.index);
+  });
+  return idx;
+}
+
+// Ensure Red Herring's showLength flag is forced ON in memory
+function enforceRedHerringShowLength() {
+  const trapIndex = getSelectedTrapIndex();
+  if (trapIndex >= 0) {
+    if (!customHints[trapIndex]) {
+      customHints[trapIndex] = { letters: [], custom: "", showLength: true };
+    } else {
+      customHints[trapIndex].showLength = true;
+    }
+  }
+}
+
   function openHintModal(index) {
-    activeHintIndex = index;
-    document.getElementById('hintModal').style.display = 'flex';
-    buildLetterSelectors();
+  activeHintIndex = index;
+  document.getElementById('hintModal').style.display = 'flex';
+
+  const trapIndex = getSelectedTrapIndex();
+  const showLengthEl = document.getElementById('showLength');
+  const saved = customHints[index];
+
+  // Default from saved or TRUE
+  showLengthEl.checked = (saved && typeof saved.showLength === 'boolean')
+    ? saved.showLength
+    : true;
+
+  // If this question is the Red Herring, force ON + disable
+  if (index === trapIndex) {
+    showLengthEl.checked = true;
+    showLengthEl.disabled = true;
+  } else {
+    showLengthEl.disabled = false;
   }
-  
+
+  // Pre-size number of letters dropdown
+  const numLettersEl = document.getElementById('numLetters');
+  if (saved?.letters?.length >= 0) {
+    numLettersEl.value = String(saved.letters.length || 0);
+  }
+
+  buildLetterSelectors();
+
+  // Disable/enable letter hint controls based on showLength
+  toggleLetterHintAvailability(showLengthEl.checked);
+
+  // Ensure it updates live when checkbox toggles
+  showLengthEl.addEventListener("change", () => {
+    toggleLetterHintAvailability(showLengthEl.checked);
+  });
+}
+
+  function toggleLetterHintAvailability(enabled) {
+  const numLettersEl = document.getElementById('numLetters');
+  const container = document.getElementById('letterSelectors');
+  const saveBtn = document.getElementById('hintSaveBtn');
+
+  if (!enabled) {
+    if (numLettersEl) numLettersEl.disabled = true;
+    if (container) container.querySelectorAll('select').forEach(sel => sel.disabled = true);
+    if (saveBtn) saveBtn.disabled = true;  // block saving letter hints
+  } else {
+    if (numLettersEl) numLettersEl.disabled = false;
+    if (container) container.querySelectorAll('select').forEach(sel => sel.disabled = false);
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
   function closeHintModal() {
-    activeHintIndex = null;
-    document.getElementById('hintModal').style.display = 'none';
-    document.getElementById('letterSelectors').innerHTML = '';
-    document.getElementById('customHintText').value = '';
-    document.getElementById('numLetters').value = '1';
-  }
-  
+  activeHintIndex = null;
+  document.getElementById('hintModal').style.display = 'none';
+  document.getElementById('letterSelectors').innerHTML = '';
+  document.getElementById('customHintText').value = '';
+  const numSel = document.getElementById('numLetters');
+  if (numSel) numSel.value = '0';
+  const sl = document.getElementById('showLength');
+  if (sl) sl.checked = true;
+}
+
   function buildLetterSelectors() {
   if (activeHintIndex === null) return;
 
@@ -1056,8 +1151,8 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
       const option = document.createElement('option');
       option.value = i;
       option.textContent = i === 0
-        ? "0 characters (only text hint)"
-        : `${i} character${i > 1 ? 's' : ''}`;
+        ? "0 letters (only answer length)"
+        : `${i} letter${i > 1 ? 's' : ''}`;
       select.appendChild(option);
     }
   }
@@ -1086,13 +1181,33 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
 
   function saveCustomHint() {
   if (activeHintIndex === null) return;
+
+  const trapIndex = getSelectedTrapIndex();
+  const requestedShowLength = document.getElementById('showLength').checked;
+  const effectiveShowLength = (activeHintIndex === trapIndex) ? true : requestedShowLength;
+
+  // If showLength is off → block letter hints, only save custom text
+  if (!effectiveShowLength) {
+    customHints[activeHintIndex] = {
+      letters: [],
+      custom: document.getElementById('customHintText').value.trim(),
+      showLength: false
+    };
+    updateEntropy(activeHintIndex);
+    closeHintModal();
+    return;
+  }
+
+  // Otherwise allow letter hints
   const num = parseInt(document.getElementById('numLetters').value);
   const indexes = [];
   const seen = new Set();
   let duplicateFound = false;
 
   for (let i = 0; i < num; i++) {
-    const value = parseInt(document.getElementById(`letter-select-${i}`).value);
+    const el = document.getElementById(`letter-select-${i}`);
+    if (!el) continue;
+    const value = parseInt(el.value);
     if (seen.has(value)) {
       duplicateFound = true;
       break;
@@ -1108,10 +1223,11 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
 
   customHints[activeHintIndex] = {
     letters: indexes.sort((a, b) => a - b),
-    custom: document.getElementById('customHintText').value.trim()
+    custom: document.getElementById('customHintText').value.trim(),
+    showLength: effectiveShowLength
   };
 
-  updateEntropy(activeHintIndex); // ✅ recalculate entropy now that hint letters changed
+  updateEntropy(activeHintIndex);
   closeHintModal();
 }
 
@@ -1150,32 +1266,24 @@ document.querySelectorAll('.trap-checkbox').forEach(cb => {
 }
 
   window.onload = () => {
+  // Render the questions UI
   loadQuestions();
+
+  // Start the 30‑minute security timer + initial countdown text
   startSecurityTimer();
   updateCountdownDisplay();
 
-  const vaultType = localStorage.getItem('selectedVaultType');
-  if (vaultType === 'docs-only') {
-    document.querySelectorAll('.seed-fields').forEach(el => {
-      el.style.display = 'none';
-    });
-  }
+  // Attach Red Herring handlers (safe to call even though loadQuestions wires them)
+  attachTrapCheckboxHandlers();
 
-  // Activate trap checkbox logic after UI loaded
-  document.querySelectorAll('.trap-checkbox').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const selectedIndex = parseInt(cb.dataset.index);
-const unlockIndexes = JSON.parse(localStorage.getItem('unlockQuestions') || '[0,1]');
-if (unlockIndexes.includes(selectedIndex) && cb.checked) {
-        cb.checked = false;
-        showMessageModal("Invalid Red Herring", "You cannot select one of the Layer 1 unlock questions as a red herring. Please choose a different question.");
-        return;
-      }
-      document.querySelectorAll('.trap-checkbox').forEach(other => {
-        if (other !== cb) other.checked = false;
-      });
-    });
-  });
+  // Refresh uploads list (the DOMContentLoaded listener for uploads is fine to keep)
+  displayUploadedFiles();
+
+  // Compute overall strength once the per‑question entropy rows exist
+  calculateTotalEntropy();
+
+  // (Optional) re-render saved named seeds list
+  renderNamedSeeds();
 };
 </script>
 
@@ -1296,22 +1404,32 @@ function updateEntropy(index) {
   }
 
   const answer = input.value.trim().toLowerCase();
-  const hint = customHints[index] || { letters: [] };
-  const revealed = hint.letters?.length || 0;
+  const hintObj = customHints[index] || { letters: [], showLength: true };
 
-  // Handle binary-style answers with forced 1 bit entropy
+  // Base entropy from zxcvbn (or 1 bit for yes/no/true/false)
   const binaryAnswers = ['t', 'f', 'y', 'n', 'true', 'false', 'yes', 'no'];
   let baseEntropy;
   if (binaryAnswers.includes(answer)) {
     baseEntropy = 1;
   } else {
     const result = zxcvbn(answer);
-    baseEntropy = Math.log2(result.guesses || 1); // Use guesses, not entropy field
+    baseEntropy = Math.log2(result.guesses || 1);
   }
 
-  const penaltyPerChar = Math.log2(26); // lowercase letters only
-  const penalty = revealed * penaltyPerChar;
-  const effectiveEntropy = Math.max(0, baseEntropy - penalty);
+  // Penalties:
+  // 1) Revealed letters (each ~ log2(26) bits leaked for lowercase model)
+  const lettersRevealed = Array.isArray(hintObj.letters) ? hintObj.letters.length : 0;
+  const lettersPenalty = lettersRevealed * Math.log2(26);
+
+  // 2) Revealing exact length leaks a small amount of information.
+  //    We conservatively bound this at log2(min(length, 20)) to avoid overcounting.
+  const showLength = (typeof hintObj.showLength === 'boolean') ? hintObj.showLength : true;
+  const lengthKnown = showLength ? answer.length : 0;
+  const lengthPenalty = showLength
+    ? Math.log2(Math.max(1, Math.min(lengthKnown, 20)))
+    : 0;
+
+  const effectiveEntropy = Math.max(0, baseEntropy - lettersPenalty - lengthPenalty);
 
   let color = '#ff3333';
   if (effectiveEntropy >= 40) color = '#00ff99';
@@ -1319,79 +1437,10 @@ function updateEntropy(index) {
 
   entropyDisplay.textContent = `Entropy: ${effectiveEntropy.toFixed(1)} bits`;
   entropyDisplay.style.color = color;
+
   calculateTotalEntropy();
 }
 
-function calculateTotalEntropy() {
-  const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
-  let total = 0;
-
-  for (let i = 0; i < numberOfQuestions; i++) {
-    const el = document.getElementById(`entropy-${i}`);
-    if (el) {
-      const match = el.textContent.match(/([\d.]+) bits/);
-      if (match) total += parseFloat(match[1]);
-    }
-  }
-
-  // Update entropy display
-  document.getElementById('totalEntropyBits').textContent = total.toFixed(1);
-
-  const assessment = document.getElementById('entropyAssessment');
-  if (total < 40) {
-    assessment.textContent = 'Very Weak';
-    assessment.style.color = '#ff3333';
-  } else if (total < 80) {
-    assessment.textContent = 'Weak';
-    assessment.style.color = '#ff9933';
-  } else if (total < 120) {
-    assessment.textContent = 'Moderate';
-    assessment.style.color = '#ffff00';
-  } else if (total < 180) {
-    assessment.textContent = 'Strong';
-    assessment.style.color = '#66ff66';
-  } else {
-    assessment.textContent = 'Very Strong';
-    assessment.style.color = '#00ff99';
-  }
-
-  // Total combinations
-  const totalCombinationsEl = document.getElementById('totalCombinations');
-  const crackTimeEl = document.getElementById('estimatedCrackTime');
-  const guessesPerSec = 1e12; // 1 trillion guesses/sec (botnet estimate)
-
-  if (total <= 0) {
-    totalCombinationsEl.textContent = "0";
-    crackTimeEl.textContent = "Instantly crackable";
-    return;
-  }
-
-  const combinations = Math.pow(2, total);
-  const exp = Math.floor(Math.log10(combinations));
-  const base = combinations / Math.pow(10, exp);
-  totalCombinationsEl.textContent = `${base.toFixed(2)} × 10^${exp}`;
-
-  // Crack time estimate (in seconds)
-  const seconds = combinations / guessesPerSec;
-
-  let readable = "";
-  if (seconds < 1) {
-    readable = "Instantly crackable";
-  } else if (seconds < 60) {
-    readable = `~${Math.ceil(seconds)} second${seconds > 1 ? 's' : ''}`;
-  } else if (seconds < 3600) {
-    readable = `~${Math.ceil(seconds / 60)} minute${seconds > 120 ? 's' : ''}`;
-  } else if (seconds < 86400) {
-    readable = `~${Math.ceil(seconds / 3600)} hour${seconds > 7200 ? 's' : ''}`;
-  } else if (seconds < 31536000) {
-    readable = `~${Math.ceil(seconds / 86400)} day${seconds > 172800 ? 's' : ''}`;
-  } else {
-    const years = seconds / 31536000;
-    readable = `~${years.toFixed(1)} year${years > 1.1 ? 's' : ''}`;
-  }
-
-  crackTimeEl.textContent = readable;
-}
 function calculateTotalEntropy() {
   const numberOfQuestions = parseInt(localStorage.getItem('questionCount')) || 12;
   let totalBits = 0;
