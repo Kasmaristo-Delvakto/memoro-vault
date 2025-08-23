@@ -832,9 +832,9 @@ async function submitRecovery() {
     const layer1Salt = vaultJson.layer1Salt;
     const vaultMetaIv = new Uint8Array(vaultJson.vaultMetaIv);
     const argonSettings = vaultJson.argonSettings || {
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
       type: "Argon2id",
       hashLen: 32
 };
@@ -1090,9 +1090,9 @@ async function submitRecovery() {
   const argonResult = await argon2.hash({
     pass: password,
     salt,
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
       type: "Argon2id",
       hashLen: 32
   });
@@ -1145,9 +1145,9 @@ async function submitRecovery() {
       const argonResult = await argon2.hash({
         pass: password,
         salt,
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
       type: "Argon2id",
       hashLen: 32
       });
@@ -1248,9 +1248,9 @@ async function submitRecovery() {
     : new Uint8Array(await crypto.subtle.digest('SHA-256', passwordBytes));
 
   const settings = settingsOverride || {
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
       type: "Argon2id",
       hashLen: 32
   };
@@ -1435,9 +1435,9 @@ async function submitRecovery() {
 
     const layer1Salt = transferFromStorage.vaultJson.layer1Salt;
     const argonSettings = transferFromStorage.vaultJson.argonSettings || {
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
       type: "Argon2id",
       hashLen: 32
 };

@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Building Your Vault - Memoro Vault</title>
-  <script src="libs/seedrandom.min.js"></script>
-  <script src="libs/crypto-js.min.js"></script>
   <script src="libs/zip.min.js"></script>
   <script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
   <script type="module">
@@ -651,9 +649,9 @@ setTimeout(() => {
     printToTerminal("[+] Selection and permutation complete. Encrypting vault contents...", 70);
 
     const argonSettings = {
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
       type: "Argon2id",
       hashLen: 32
     };
@@ -806,11 +804,11 @@ async function deriveKey(password, saltHex, settingsOverride) {
     ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
     : new Uint8Array(await crypto.subtle.digest('SHA-256', passwordBytes));
   const settings = settingsOverride || {
-    time: 4,
-    mem: 4096,
-    parallelism: 2,
-    type: 'Argon2id',
-    hashLen: 32
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
+      type: "Argon2id",
+      hashLen: 32
   };
   const argonResult = await argon2.hash({
     pass: password,
@@ -856,7 +854,11 @@ async function deriveKey(password, saltHex, settingsOverride) {
   // 🔐 Layer 1 key: used to encrypt question metadata
   const layer1Salt = generateRandomHex(32);
   const layer1Key = await deriveKey(unlockConcat, layer1Salt, {
-    time: 4, mem: 4096, parallelism: 2, type: 'Argon2id', hashLen: 32
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
+      type: "Argon2id",
+      hashLen: 32
   });
 
   const questionList = userData.answers.map((ans, i) => {
@@ -925,7 +927,11 @@ async function deriveKey(password, saltHex, settingsOverride) {
   fullConcat = permutedConcat; // ✅ Use permuted concat going forward
 
   const fullKey = await deriveKey(fullConcat, fullSalt, {
-    time: 4, mem: 4096, parallelism: 2, type: 'Argon2id', hashLen: 32
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
+      type: "Argon2id",
+      hashLen: 32
   });
 
   const vaultHashRaw = await sha256Hash(encoder.encode(fullConcat));
@@ -943,10 +949,10 @@ async function deriveKey(password, saltHex, settingsOverride) {
     const argonResult = await argon2.hash({
       pass: fullConcat + fileId,
       salt: fileSalt,
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
-      type: 'Argon2id',
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
+      type: "Argon2id",
       hashLen: 32
     });
 
@@ -1043,9 +1049,9 @@ async function deriveKey(password, saltHex, settingsOverride) {
     ],
     vaultMetaIv: payloads.fileMetaEncrypted.iv,
     argonSettings: {
-      time: 4,
-      mem: 4096,
-      parallelism: 2,
+      time: 3,
+      mem: 16384,
+      parallelism: 1,
       type: "Argon2id",
       hashLen: 32
     },
@@ -1058,57 +1064,72 @@ async function deriveKey(password, saltHex, settingsOverride) {
     await addBlob(file.filename, file.blob);
   }
 
-await writer.add("README.txt", new zip.TextReader(`Memoro Vault
+await writer.add(
+  "README.txt",
+  new zip.TextReader(
+`Memoro Vault
 ===========
 
 Built with Memoro Vault version 1.0.5
 
-This ZIP file contains an encrypted vault. To open it, you’ll need to answer a series of personal questions exactly as they were originally answered. No hints. No partial credit.
+This ZIP file contains an encrypted vault.  
+To unlock it, you must supply the exact answers you originally provided.  
+If even one character is wrong, the vault will remain locked.
 
-Six of those answers must also be entered in the correct order. If anything is off — even one character, or the order of those six — the vault will remain locked. There is no reset, no override, and no way to guess your way in.
+The vault is secured with modern encryption designed to resist brute-force attacks 
+even with today’s most powerful hardware.  
+It runs fully offline and does not depend on any server or cloud.  
+If this archive has been altered in any way, decryption will fail.
 
-This vault was secured using Argon2id encryption, designed to resist brute-force attacks even with modern hardware. It runs fully offline and does not depend on any server or cloud.
-
-If you were meant to open this, you’ll know the answers. Be precise.
-
-If you weren’t, there’s nothing you can do.
+If you were meant to open this, you’ll know the answers.  
+If you weren’t, there is no way in.
 
 — Kaŝmaristo Delvakto  
 "Libereco ne estas donaco. Ĝi estas devo."
 
----
 
 ## How to Open the Vault
 
-1. **Locate the Memoro Vault app**  
-   In this ZIP file, look for a file like \`memoro-win.exe\`, \`memoro-linux.AppImage\`, or \`memoro-mac.dmg\`, depending on your device.
+1. **Find the Memoro Vault app**  
+   This ZIP already contains a copy of the installer —  
+   \`memoro-win.exe\`, \`memoro-linux.AppImage\`, or \`memoro-mac.dmg\` depending on your device.
 
 2. **Run the app**  
-   No installation needed. Just open the file. If your system asks if you trust it, say yes — assuming you trust the person who gave you this.
+   No setup needed. Open the file directly.  
+   If your system asks if you trust it, the answer depends on whether you trust the person who gave you this vault.
 
-3. **Click "Recover Vault"**  
-   Choose this same ZIP file when prompted.
+3. **Choose "Recover Vault"**  
+   When prompted, select this ZIP file.
 
 4. **Enter the answers**  
-   Type the answers exactly as they were saved — all lowercase, no extra spaces. The vault will only open if everything is correct.
+   Provide each answer exactly as entered during vault creation —  
+   all lowercase, no extra spaces.  
+   The program will take care of everything else.
 
-If you succeed, you’ll see the contents.  
-If you don’t, keep trying — but there are no clues and no second paths.
+If successful, the encrypted files will be revealed.  
+If not, there are no hints, shortcuts, or alternate ways in.
 
-What matters now is what you remember.
-`));
+What matters now is what you remember.`
+  )
+);
 
 await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(`Vault Builder Instructions
 ==========================
+Vault Builder Instructions
+==========================
 
-Make a folder, place this ZIP and the Memoro Vault installer in it. Duplicate that folder to:
-- M-DISC
-- Offline SSD or USB
-- Cloud backup
+Place this ZIP together with the Memoro Vault installer in a single folder.  
+Make multiple copies of that folder and store them in different places:
 
-Do not modify this archive. It is fragile by design. Even one flipped byte will break decryption.
+- M-DISC  
+- Offline SSD or USB drive  
+- Encrypted cloud backup
 
-Libereco ne estas donaco. Ĝi estas devo.
+Do not modify or rename anything inside this archive.  
+Even a one-byte change will prevent recovery.  
+Its fragility is intentional.
+
+Libereco ne estas donaco. Ĝi estas devo.  
 — Kaŝmaristo Delvakto`));
 
   const blob = await writer.close();
