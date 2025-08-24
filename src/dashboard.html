@@ -3,361 +3,235 @@
 <head>
   <meta charset="UTF-8">
   <title>Memoro Vault - Dashboard</title>
-  <script src="libs/zip.min.js"></script>
-  <script src="libs/argon2-browser.min.js"></script>
+<script src="libs/zip.min.js"></script>
+<script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
+<script src="libs/secrets.min.js"></script>
+
+<!-- PDF.js core -->
+<script src="libs/pdf.min.js"></script>
+<script>
+  // Configure PDF.js to use the worker from your local libs folder
+  if (window['pdfjsLib']) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
+  }
+</script>
+
+<!-- QR decoder -->
+<script src="libs/jsqr.min.js"></script>
 
   <style>
-  body {
-    background-color: black;
-    color: #00ff99;
-    font-family: 'Fira Code', monospace;
-    margin: 0;
-    padding: 30px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
-  }
+  /* ===========================
+   Memoro Vault — Dashboard UI
+   Professional Neo/Cypherpunk
+   =========================== */
 
-  h1, h2, h3 {
-    color: #00ff99;
-    margin: 0;
-  }
-
-  h1 {
-    font-size: 48px;
-    display: flex;
-    justify-content: center;
-    margin-bottom: 5px;
-  }
-
-  p {
-    font-size: 20px;
-    color: #0f0;
-    text-align: center;
-    margin-bottom: 30px;
-  }
-
-  .typewriter-text {
-  display: inline-block;
-  overflow: hidden;
-  white-space: nowrap;
-  border-right: 2px solid transparent;
-  color: transparent;
-  animation:
-    revealText 0s forwards,
-    typing 2s steps(40, end) forwards 0.05s,
-    blink-caret 0.75s step-end 7 2s forwards; /* 7 blinks */
-  pointer-events: none;
+/* Theme tokens */
+:root{
+  --bg:#000;
+  --fg:#b8ffd9;
+  --fg-strong:#c9ffd7;
+  --accent:#00ff99;
+  --accent-dim:rgba(0,255,153,.55);
+  --panel:#0b0f0c;
+  --panel-2:#101410;
+  --panel-3:#151a16;
+  --radius:12px;
+  --radius-sm:10px;
+  --radius-xs:8px;
+  --gap:clamp(10px,2.2vw,18px);
+  --pad:clamp(12px,2.4vw,24px);
+  --pad-lg:clamp(18px,3vw,30px);
 }
 
-@keyframes revealText {
-  to {
-    color: #00ff99;
-    border-right-color: #00ff99;
-  }
+/* Base */
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  padding:min(3vh,28px);
+  background:var(--bg);
+  color:var(--fg);
+  font-family:"Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  display:flex; flex-direction:column; align-items:center;
 }
 
-@keyframes typing {
-  from { width: 0 }
-  to { width: 100% }
+/* Typography */
+h1,h2,h3{ margin:0; line-height:1.1; color:var(--accent); }
+h1{ font-size:clamp(28px,4.6vw,54px); letter-spacing:.3px; text-shadow:0 0 18px rgba(0,255,153,.12); }
+h2{ font-size:clamp(18px,2.2vw,26px); color:var(--fg-strong); }
+h3{ font-size:clamp(16px,2vw,22px); color:var(--fg-strong); }
+p{  margin:0; color:#9ff6cf; text-align:center; font-size:clamp(14px,1.8vw,19px); }
+
+/* Tight hero spacing */
+h1{ margin-bottom:.22em; }
+h1 + div p.typewriter-text{ margin:0 0 .14em; line-height:1.18; }
+h1 + div + div p.typewriter-text{ margin-top:0; }
+
+/* Optional typing reveal */
+.typewriter-text{
+  display:inline-block; overflow:hidden; white-space:nowrap;
+  border-right:2px solid transparent; color:transparent;
+  animation:mv-reveal 0s forwards, mv-typing 1.8s steps(40,end) .05s forwards, mv-blink .9s step-end 6 1.85s forwards;
+  pointer-events:none;
+}
+@keyframes mv-reveal{ to{ color:#b8ffd9; border-right-color:#b8ffd9; } }
+@keyframes mv-typing{ from{width:0} to{width:100%} }
+@keyframes mv-blink{ 0%,100%{border-color:transparent} 50%{border-color:#b8ffd9} }
+
+/* Buttons */
+.button, .modal-buttons button, .unlock-button, .three-dots{
+  background:linear-gradient(180deg,#0a2d21,#071c15);
+  color:#d8ffea;
+  border:1px solid var(--accent-dim);
+  border-radius:var(--radius-xs);
+  padding:13px 22px;
+  font-size:clamp(14px,1.6vw,18px);
+  cursor:pointer;
+  transition:transform .12s, box-shadow .18s, background .25s, opacity .2s, filter .2s;
+  box-shadow:0 6px 18px rgba(0,255,153,.12), inset 0 0 0 1px rgba(0,255,153,.10);
+}
+.button:hover, .modal-buttons button:hover, .unlock-button:hover{
+  background:linear-gradient(180deg,#0e3b2b,#0a2e22);
+  transform:translateY(-1px);
+  box-shadow:0 10px 26px rgba(0,255,153,.18), inset 0 0 0 1px rgba(0,255,153,.16);
+}
+.button:focus-visible, .modal-buttons button:focus-visible, .unlock-button:focus-visible{
+  outline:0; box-shadow:0 0 0 3px rgba(0,255,153,.28), 0 10px 26px rgba(0,255,153,.18);
+}
+.button:active{ transform:translateY(0); }
+.button[disabled], .modal-buttons button[disabled], .unlock-button[disabled]{ opacity:.45; filter:grayscale(100%); box-shadow:none; cursor:not-allowed; }
+
+/* CTA row — 4 across on wide screens, hugs content */
+.button-group{
+  display: inline-grid;                  /* shrink-wrap container */
+  grid-auto-flow: column;                /* lay items left→right in one row */
+  grid-auto-columns: max-content;        /* each button keeps natural width */
+  gap: 14px 18px;
+  justify-content: center;
+  margin: 12px auto 0;
+  padding: clamp(10px,1.2vw,14px) clamp(12px,1.6vw,18px);
+  background: linear-gradient(180deg, rgba(0,255,153,.04), rgba(0,255,153,.02));
+  border: 1px solid rgba(0,255,153,.22);
+  border-radius: 16px;
+  box-shadow: 0 0 18px rgba(0,255,153,.12), inset 0 0 0 1px rgba(0,255,153,.08);
+  backdrop-filter: blur(2.5px);
+  width: auto;                           /* key: no 100% / max-width */
 }
 
-@keyframes blink-caret {
-  0%, 100% { border-color: transparent; }
-  50% { border-color: #00ff99; }
-}
-
-
-  .button, .modal-buttons button {
-    background-color: #003322;
-    color: #0f0;
-    border: 1px solid #0f0;
-    padding: 15px 30px;
-    font-size: 18px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    position: relative;
-    overflow: hidden;
-    font-family: 'Fira Code', monospace;
-  }
-
-  .button:hover, .modal-buttons button:hover {
-    background-color: #005544;
-  }
-
-  .button-group {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-bottom: 40px;
-    gap: 10px;
-  }
-
-  .vault-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-    width: 100%;
-    max-width: 1000px;
-  }
-
-  .vault-item {
-    background-color: #111;
-    border: 1px solid #00ff99;
-    box-shadow: 0 0 10px #00ff99;
-    padding: 25px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    position: relative;
-    animation: fadeIn 0.5s ease;
-  }
-
-  .vault-item h2 {
-    margin: 0 0 10px;
-    font-size: 22px;
-    word-break: break-word;
-  }
-
-  .vault-item p {
-    margin: 5px 0;
-    font-size: 16px;
-    color: #ccc;
-  }
-
-  .unlock-button {
-    margin-top: 15px;
-    background-color: #002211;
-    color: #00ff99;
-    border: 1px solid #00ff99;
-    padding: 10px 25px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    align-self: stretch;
-    transition: background-color 0.3s, transform 0.2s;
-  }
-
-  .unlock-button:hover {
-    background-color: #004422;
-    transform: translateY(-2px);
-  }
-
-  .three-dots {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: none;
-    border: none;
-    color: #eee;
-    font-size: 22px;
-    cursor: pointer;
-  }
-
-  .vault-menu {
-    display: none;
-    position: absolute;
-    top: 45px;
-    right: 15px;
-    background: #222;
-    border: 1px solid #555;
-    border-radius: 8px;
-    overflow: hidden;
-    z-index: 10;
-  }
-
-  .vault-menu button {
-    display: block;
-    width: 160px;
-    padding: 10px 16px;
-    background: #000;
-    border: none;
-    color: #00ff99;
-    text-align: left;
-    cursor: pointer;
-    font-family: 'Fira Code', monospace;
-    font-size: 15px;
-    border-bottom: 1px solid #00ff99;
-    transition: background-color 0.2s, box-shadow 0.2s;
-  }
-
-  .vault-menu button:last-child {
-    border-bottom: none;
-  }
-
-  .vault-menu button:hover {
-    background-color: #002611;
-    box-shadow: 0 0 8px #00ff99;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-  }
-
-  .modal {
-    background-color: #000;
-    padding: 40px 30px;
-    border-radius: 14px;
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    box-shadow: 0 0 16px #00ff99;
-    border: 1px solid #00ff99;
-    text-align: center;
-    animation: fadeInModal 0.3s ease-out;
-  }
-
-  @keyframes fadeInModal {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  .modal h2, .modal p {
-    margin: 0;
-    text-align: center;
-    font-family: 'Fira Code', monospace;
-    color: #00ff99;
-  }
-
-  .modal p {
-    font-size: 16px;
-    margin-top: 10px;
-    white-space: pre-line;
-  }
-
-  .modal input {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #0f0;
-    background-color: #000;
-    color: #0f0;
-    width: 100%;
-    font-family: 'Fira Code', monospace;
-  }
-
-  .modal-buttons button {
-    background-color: #003322;
-    color: #0f0;
-    border: 1px solid #0f0;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
-    font-family: 'Fira Code', monospace;
-  }
-
-  canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: -2;
-  }
-
-  .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.75);
-    z-index: -1;
-  }
-
-  #matrixCanvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: -3;
-  }
-
-  .matrix-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.75);
-    z-index: -2;
-  }
-
-  /* ✅ Responsive layout for buttons */
-  @media (max-width: 600px) {
-    .button-group {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 12px;
-    }
-
-    .button {
-      width: 100%;
-      text-align: center;
-      padding: 14px;
-      font-size: 16px;
-    }
-
-    h1 {
-      font-size: 30px;
-      text-align: center;
-    }
-
-    p {
-      font-size: 16px;
-    }
-  }
-
-@media (max-width: 600px) {
-  .button-group {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .button {
-    width: 90%;
-    max-width: 320px;
-    text-align: center;
-    padding: 12px 16px;
-    font-size: 16px;
-    box-sizing: border-box;
-  }
-
-  h1 {
-    font-size: 30px;
-    text-align: center;
-  }
-
-  p {
-    font-size: 16px;
+/* Tablet: 2×2 grid (still snug) */
+@media (max-width: 1024px){
+  .button-group{
+    grid-auto-flow: row;
+    grid-template-columns: repeat(4, max-content);
   }
 }
 
+/* Mobile: single column, snug frame */
+@media (max-width: 750px){
+  .button-group{
+    grid-template-columns: 1fr;
+    padding: clamp(8px,1vw,12px) clamp(10px,1.2vw,14px);
+  }
+  .button{ width: 100%; }
+}
 
+/* Vault list cards */
+.vault-list{
+  width:min(825px,100%);
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:var(--gap); margin-top:24px;
+}
+.vault-item{
+  background:var(--panel-2);
+  border:1px solid rgba(0,255,153,.28);
+  border-radius:var(--radius);
+  padding:var(--pad-lg);
+  display:flex; flex-direction:column; gap:10px;
+  position:relative;
+  box-shadow:0 10px 28px rgba(0,255,153,.10), inset 0 0 0 1px rgba(0,255,153,.08);
+  animation:fadeIn .45s ease both;
+}
+.vault-item h2{ font-size:clamp(18px,2.1vw,22px); color:#ddffe9; word-break:break-word; }
+.vault-item p{ font-size:clamp(13px,1.6vw,16px); color:#cfeede; text-align:left; }
+.unlock-button{ align-self:stretch; }
+.three-dots{ position:absolute; top:12px; right:12px; background:transparent; border:none; font-size:22px; box-shadow:none; color:#d8ffea; }
+.vault-menu{
+  display:none; position:absolute; top:44px; right:12px;
+  background:#0b0b0b; border:1px solid rgba(0,255,153,.25); border-radius:var(--radius-xs);
+  overflow:hidden; z-index:10; box-shadow:0 10px 22px rgba(0,0,0,.4);
+}
+.vault-menu button{
+  width:210px; background:#000; border:0; border-bottom:1px solid rgba(0,255,153,.18);
+  color:#d8ffea; text-align:left; font-size:15px; padding:12px 14px;
+}
+.vault-menu button:last-child{ border-bottom:0; }
+.vault-menu button:hover{ background:#062717; }
+
+/* Modals */
+.modal-overlay{
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.72);
+  align-items:center; justify-content:center; padding:20px;
+}
+.modal{
+  background:#101410; color:#d9ffe9; font-family:'Fira Code', monospace;
+  width:92%; max-width:520px;
+  padding:42px 34px 30px;
+  border:1px solid rgba(0,255,153,.35);
+  border-radius:12px;
+  box-shadow:0 0 16px rgba(0,255,153,.15), 0 18px 40px rgba(0,0,0,.6);
+  max-height:calc(100vh - 80px); overflow-y:auto; box-sizing:border-box;
+  display:flex; flex-direction:column; gap:16px; text-align:center; align-items:stretch;
+}
+.modal h2{ margin:0 0 6px; font-size:26px; color:#ddffe9; }
+.modal p{ margin:0; font-size:15px; line-height:1.6; color:#bfffe6; }
+.modal input, .modal select, .modal textarea{
+  width:100%; padding:10px 12px; min-height:46px; line-height:1.2;
+  border-radius:8px; border:1px solid rgba(0,255,153,.45);
+  background:#000; color:#cfffec; font-family:'Fira Code', monospace; font-size:15px;
+  outline:none; transition:box-shadow .2s, border-color .2s;
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus{
+  border-color:#00ff99; box-shadow:0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+.modal-buttons{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-top:6px; }
+
+/* Progress bar in modal */
+#paperProgressHost{ width:100%; text-align:left; }
+#paperProgressText{ font-size:14px; color:#bfffe6; margin-bottom:6px; }
+.paper-progress-track{ background:#222; border:1px solid #00ff99; border-radius:6px; overflow:hidden; height:12px; }
+#paperProgressBar{ height:12px; width:0%; background:#00ff99; border-radius:6px; }
+
+/* Responsive modal tweaks */
+@media (max-width:520px){
+  .modal{ padding:30px 16px 20px; border-radius:10px; gap:12px; }
+  .modal h2{ font-size:22px; }
+  .modal p{ font-size:14px; }
+}
+
+/* Canvas layers */
+canvas{ position:fixed; inset:0 0 auto auto; z-index:-2; }
+#matrixCanvas{ position:fixed; inset:0; width:100vw; height:100vh; z-index:-3; }
+.matrix-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:-2; }
+
+/* Scrollbars (WebKit/Chromium) */
+*::-webkit-scrollbar{ width:10px; height:10px; }
+*::-webkit-scrollbar-thumb{ background:linear-gradient(#00ff99,#009966); border-radius:10px; }
+*::-webkit-scrollbar-track{ background:#0d0d0d; }
+
+/* Accessibility */
+@media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
+
+/* Helpers */
+.center{ text-align:center; }
+.hidden{ display:none !important; }
+.hr{ height:1px; width:100%; background:linear-gradient(90deg,transparent,rgba(0,255,153,.35),transparent); margin:6px 0; }
+
+@keyframes fadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
 </style>
+
 
 
 </head>
@@ -382,6 +256,7 @@
 <div class="button-group">
   <button class="button" style="animation-delay: 3.5s;" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
   <button class="button" style="animation-delay: 5.5s;" onclick="promptOfflineWarning('load')">Load Vault File</button>
+  <button class="button" style="animation-delay: 9.5s;" onclick="openPaperDecrypt()">Restore Physical Backup</button>
   <button class="button" style="animation-delay: 7.5s;" onclick="goToHowItWorks()">How Memoro Works</button>
 </div>
 
@@ -458,6 +333,45 @@
   </div>
 </div>
 
+<!-- Paper Decrypt Modal -->
+<div class="modal-overlay" id="paperDecryptModal">
+  <div class="modal" style="max-width: 720px;">
+    <h2>Restore Physical Backup</h2>
+    <p style="white-space: normal; text-align:left;">
+        Upload the full PDF or individual page images. We’ll extract:<br>
+        • 1× <code>MVKEY</code> (single key QR)<br>
+        • 1× <code>MVHDR</code> (header) and all <code>MVCT</code> tiles (ciphertext)<br>
+        Then we rebuild <code>memoro-lite.zip</code>.
+      </p>
+
+
+    <!-- File input -->
+    <input id="paperFiles" type="file" accept=".pdf,image/*" multiple
+           style="width:100%; margin-bottom:12px;">
+
+    <!-- Optional: simple camera for key shares -->
+    <div style="width:100%; border:1px solid #0f0; padding:10px; border-radius:8px; margin:8px 0;">
+      <h3 style="margin:0 0 8px 0;">Scan Key Shares (Optional)</h3>
+      <p style="margin:0 0 8px 0; font-size:14px; color:#ccc;">
+        If you prefer, aim the camera at an MVKEY QR (one at a time). We still recommend uploading a page/PDF for the tiles.
+      </p>
+      <video id="paperCam" playsinline style="width:100%; max-height:240px; background:#000; display:none;"></video>
+      <div class="modal-buttons" style="gap:8px;">
+        <button onclick="startKeyCam()">Start Camera</button>
+        <button onclick="stopKeyCam()">Stop Camera</button>
+        <button onclick="scanFromVideoOnce()">Scan Key</button>
+      </div>
+    </div>
+
+    <div id="paperStatus" style="width:100%; text-align:left; font-size:14px; color:#ccc;"></div>
+
+    <div class="modal-buttons" style="margin-top:10px;">
+      <button onclick="closePaperDecrypt()">Close</button>
+      <button id="rebuildBtn" onclick="rebuildLiteFromPaper()" disabled>Rebuild Lite ZIP</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const loadedVaults = {};
 let currentUnlockVaultId = null;
@@ -497,24 +411,18 @@ function closeMessageModal() {
     }
   }
 
-  // Vault Functions
-  function saveVaultsToLocalStorage() {
-  const vaults = window.loadedVaults || {};
-  const saveList = Object.entries(vaults).map(([vaultId, vaultData]) => {
-    return {
-      vaultId,
-      vaultBlob: vaultData.vaultBlob,
-      fileMapRaw: vaultData.fileMapRaw,
-      vaultJson: vaultData.vaultJson,
-    };
-  });
-
+function saveVaultsToLocalStorage() {
   try {
-    const serialized = JSON.stringify(saveList);
-    localStorage.setItem("memoroVaultVaultList", serialized);
-    console.log("✔ Vault list saved to localStorage");
+    const index = Object.entries(loadedVaults).map(([vaultId, v]) => ({
+      vaultId,
+      fileName: v.fileName || 'Memoro Vault',
+      // keep minimal metadata for display/restoration
+      createdAt: Date.now(),
+    }));
+    localStorage.setItem('memoroVaultIndex', JSON.stringify(index));
+    // no huge binary here — that’s what IndexedDB is for
   } catch (err) {
-    console.error("❌ Failed to save vault list:", err);
+    console.error('❌ Failed to write vault index to localStorage:', err);
   }
 }
 
@@ -729,74 +637,95 @@ function startCountdown() {
     window.location.href = "how-it-works.html";
   }
 
- async function handleVaultZip(event) {
-  const file = event.target.files[0];
-  if (!file || !file.name.endsWith('.zip')) {
+async function handleVaultZip(event) {
+  const file = event.target.files?.[0];
+  if (!file || !file.name.toLowerCase().endsWith('.zip')) {
     showMessageModal('Invalid File', 'Please select a valid .zip vault file.');
     return;
   }
 
+  const vaultId  = 'vault-' + Date.now();
+  const fileName = file.name.replace(/\.zip$/i, '');
+
+  let zipReader;
   try {
-    const zipReader = new zip.ZipReader(new zip.BlobReader(file));
+    // Open without materializing the whole thing
+    zipReader = new zip.ZipReader(new zip.BlobReader(file));
+
+    // Read central directory
     const entries = await zipReader.getEntries();
 
-    const fileMap = {};
-    const fileMapRaw = {};
-    const vaultId = 'vault-' + Date.now();
-    const fileName = file.name.replace(/\.zip$/, '');
+    // Helper to find an entry by (case-insensitive) name
+    const find = (n) => entries.find(e => e.filename.toLowerCase() === n);
 
-    for (const entry of entries) {
-      const blob = await entry.getData(new zip.BlobWriter());
-      const lowerName = entry.filename.toLowerCase();
-      fileMap[lowerName] = blob;
+    const eJson = find('vault.json');
+    const eEnc  = find('vault.enc');
+    const eMeta = find('vault.meta');
 
-      const buffer = await blob.arrayBuffer();
-      fileMapRaw[lowerName] = {
-        type: blob.type || 'application/octet-stream',
-        data: Array.from(new Uint8Array(buffer))
-      };
+    if (!eJson || !eEnc || !eMeta) {
+      throw new Error('ZIP is missing one or more required files: vault.json, vault.enc, vault.meta');
     }
 
-    // Ensure required files are present
-    const vaultJson = fileMap['vault.json'];
-    if (!vaultJson) throw new Error("Missing vault.json in ZIP");
-    const vaultData = JSON.parse(await vaultJson.text());
+    // Extract only what we need, and do it efficiently
+    // vault.json → text
+    const vaultJsonBlob = await eJson.getData(new zip.BlobWriter('application/json'));
+    const vaultData     = JSON.parse(await vaultJsonBlob.text());
 
-    const vaultEncBlob = fileMap['vault.enc'];
-    if (!vaultEncBlob) throw new Error("Missing vault.enc in ZIP");
-    const vaultEncText = await vaultEncBlob.text();
-    fileMapRaw['vault.enc'] = {
-      type: 'application/json',
-      data: Array.from(new TextEncoder().encode(vaultEncText))
+    // vault.enc → bytes (leave as Uint8Array)
+    const vaultEncBlob = await eEnc.getData(new zip.BlobWriter('application/octet-stream'));
+    const vaultEncU8   = new Uint8Array(await vaultEncBlob.arrayBuffer());
+
+    // vault.meta → bytes
+    const vaultMetaBlob = await eMeta.getData(new zip.BlobWriter('application/octet-stream'));
+    const vaultMetaU8   = new Uint8Array(await vaultMetaBlob.arrayBuffer());
+
+    // Build minimal in‑memory structures (no full file map mirror)
+    const fileMap = {
+      'vault.json': vaultJsonBlob,
+      'vault.enc':  new Blob([vaultEncU8], { type: 'application/octet-stream' }),
+      'vault.meta': new Blob([vaultMetaU8], { type: 'application/octet-stream' }),
     };
 
-    const vaultMetaBlob = fileMap['vault.meta'];
-    if (!vaultMetaBlob) throw new Error("Missing vault.meta in ZIP");
-    const encodedVaultMeta = new Uint8Array(await vaultMetaBlob.arrayBuffer());
-    fileMapRaw['vault.meta'] = {
-      type: 'application/octet-stream',
-      data: Array.from(encodedVaultMeta)
+    // Raw (compact) representation — keep Uint8Array, not big JS arrays
+    const fileMapRaw = {
+      'vault.json': { type: 'application/json',              data: new TextEncoder().encode(JSON.stringify(vaultData)) },
+      'vault.enc':  { type: 'application/octet-stream',      data: vaultEncU8 },
+      'vault.meta': { type: 'application/octet-stream',      data: vaultMetaU8 },
     };
 
-    // ✅ Save original ZIP blob (critical for recover.html)
+    // Keep a handle to the original ZIP for pass‑through to recover.html
     loadedVaults[vaultId] = {
       fileName,
       vaultData,
       fileMap,
       fileMapRaw,
-      zipBlob: file  // ✅ store original zip
+      zipBlob: file
     };
 
+    // Persist the heavy bits in IndexedDB (not localStorage)
+    await saveFilesToIndexedDB(vaultId, {
+      'vault.json': { type: 'application/json',         data: fileMapRaw['vault.json'].data },
+      'vault.enc':  { type: 'application/octet-stream', data: fileMapRaw['vault.enc'].data  },
+      'vault.meta': { type: 'application/octet-stream', data: fileMapRaw['vault.meta'].data },
+    });
+
+    // Add to UI (and store only lightweight metadata in localStorage)
     addVaultToList(vaultId, fileName, vaultData);
-    saveVaultsToLocalStorage();
+    saveVaultsToLocalStorage(); // this will now write only small metadata
+
     showMessageModal('Success', 'Vault imported successfully!');
-    await zipReader.close();
+
   } catch (err) {
-    console.error("ZIP Load Error:", err);
-    showMessageModal('Load Failed', 'Could not load the vault ZIP file.');
+    console.error('ZIP Load Error:', err);
+    showMessageModal('Load Failed', err.message || 'Could not load the vault ZIP file.');
+  } finally {
+    try { await zipReader?.close(); } catch {}
+    // Reset the file input so selecting the same file again re‑fires change
+    event.target.value = '';
   }
 }
 </script>
+
 
 <script>
 async function deriveKey(password, saltHex = null, vaultData = null) {
@@ -1126,6 +1055,661 @@ async function nukeEverything() {
   }
 }
 
+// ==============================
+// Memoro Physical Backup — Dashboard
+// Scans MVKEY (hex), MVHDR (b64(JSON)), MVCT tiles → reassembles memoro-lite.zip
+// ==============================
+
+// ---------- State & element refs ----------
+const paperState = {
+  header: null,            // { v, iv:number[], size:number, sha256:string }
+  keyHex: null,            // 64 hex chars (32 bytes)
+  tiles: {},               // { 1: "b64...", 2: "b64...", ... }
+  totalTiles: null,        // integer
+  seenPayloads: new Set(), // dedupe across PDF & camera (raw strings)
+};
+
+const paperEls = {
+  modal:      () => document.getElementById('paperDecryptModal'),
+  files:      () => document.getElementById('paperFiles'),
+  status:     () => document.getElementById('paperStatus'),
+  barHost:    () => document.getElementById('paperProgressHost'),
+  barText:    () => document.getElementById('paperProgressText'),
+  bar:        () => document.getElementById('paperProgressBar'),
+  rebuildBtn: () => document.getElementById('rebuildBtn') || document.getElementById('rebuildLiteBtn'),
+  camVideo:   () => document.getElementById('paperCam'),
+};
+
+let camStream = null;
+let camLoopId = null;
+
+// ---------- Small helpers ----------
+function setPaperMsg(msg) {
+  const el = paperEls.status();
+  if (!el) return;
+  const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.innerHTML += (el.innerHTML ? "<br>" : "") + line;
+  el.scrollTop = el.scrollHeight;
+}
+
+function b64ToU8Direct(b64) {
+  // decode a base64 string (may include CR/LF/spaces) → Uint8Array
+  const clean = b64.replace(/\s+/g, '');
+  const bin = atob(clean);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
+function sha256Hex(u8) {
+  return crypto.subtle.digest("SHA-256", u8).then(buf => {
+    const h = new Uint8Array(buf);
+    return Array.from(h).map(b => b.toString(16).padStart(2,'0')).join('');
+  });
+}
+
+// Compute decoded length from raw base64 length
+function base64DecodedLen(b64) {
+  const s = b64.replace(/\s+/g, '');
+  const pad = (s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0);
+  return Math.floor(s.length / 4) * 3 - pad;
+}
+
+// ---------- Parse MV payloads (single-file spec) ----------
+// MVKEY|<hex-64>
+// MVHDR|<base64(JSON:{v,iv,size,sha256})>
+// MVCT|<index>/<total>|<base64-chunk>
+function parseQRText(txt) {
+  if (!txt || typeof txt !== 'string') return null;
+  txt = txt.trim();
+
+  if (txt.startsWith("MVKEY|")) {
+    const hex = txt.slice(6).trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(hex)) return null;   // 32 bytes as hex
+    return { type: "MVKEY", hex };
+  }
+
+  if (txt.startsWith("MVHDR|")) {
+    const jsonB64 = txt.slice(6).trim();
+    try {
+      const raw = atob(jsonB64.replace(/\s+/g, ''));
+      let json;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        // Fallback for btoa(unescape(encodeURIComponent(...))) style
+        const esc = Array.prototype.map.call(raw, ch => '%' + ch.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+        json = JSON.parse(decodeURIComponent(esc));
+      }
+      if (!json || !Array.isArray(json.iv) || typeof json.size !== 'number' || typeof json.sha256 !== 'string') return null;
+      return { type: "MVHDR", data: json };
+    } catch { return null; }
+  }
+
+  if (txt.startsWith("MVCT|")) {
+    const m = txt.match(/^MVCT\|(\d+)\/(\d+)\|([A-Za-z0-9+/=\s]+)$/);
+    if (!m) return null;
+    const idx   = parseInt(m[1],10);
+    const total = parseInt(m[2],10);
+    const b64   = m[3].trim();
+    if (!idx || !total || idx < 1 || idx > total) return null;
+    return { type: "MVCT", idx, total, b64 };
+  }
+
+  return null;
+}
+
+function updatePaperProgress() {
+  const haveHdr = !!paperState.header;
+  const haveKey = !!paperState.keyHex;
+  const haveCt  = Object.keys(paperState.tiles).length;
+  const total   = paperState.totalTiles || "?";
+
+  const txtEl = paperEls.barText();
+  if (txtEl) {
+    txtEl.textContent = `Status — Header: ${haveHdr ? "yes" : "no"} | Tiles: ${haveCt}/${total} | KEY: ${haveKey ? "yes" : "no"}`;
+  }
+
+  const pct = (() => {
+    let p = 0;
+    if (haveHdr) p += 25;
+    if (haveKey) p += 25;
+    if (paperState.totalTiles) p += Math.min(50, Math.round(50 * (haveCt / paperState.totalTiles)));
+    return Math.min(100, p);
+  })();
+
+  const bar = paperEls.bar();
+  if (bar) bar.style.width = pct + "%";
+
+  const ready = haveHdr && haveKey && paperState.totalTiles && haveCt === paperState.totalTiles;
+  const btn = paperEls.rebuildBtn();
+  if (btn) {
+    btn.disabled = !ready;
+    btn.style.opacity = ready ? '1' : '.4';
+    btn.style.filter = ready ? 'none' : 'grayscale(100%)';
+    btn.style.pointerEvents = ready ? 'auto' : 'none';
+  }
+
+  // 🔁 Auto-rebuild once when everything is ready
+  if (ready && !window.__mvAutoRebuildDone) {
+    window.__mvAutoRebuildDone = true;
+    setPaperMsg("All pieces captured — rebuilding ZIP automatically…");
+    // slight microtask delay to allow UI update before heavy work
+    setTimeout(() => rebuildLiteFromPaper().catch(console.error), 50);
+  }
+}
+
+// ---------- Intake a decoded QR payload ----------
+function ingestQR(raw, src = "QR") {
+  if (!raw || paperState.seenPayloads.has(raw)) return;
+  paperState.seenPayloads.add(raw);
+
+  const p = parseQRText(raw);
+  if (!p) return;
+
+  if (p.type === "MVKEY") {
+    if (!paperState.keyHex) {
+      paperState.keyHex = p.hex;
+      setPaperMsg(`Captured MVKEY (key).`);
+    }
+  } else if (p.type === "MVHDR") {
+    if (!paperState.header) {
+      paperState.header = p.data;
+      setPaperMsg(`Captured MVHDR (header).`);
+    }
+  } else if (p.type === "MVCT") {
+    // Lock in total once seen; detect conflicts
+    if (!paperState.totalTiles) {
+      paperState.totalTiles = p.total;
+    } else if (paperState.totalTiles !== p.total) {
+      setPaperMsg(`⚠️ Conflicting CT totals seen (was ${paperState.totalTiles}, now ${p.total}). Keeping first.`);
+    }
+    if (!paperState.tiles[p.idx]) {
+      paperState.tiles[p.idx] = p.b64;
+      setPaperMsg(`Captured MVCT tile ${p.idx}/${paperState.totalTiles || p.total}.`);
+    }
+  }
+
+  updatePaperProgress();
+}
+
+// ---------- PDF scanner (deterministic 3-col crop + mini-sweep fallback) ----------
+async function scanPdfFile(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+  const MARGIN    = 24;   // pt (letter layout)
+  const GAP       = 12;   // pt
+  const LABEL_PAD = 14;   // pt
+  const BANNER_H  = 72;   // pt
+  const COLS      = 3;
+
+  // small helper to keep UI responsive
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    // Early-exit if we already have everything
+    if (paperState.header && paperState.keyHex &&
+        paperState.totalTiles && Object.keys(paperState.tiles).length === paperState.totalTiles) {
+      break;
+    }
+
+    const page = await pdf.getPage(p);
+
+    // Render at a scale that yields ~300dpi for the QR tile (good for jsQR, not overkill)
+    // Letter page width = 612pt; 300dpi = 300/72 px/pt ≈ 4.166
+    // We use 4.2 but clamp in case of memory-starved devices.
+    const viewport = page.getViewport({ scale: 4.2 });
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = false;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const W = canvas.width, H = canvas.height;
+    const s = W / 612; // uniform scale from points → pixels
+
+    const marginX = Math.round(MARGIN * s);
+    const marginY = Math.round(MARGIN * s);
+    const gapX    = Math.round(GAP * s);
+    const gapY    = Math.round(GAP * s);
+    const banner  = Math.round(BANNER_H * s);
+    const label   = Math.round(LABEL_PAD * s);
+
+    const innerW  = W - 2 * marginX;
+    const tile    = Math.floor((innerW - gapX * (COLS - 1)) / COLS);
+    const usedW   = COLS * tile + gapX * (COLS - 1);
+    const startX  = marginX + Math.floor((innerW - usedW) / 2);
+
+    // decode helper (tight first, then padded if needed)
+    const tryRect = (x, y, w, h, tag) => {
+      const attempts = [
+        () => {
+          const inset = Math.round(Math.min(w, h) * 0.02);
+          const x1 = Math.max(0, x + inset), y1 = Math.max(0, y + inset);
+          const w1 = Math.max(0, Math.min(W - x1, w - inset * 2));
+          const h1 = Math.max(0, Math.min(H - y1, h - inset * 2));
+          if (w1 <= 0 || h1 <= 0) return false;
+          const img = ctx.getImageData(x1, y1, w1, h1);
+          const qr  = jsQR(img.data, w1, h1, { inversionAttempts: "attemptBoth" });
+          if (qr?.data) { ingestQR(qr.data, tag + ":tight"); return true; }
+          return false;
+        },
+        () => {
+          const pad = Math.round(Math.min(w, h) * 0.08);
+          const x0 = Math.max(0, x - pad), y0 = Math.max(0, y - pad);
+          const w0 = Math.min(W - x0, w + pad * 2), h0 = Math.min(H - y0, h + pad * 2);
+          if (w0 <= 0 || h0 <= 0) return false;
+          const img = ctx.getImageData(x0, y0, w0, h0);
+          const qr  = jsQR(img.data, w0, h0, { inversionAttempts: "attemptBoth" });
+          if (qr?.data) { ingestQR(qr.data, tag + ":pad"); return true; }
+          return false;
+        }
+      ];
+      for (const attempt of attempts) if (attempt()) return true;
+      return false;
+    };
+
+    // deterministic rows/cols like the builder
+    let y = marginY + banner + label;
+    const rowAdvance = label + tile + gapY;
+
+    // First row of page 1 has KEY|HDR|CT1
+    let rowsScanned = 0;
+    let foundOnThisPage = 0;
+    while (y + tile <= H - marginY) {
+      for (let c = 0; c < COLS; c++) {
+        const x = startX + c * (tile + gapX);
+        if (p === 1 && rowsScanned === 0) {
+          if      (c === 0) tryRect(x, y, tile, tile, "p1-key");
+          else if (c === 1) tryRect(x, y, tile, tile, "p1-hdr");
+          else              tryRect(x, y, tile, tile, "p1-ct");
+        } else {
+          if (tryRect(x, y, tile, tile, `p${p}-ct`)) foundOnThisPage++;
+        }
+      }
+      rowsScanned++;
+      y += rowAdvance;
+
+      // yield after each row so UI/progress updates and camera can still run
+      await tick();
+
+      // Early-exit if we’ve got everything
+      if (paperState.header && paperState.keyHex &&
+          paperState.totalTiles && Object.keys(paperState.tiles).length === paperState.totalTiles) {
+        break;
+      }
+    }
+
+    // Mini-sweep fallback: probe 3×N overlapping windows to catch stragglers
+    // (jsQR returns one code per call; these windows help discover missed tiles.)
+    if ((!paperState.totalTiles || Object.keys(paperState.tiles).length < (paperState.totalTiles || Infinity)) ) {
+      const cols = 3, rows = Math.max(6, Math.floor((H - (marginY + banner)) / (tile * 0.9)));
+      const winW = Math.floor(tile * 1.2), winH = Math.floor(tile * 1.2);
+      for (let r = 0; r < rows; r++) {
+        const yy = Math.max(marginY, Math.min(H - winH - marginY, marginY + banner + Math.round(r * (tile * 0.8))));
+        for (let c = 0; c < cols; c++) {
+          const xx = Math.max(marginX, Math.min(W - winW - marginX, startX + Math.round(c * (tile + gapX) - tile * 0.1)));
+          const img = ctx.getImageData(xx, yy, winW, winH);
+          const qr  = jsQR(img.data, winW, winH, { inversionAttempts: 'attemptBoth' });
+          if (qr?.data) {
+            const before = Object.keys(paperState.tiles).length;
+            ingestQR(qr.data, `p${p}-mini`);
+            const after = Object.keys(paperState.tiles).length;
+            if (after > before) foundOnThisPage += (after - before);
+          }
+        }
+        await tick();
+      }
+    }
+
+    // If a page produced nothing and we already have a good amount, don’t keep grinding
+    if (foundOnThisPage === 0 && paperState.totalTiles && Object.keys(paperState.tiles).length > 0) {
+      // nothing discovered here; continue to next page quickly
+    }
+
+    updatePaperProgress();
+    await tick();
+  }
+}
+
+async function scanImageFile(file) {
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await new Promise(r => img.onload = r);
+
+  const MAX = 2400;
+  const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.floor(img.width * ratio);
+  canvas.height = Math.floor(img.height * ratio);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const found = await findAllQRCodesOnCanvas(canvas);
+  if (!found.length) {
+    setPaperMsg(`No QR detected in ${file.name}.`);
+  } else {
+    for (const t of found) ingestQR(t, `Image ${file.name}`);
+  }
+  updatePaperProgress();
+}
+
+// Robust page sweep with overlap + upscale
+async function findAllQRCodesOnCanvas(canvas) {
+  const results = new Set();
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  // Pass 0: full frame
+  {
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+    if (qr?.data) results.add(qr.data.trim());
+  }
+
+  // Grid sweep helper
+  function sweep(grid, overlap = 0) {
+    const stepX = canvas.width / grid;
+    const stepY = canvas.height / grid;
+    const oxs = overlap ? [0, stepX/2] : [0];
+    const oys = overlap ? [0, stepY/2] : [0];
+
+    for (const ox of oxs) for (const oy of oys) {
+      for (let gy=0; gy<grid; gy++) for (let gx=0; gx<grid; gx++) {
+        const x = Math.max(0, Math.floor(gx * stepX + ox));
+        const y = Math.max(0, Math.floor(gy * stepY + oy));
+        const w = Math.floor(stepX);
+        const h = Math.floor(stepY);
+        if (x + w > canvas.width || y + h > canvas.height) continue;
+        const img = ctx.getImageData(x, y, w, h);
+        const qr = jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
+        if (qr?.data) results.add(qr.data.trim());
+      }
+    }
+  }
+
+  sweep(4, 0);      // coarse
+  sweep(6, 1);      // finer + overlap
+
+  // Upscaled retry (helps tiny or slightly blurred codes)
+  {
+    const scale = 1.5;
+    const tmp = document.createElement('canvas');
+    tmp.width = Math.floor(canvas.width * scale);
+    tmp.height = Math.floor(canvas.height * scale);
+    const tctx = tmp.getContext('2d', { willReadFrequently: true });
+    tctx.imageSmoothingEnabled = false;
+    tctx.drawImage(canvas, 0, 0, tmp.width, tmp.height);
+
+    const img = tctx.getImageData(0, 0, tmp.width, tmp.height);
+    const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+    if (qr?.data) results.add(qr.data.trim());
+
+    const stepX = Math.floor(tmp.width / 3);
+    const stepY = Math.floor(tmp.height / 3);
+    for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 3; gx++) {
+      const x = gx * stepX, y = gy * stepY, w = stepX, h = stepY;
+      const sub = tctx.getImageData(x, y, w, h);
+      const qr2 = jsQR(sub.data, w, h, { inversionAttempts: 'attemptBoth' });
+      if (qr2?.data) results.add(qr2.data.trim());
+    }
+  }
+
+  return Array.from(results);
+}
+
+// ---------- File picker ----------
+async function handlePaperFiles(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  // reset state
+  Object.assign(paperState, { header:null, keyHex:null, tiles:{}, totalTiles:null, seenPayloads:new Set() });
+  const status = paperEls.status();
+  if (status) status.innerHTML = "";
+  setPaperMsg(`Processing ${files.length} file(s)...`);
+  updatePaperProgress();
+
+  for (const f of files) {
+    if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
+      await scanPdfFile(f);
+    } else {
+      await scanImageFile(f);
+    }
+  }
+  updatePaperProgress();
+}
+
+// ==============================
+// Camera auto-scanner (continuous)
+// ==============================
+async function startPaperCamera() {
+  await stopPaperCamera();
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = paperEls.camVideo();
+    video.srcObject = camStream;
+    video.style.display = 'block';
+    await video.play();
+    setPaperMsg("Camera started. Hold KEY, HEADER, and CT tiles in view — capture is automatic.");
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const tick = () => {
+      if (!camStream) return;
+
+      const w = video.videoWidth || 640;
+      const h = video.videoHeight || 480;
+      if (w && h) {
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
+
+        // Full frame
+        let img = ctx.getImageData(0, 0, w, h);
+        let qr  = jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
+        if (qr?.data) ingestQR(qr.data);
+
+        // Coarse 3×3 to catch off-center
+        const GRID = 3;
+        for (let gy = 0; gy < GRID; gy++) for (let gx = 0; gx < GRID; gx++) {
+          const x = Math.floor((w * gx) / GRID);
+          const y = Math.floor((h * gy) / GRID);
+          const cw = Math.floor(w / GRID);
+          const ch = Math.floor(h / GRID);
+          const sub = ctx.getImageData(x, y, cw, ch);
+          const q2 = jsQR(sub.data, cw, ch, { inversionAttempts: "attemptBoth" });
+          if (q2?.data) ingestQR(q2.data);
+        }
+      }
+      camLoopId = requestAnimationFrame(tick);
+    };
+    camLoopId = requestAnimationFrame(tick);
+  } catch (e) {
+    setPaperMsg("Camera error: " + e.message);
+  }
+  updatePaperProgress();
+}
+
+async function stopPaperCamera() {
+  if (camLoopId) cancelAnimationFrame(camLoopId);
+  camLoopId = null;
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  const video = paperEls.camVideo();
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.style.display = 'none';
+  }
+}
+
+// Legacy shims for existing HTML:
+function startKeyCam(){ startPaperCamera(); }
+function stopKeyCam(){ stopPaperCamera(); }
+function snapKeyShare(){
+  const video = paperEls.camVideo();
+  if (!video || !camStream) return;
+  const w = video.videoWidth || 640, h = video.videoHeight || 480;
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(video, 0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h);
+  const qr = jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
+  if (qr?.data) ingestQR(qr.data);
+}
+
+// ==============================
+// Open/Close modal + wiring (updated)
+// ==============================
+function openPaperDecrypt() {
+  // Insert progress UI once
+  if (!paperEls.barHost()) {
+    const host = document.createElement('div');
+    host.id = 'paperProgressHost';
+    host.style.cssText = 'width:100%;text-align:left;margin:6px 0;';
+    host.innerHTML = `
+      <div id="paperProgressText" style="font-size:14px;color:#ccc;margin-bottom:6px;">
+        Status — waiting for uploads…
+      </div>
+      <div style="background:#222;border:1px solid #0f0;border-radius:6px;overflow:hidden;height:12px;">
+        <div id="paperProgressBar" style="height:12px;width:0%;background:#00ff99;"></div>
+      </div>`;
+    const modal = paperEls.modal();
+    const status = paperEls.status();
+    modal.querySelector('.modal')?.insertBefore(host, status) || modal.insertBefore(host, status);
+  }
+
+  // Reset capture state
+  Object.assign(paperState, { header:null, keyHex:null, tiles:{}, totalTiles:null, seenPayloads:new Set() });
+  const statusEl = paperEls.status();
+  if (statusEl) statusEl.innerHTML = "Waiting for uploads...";
+
+  // Reset button look
+  const btn = paperEls.rebuildBtn();
+  if (btn) { 
+    btn.disabled = true; 
+    btn.style.opacity = '.4'; 
+    btn.style.filter = 'grayscale(100%)'; 
+    btn.style.pointerEvents = 'none'; 
+  }
+
+  // Bind file input
+  const files = paperEls.files();
+  if (files) files.onchange = handlePaperFiles;
+
+  // Show modal
+  const m = paperEls.modal();
+  if (m) m.style.display = 'flex';
+
+  // ❌ Removed auto-start of camera here.
+  // ✅ Camera will now only start when the user clicks "Start Camera" (startKeyCam → startPaperCamera).
+
+  // Reset auto-rebuild latch
+  window.__mvAutoRebuildDone = false;
+
+  updatePaperProgress();
+}
+
+function closePaperDecrypt() {
+  stopPaperCamera();
+  const m = paperEls.modal();
+  if (m) m.style.display = 'none';
+}
+
+async function rebuildLiteFromPaper() {
+  try {
+    const { header, keyHex, tiles, totalTiles } = paperState;
+    if (!header) throw new Error("Missing header (MVHDR).");
+    if (!keyHex) throw new Error("Missing key (MVKEY).");
+    if (!totalTiles) throw new Error("Tiles not detected yet.");
+
+    // 1) Pre-size the ciphertext buffer
+    let totalCtBytes = 0;
+    for (let i = 1; i <= totalTiles; i++) {
+      const part = tiles[i];
+      if (!part) throw new Error(`Missing ciphertext tile ${i}/${totalTiles}.`);
+      totalCtBytes += base64DecodedLen(part);
+    }
+    const ctBytes = new Uint8Array(totalCtBytes);
+
+    // 2) Decode each chunk directly into the buffer
+    let offset = 0;
+    for (let i = 1; i <= totalTiles; i++) {
+      const chunkU8 = b64ToU8Direct(tiles[i]);
+      ctBytes.set(chunkU8, offset);
+      offset += chunkU8.length;
+    }
+
+    // 3) Decrypt
+    const keyU8 = new Uint8Array(keyHex.match(/.{1,2}/g).map(h => parseInt(h, 16)));
+    const aesKey = await crypto.subtle.importKey("raw", keyU8, "AES-GCM", false, ["decrypt"]);
+    const ivU8  = new Uint8Array(header.iv);
+    const zipBytes = new Uint8Array(
+      await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivU8 }, aesKey, ctBytes)
+    );
+
+    // 4) Verify
+    if (zipBytes.length !== header.size) {
+      throw new Error(`Size mismatch (expected ${header.size}, got ${zipBytes.length}).`);
+    }
+    const gotSha = await sha256Hex(zipBytes);
+    if (gotSha !== header.sha256) {
+      throw new Error(`SHA-256 mismatch. Expected ${header.sha256}, got ${gotSha}.`);
+    }
+
+    // 5) Download + optional auto-import
+    const blob = new Blob([zipBytes], { type: "application/zip" });
+    const name = "memoro-lite.zip";
+    const url  = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setPaperMsg(`✅ Rebuild complete. Download started: ${name}`);
+
+    // Optional auto-import into dashboard vault list
+    if (typeof handleVaultZip === 'function') {
+      const dt = new DataTransfer();
+      dt.items.add(new File([blob], name, { type: "application/zip" }));
+      const fakeInput = document.createElement('input');
+      fakeInput.type = 'file';
+      fakeInput.files = dt.files;
+      await handleVaultZip({ target: fakeInput });
+      setPaperMsg("ZIP auto-imported into your vault list.");
+    }
+
+    // Clean up & close after a short grace period
+    stopPaperCamera();
+    setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch {}
+      closePaperDecrypt();
+    }, 5000);
+
+  } catch (err) {
+    console.error(err);
+    setPaperMsg(`❌ Rebuild failed: ${err.message}`);
+    alert(`Rebuild failed: ${err.message}`);
+    // allow another auto attempt if user keeps scanning/adding pages
+    window.__mvAutoRebuildDone = false;
+  }
+}
+
+// Expose for UI
+window.openPaperDecrypt = openPaperDecrypt;
+window.closePaperDecrypt = closePaperDecrypt;
+window.rebuildLiteFromPaper = rebuildLiteFromPaper;
+window.startKeyCam = startKeyCam;
+window.stopKeyCam  = stopKeyCam;
+window.snapKeyShare = snapKeyShare;
 
 </script>
 

@@ -1,1 +1,0 @@
-C:\Users\drawh\OneDrive\Desktop\memoro-vault\src\wasm\memoro_paper_wasm\target\wasm32-unknown-unknown\release\memoro_paper_wasm.wasm: C:\Users\drawh\OneDrive\Desktop\memoro-vault\src\wasm\memoro_paper_wasm\src\lib.rs
