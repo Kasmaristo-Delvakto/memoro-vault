@@ -470,7 +470,7 @@ body {
   <div id="powPanel" class="pow-panel">
   <div class="pow-panel-wrapper">
 
-  <!-- Final Instructions Modal -->
+<!-- Final Instructions Modal -->
 <div id="postBuildModal"
      style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.96); z-index: 5000; color: #0f0; font-family: 'Fira Code', monospace;
@@ -507,6 +507,13 @@ body {
           <li>1× <strong>Offline USB/SSD</strong> (stored in a fireproof safe or Faraday bag)</li>
         </ul>
       </li>
+      <li><strong>Create a paper backup (recommended):</strong>
+        <ul>
+          <li>Memoro Vault can generate a printable PDF of QR codes that reassemble your encrypted vault.</li>
+          <li>Print these QR tiles on archival paper and store them in a secure location.</li>
+          <li>This ensures recovery even if all digital copies are lost or corrupted.</li>
+        </ul>
+      </li>
       <li>Test access on another device while offline to verify integrity and function.</li>
       <li>Repeat this process whenever you update or rebuild your vault.</li>
     </ol>
@@ -539,6 +546,7 @@ body {
     </div>
   </div>
 </div>
+
 
 <!-- Lite Picker Modal -->
 <div id="litePickerModal"
@@ -574,8 +582,8 @@ body {
           <hr style="border:none; border-top:1px solid #0f0; margin:12px 0;">
           <div id="litePickerError" style="color:#ff6; min-height:18px;"></div>
           <div style="display:flex; gap:10px; margin-top:10px;">
-            <button id="litePickerCancel" style="background:#111; border:1px solid #0f0; color:#0f0; padding:10px 14px; border-radius:6px; cursor:pointer;">Cancel</button>
             <button id="litePickerConfirm" style="background:#0f0; color:#000; border:1px solid #0f0; padding:10px 14px; border-radius:6px; cursor:pointer;">Build Paper Backup</button>
+            <button id="litePickerCancel" style="background:#111; border:1px solid #0f0; color:#0f0; padding:10px 14px; border-radius:6px; cursor:pointer;">Cancel</button>
           </div>
         </div>
       </div>
@@ -693,7 +701,7 @@ async function buildPaperPdfFromLiteZip(liteZipBlob) {
 
   // 5) Ciphertext into QR tiles
   const CT_B64    = bytesToBase64(ct);
-  const CHUNK_LEN = 1200; // payload per tile (scanner-friendly)
+  const CHUNK_LEN = 500; // payload per tile (scanner-friendly)
   const ctChunks  = chunkString(CT_B64, CHUNK_LEN);
   const total     = ctChunks.length;
 
@@ -1035,11 +1043,21 @@ const finalMessageBytesLen = inputs.finalMessage?.trim()
   : 0;
 
 printToTerminal("[*] Choose what to include in your paper backup...", 92);
-const liteSelection = await openLitePicker({
-  seedFiles: namedSeedFiles,
-  uploads: files, // the uploads we loaded earlier
-  finalMessageBytesLen
-});
+let liteSelection = null;
+try {
+  liteSelection = await openLitePicker({
+    seedFiles: namedSeedFiles,
+    uploads: files,
+    finalMessageBytesLen
+  });
+} catch (e) {
+  if (e && e.message === "User cancelled Lite picker") {
+    printToTerminal("[i] Paper backup skipped by user. Proceeding to final instructions...", 96);
+    showPostBuildModal();
+    return; // exit gracefully instead of throwing
+  }
+  throw e; // real error, let outer catch handle
+}
 
 printToTerminal("[*] Building Lite Vault (using your selection)...", 94);
 const payloadsLite = await buildLitePayloadFromFull(
@@ -1432,21 +1450,64 @@ async function encryptVaultPayload(
     await addBlob(file.filename, file.blob);
   }
 
-  // FULL ONLY helper docs
-  await writer.add("README.txt", new zip.TextReader(
+// FULL ONLY helper docs
+await writer.add("README.txt", new zip.TextReader(
 `Memoro Vault
 ===========
 
-Built with Memoro Vault version 1.0.6
+What you have found is an encrypted archive created with Memoro Vault.
+It was likely prepared by someone who wished their most important digital
+information to be preserved securely and passed down.
 
-This ZIP contains an encrypted vault. Use the desktop app's Recover flow and your answers.
-Any modification breaks recovery. Store redundantly (M-DISC, offline SSD, cloud).`
-  ));
+Inside this archive are files and messages that can only be unlocked
+with the correct answers to memory-based questions. Without those answers,
+decryption is mathematically impossible. There are no backdoors.
 
-  await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(
-`Place this ZIP with the Memoro Vault installer in one folder; copy to M-DISC, offline SSD, and cloud.
-Do not modify file names or contents.`
-  ));
+To open this vault, you will need:
+1. The Memoro Vault program (provided as a desktop installer in the same folder).
+2. The exact answers to the questions chosen by the person who built it.
+3. The original vault file itself (this ZIP).
+
+If you are a family member who has recently discovered these files, this vault
+was designed to protect sensitive material such as letters, records,
+cryptocurrency keys, or final instructions. Guard it carefully.
+
+Redundant storage is critical: make multiple copies to M-DISC, offline drives,
+and printed QR backups if available. A single corrupt copy can render it
+unrecoverable.
+
+Libereco ne estas donaco. Ĝi estas devo.
+— Kaŝmaristo Delvakto`
+));
+
+await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(
+`Vault Builder Instructions
+=========================
+
+This archive was created with Memoro Vault. If you are reading this, it
+means the vault was intentionally packaged for long-term preservation.
+
+To keep it safe:
+1. Place this ZIP file together with the Memoro Vault installer
+   (e.g. memoro-win.exe, memoro-linux.AppImage, or memoro-mac.dmg)
+   inside a clearly labeled folder (for example, "Family_Vault").
+2. Copy that folder to multiple storage media:
+   • One archival M-DISC
+   • One offline USB/SSD in a fireproof safe
+   • One cloud service of your choice
+3. If a paper QR backup PDF was produced, print and store it with equal care.
+   Those QR tiles can fully reconstruct this vault if digital copies are lost.
+
+Important: Do not rename, modify, or edit any files inside this archive.
+Doing so will make the vault impossible to recover.
+
+To unlock, run the Memoro Vault recovery program and follow the on-screen
+instructions. You will be prompted to enter answers in the exact order
+chosen by the original builder.
+
+Libereco ne estas donaco. Ĝi estas devo.
+— Kaŝmaristo Delvakto`
+));
 
   const blob = await writer.close();
   const link = document.createElement("a");

@@ -1,74 +1,24 @@
-# How Memoro Vault Works
+Memoro Vault
+TL;DR
 
-**Reclaiming Ownership in a World of Exposure**
+Memoro Vault is an offline, tamper-evident encryption system that enables individuals to preserve sensitive digital assets without reliance on servers, intermediaries, or proprietary infrastructures. Vault creation requires the definition of memory-based questions whose answers are transformed into a cryptographic key via Argon2id. Recovery requires not only the correct answers but also their correct order, with the additional complication of a deliberately embedded red herring question. All files, metadata, and instructions are sealed into an encrypted package that can be distributed freely or even posted publicly without risk of compromise. Only the intended holders of precise knowledge can unlock it.
 
-In today’s digital world, personal data is not owned—it is extracted. Every search, backup, login, and cloud sync becomes part of a surveillance economy. Most people do not control their data. They rent access to it from companies who monetize it, mismanage it, or lose it entirely.
+Full Technical Analysis
 
-The rise of decentralized technologies has created new forms of digital value—cryptocurrency wallets, identity keys, encrypted archives—but the means of preserving them remain fragile. A lost password, corrupted drive, or compromised platform can erase everything.
+Memoro Vault was designed to address a fundamental asymmetry of modern digital life: personal data is increasingly valuable, yet its preservation is fragile. Cloud platforms, estate systems, and corporate password managers operate as custodians rather than guarantors, meaning that ownership is effectively rented and can be revoked or lost. Memoro Vault replaces institutional dependency with direct, cryptographic sovereignty.
 
-**Memoro Vault changes that.**  
-It enables anyone to encrypt critical files, instructions, and credentials into a portable, tamper-evident vault that can be stored anywhere and unlocked only through exact knowledge.
+At the point of creation, the user defines between nine and twenty-five custom memory questions. These questions can be obscure, familial, or idiosyncratic in such a way that only the intended heirs or collaborators would know them. Answers are never written to disk, nor are they stored in any accessible form. Instead, they are normalized and passed into a key derivation function. Unlike earlier iterations of the system which employed PBKDF2, the current version utilizes Argon2id, a memory-hard algorithm resistant to GPU and ASIC acceleration. Argon2id is parameterized at approximately sixteen megabytes of memory to allow usability on mobile devices while still providing meaningful brute-force resistance.
 
-There are no servers, no logins, and no trusted intermediaries. Just a sealed vault file and a locally installed recovery program that runs entirely offline. Memoro Vault doesn’t manage access—it makes you prove it.
+A unique property of Memoro Vault lies in its layered recovery logic. Vault construction may include a trap or red herring question. This question is indistinguishable from the others, and the possible existence of exactly one red herring is public knowledge, but its identity is not. Any attacker must assume that each question could be the red herring, which multiplies the effective search space. Intended users, however, will recognize which question must remain unanswered, thus allowing recovery.
 
----
+In addition, answers must not only be correct but must also be supplied in the correct order. The current scheme implements a six-answer permutation requirement, which produces seven hundred and twenty possible orderings. The effect is that even if an attacker were to correctly guess six answers, the combinatorial structure forces them to also derive the precise ordering, dramatically raising the cost of attack.
 
-## The Problem Memoro Vault Solves
+All vault contents are encrypted with AES-256 in Galois/Counter Mode, with all cryptographic operations implemented in a Rust-compiled WebAssembly backend to ensure correctness and offline portability. Each uploaded file, seed phrase, and optional final message is encrypted individually with its own derived key, initialization vector, and integrity hash. These encrypted objects are stored as opaque .vaultdoc files within the vault archive. Metadata describing these files, including identifiers, original filenames, MIME types, and SHA-256 checksums, is serialized and then encrypted with the full key derived from the correctly permuted answers. This encrypted metadata is written into vault.meta. The gatekeeping question set and ordering indices are encrypted separately with a layer-one key and are stored within vault.enc. The only information that remains unencrypted in vault.json is the minimal set of parameters required for recovery, such as Argon2id configuration, salts used for key derivation, and the initialization vector required to attempt decryption of vault.meta. No recover-time checksum, static hash, or order data is exposed in plaintext, thereby preventing an attacker from validating guesses offline. The vault is therefore entirely opaque unless the precise answers and their exact order are known.
 
-Access to long-term digital preservation is uneven. Some individuals rely on legal structures—trusts, foundations, estate attorneys—to transfer intent and assets across generations. Most do not. When someone passes away or loses capacity, accounts and data often remain locked behind proprietary systems or forgotten credentials.
+The recovery process is deterministic. The user supplies answers into the recovery program, which reconstructs the intended order, derives the full key material with Argon2id, and attempts decryption of vault.meta. If the derivation is correct, the decrypted metadata reveals the vault hash and the map required to access each encrypted file. If the derivation is incorrect, decryption fails silently without revealing partial correctness. There is no feedback, no incremental validation, and no exposure of per-answer results, which preserves the indivisibility of the key material.
 
-The problem extends far beyond cryptocurrency:
+Memoro Vault supports distribution strategies that would be infeasible with conventional password systems. Because the vault is bound entirely to knowledge rather than to identity or infrastructure, the encrypted package can be stored privately on local media, shared collaboratively among trusted peers, or even posted publicly on cloud platforms or decentralized storage networks such as IPFS. Without the exact answers in their correct order, the vault remains sealed both computationally and cryptographically.
 
-- Family records lost in cloud accounts or inaccessible formats  
-- Journalists and whistleblowers needing offline, tamper-proof storage  
-- Parents wishing to pass on private messages, credentials, or creative work  
-- Refugees or stateless persons needing durable access to identity documents  
+In addition to its cryptographic defenses, Memoro Vault is deliberately designed for durability through redundancy. A vault may be duplicated across multiple offline and digital media without diminishing its security properties. The same encrypted package can reside simultaneously on archival-grade optical media, offline solid-state drives, conventional cloud storage, or decentralized networks. A paper-based representation in the form of QR tiles can also be produced, enabling recovery even in the absence of digital infrastructure. Because the vault reveals no information without the exact answers in their correct order, each copy, whether digital or physical, is functionally interchangeable and equally secure. This property enables long-term resilience against data decay, media failure, or institutional collapse by distributing identical sealed copies across diverse preservation environments.
 
-**Memoro Vault allows users to define the conditions for recovery with cryptographic precision.**  
-You can split knowledge across multiple trusted people—ensuring no one can access the vault alone, but collaboration enables recovery. It's inheritance without institutions, privacy without infrastructure, and permanence without fragility.
-
----
-
-## Memory-Based Encryption
-
-During creation, users define between **4 and 25 custom memory questions**. These can be personal, obscure, or collaboratively known.  
-Answers are never stored. Instead, they are used to derive an AES-GCM encryption key using **PBKDF2**, a hardened key-stretching algorithm trusted in high-security systems.
-
----
-
-## Layered Access Control
-
-### Phase One: Initial Gatekeeping
-
-- The first two answers act as a strict gate  
-- Each incorrect attempt triggers an exponentially increasing lockout, slowing down brute-force attacks  
-- No hints or feedback are given  
-
-### Phase Two: Full Cryptographic Challenge
-
-- The vault then requires all answers to be correct—entered exactly  
-- Optional hints and character counts may be enabled by the creator to support intended users while still deterring attackers  
-
----
-
-## File and Environment Security
-
-- All files are encrypted individually with AES-256  
-- Metadata, filenames, and messages are encrypted  
-- Final output is a portable, tamper-evident ZIP archive  
-
-Every vault is cryptographically bound to the exact version of the recovery program used to create it.  
-If an attacker modifies the recovery file—even slightly—the vault becomes undecryptable.  
-Decryption can only occur on the original, unmodified interface.
-
----
-
-## Flexible Distribution
-
-Memoro Vault supports a range of secure sharing strategies:
-
-- Keep it private and self-recoverable  
-- Distribute questions among multiple family members to require collaboration  
-- Store vaults publicly—on cloud drives, SD cards, or IPFS—without compromising secrecy  
-
-Without the correct answers and proof-of-work solution, the vault remains sealed—computationally and cryptographically.
+In its present form, Memoro Vault represents a synthesis of human-centric knowledge authentication with modern cryptographic primitives. It offers inheritance without intermediaries and self-hosted security. By combining Argon2id key derivation, AES-256-GCM encryption, the red herring mechanism, and enforced permutation order, it establishes a robust defense against both casual adversaries and sophisticated brute-force attempts.

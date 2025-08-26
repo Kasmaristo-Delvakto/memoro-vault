@@ -105,78 +105,70 @@
 <div class="content">
   <h1>How Memoro Vault Works</h1>
 
-  <p><strong>Reclaiming Ownership in a World of Exposure</strong><br>
-  In today’s digital world, personal data is not owned—it is extracted. Every search, backup, login, and cloud sync becomes part of a surveillance economy. Most people do not control their data. They rent access to it from companies who monetize it, mismanage it, or lose it entirely.</p>
+  <h2>TL;DR</h2>
+  <p>
+    Memoro Vault is an offline, self-contained encryption tool that protects digital assets such as wallet keys, personal messages, and sensitive files. 
+    Instead of passwords or logins, it uses memory-based questions chosen by you. 
+    Unlocking requires not only the correct answers but also the correct sequence, with the option of adding misleading questions to confuse attackers. 
+    Files are encrypted with industry-standard AES-256 and can be backed up physically using scannable QR codes. 
+    Without your knowledge of the answers in the right order, the vault cannot be decrypted by anyone—not even its creators.
+  </p>
 
-  <p>The rise of decentralized technologies has created new forms of digital value—cryptocurrency wallets, identity keys, encrypted archives—but the means of preserving them remain fragile. A lost password, corrupted drive, or compromised platform can erase everything.</p>
+  <h2>Why Memoro Vault Is Necessary</h2>
+  <p>
+    In the digital age, personal and financial data are fragile. They are stored on devices that fail, entrusted to companies that can shut down, or kept in cloud services that may be compromised. 
+    Even legal systems cannot guarantee long-term accessibility for heirs or collaborators. 
+    Memoro Vault addresses this challenge by creating a durable, self-sovereign container for valuable information that survives beyond individual accounts, jurisdictions, or corporate failures.
+  </p>
 
-  <p><strong>Memoro Vault changes that.</strong><br>
-  It enables anyone to encrypt critical files, instructions, and credentials into a portable, tamper-evident vault that can be stored anywhere and unlocked only through exact memory-based knowledge.</p>
+  <h2>How the Encryption Works</h2>
+  <p>
+    When you build a vault, you create between nine and twenty-five personal questions. 
+    These may be obscure facts, family memories, or shared knowledge among trusted individuals. 
+    The answers themselves are never stored. 
+    Instead, they are processed through Argon2id, a memory-hard key derivation function specifically designed to resist brute-force attempts, even from attackers with specialized hardware. 
+    This process ensures that only someone with the correct knowledge can reconstruct the encryption key.
+  </p>
 
-  <p>There are no servers, no logins, and no trusted intermediaries. Just a sealed vault file and a recovery program that runs entirely offline.</p>
+  <h2>Red Herrings and Required Order</h2>
+  <p>
+    To further strengthen security, the system allows the inclusion of a red herring question. 
+    A red herring looks plausible but is intentionally misleading, ensuring that attackers cannot succeed by guessing likely answers. 
+    Additionally, Memoro Vault requires that answers be entered in the exact original sequence. 
+    This sequence is enforced by a six-answer permutation model that introduces seven hundred and twenty possible arrangements, dramatically increasing complexity for unauthorized attempts.
+  </p>
 
-  <h2>The Problem Memoro Vault Solves</h2>
+  <h2>File and Vault Integrity</h2>
+  <p>
+    Every file inside the vault, along with its name, metadata, and any final messages, is encrypted using AES-256 in Galois/Counter Mode (GCM). 
+    This method provides both confidentiality and authenticity, meaning that no one can read or alter the data without detection. 
+    The encrypted content is packaged into a portable, tamper-evident ZIP archive. 
+    If the archive is modified in any way, recovery becomes impossible, thereby guaranteeing the integrity of what was originally sealed.
+  </p>
 
-  <p>Access to long-term preservation is uneven. Some individuals rely on legal structures—trusts, foundations, estate attorneys—to transfer intent and assets across generations. Most do not. When someone passes away or loses capacity, accounts and data often remain locked behind proprietary systems or forgotten credentials.</p>
+  <h2>Physical Backups Using QR Codes</h2>
+  <p>
+    Memoro Vault also supports the generation of physical paper backups. 
+    These backups divide the encrypted vault into QR-encoded tiles that can be printed and stored in a secure location or distributed among trusted individuals. 
+    Even if all digital copies are lost, the vault can be reconstructed entirely from these printed pages, requiring no USB drives or online storage. 
+    This feature ensures resilience against hardware failure or digital decay.
+  </p>
 
-  <p>The problem extends far beyond cryptocurrency:</p>
-  <ul>
-    <li>Family records lost in cloud accounts or inaccessible formats</li>
-    <li>Journalists and whistleblowers needing offline, tamper-proof storage</li>
-    <li>Parents wishing to pass on private messages, credentials, or creative work</li>
-    <li>Refugees or stateless persons needing durable access to identity documents</li>
-  </ul>
+  <h2>Practical Applications</h2>
+  <p>
+    Memoro Vault can safeguard cryptocurrency seed phrases, personal letters, creative works, or legal instructions. 
+    It can preserve family history for future generations, enable trusted recovery without sharing accounts, and provide resistance against theft or coercion by incorporating misleading questions and strict permutations. 
+    Above all, it empowers individuals to maintain absolute control over their digital legacy.
+  </p>
 
-  <p>Memoro Vault allows users to define the conditions for recovery with cryptographic precision. You can split knowledge across multiple trusted people—ensuring no one can access the vault alone, but collaboration enables recovery.</p>
-
-  <h2>Memory-Based Encryption</h2>
-
-  <p>During creation, users define between <strong>9 and 25 custom memory questions</strong>. These can be personal, obscure, or collaboratively known. Answers are never stored. Instead, they are used to derive a cryptographic key using <strong>Argon2</strong>, a modern memory-hard key derivation function designed to resist brute-force attacks—even with specialized hardware.</p>
-
-  <h2>Layered Access Control</h2>
-
-  <p><strong>Phase One: Initial Gatekeeping</strong><br>
-  The first two answers act as a strict gate. Each incorrect attempt triggers an exponentially increasing lockout, slowing down brute-force attempts. No hints or feedback are given.</p>
-
-  <p><strong>Phase Two: Permutation-Based Recovery</strong><br>
-  Once Layer One is passed, the user must enter <strong>exactly the correct answers in the correct order</strong>. Memoro Vault stores the required answer sequence as a cryptographic hash. Even if an attacker knows all correct answers, they must still guess the correct permutation.</strong>.</p>
-
-  <p>This makes brute-force infeasible. Instead of wasting CPU cycles on proof-of-work, attackers face a combinatorial explosion of possible valid sequences—an elegant shift from compute-bound to knowledge-bound security.</p>
-
-  <p>To make the vault accessible to the right people, and to prevent self-lockout:</p>
-  <ul>
-    <li>Optional character or letter hints may be revealed by the vault builder.</li>
-    <li>Red herring ("trap") questions can be included to confuse adversaries</li>
-    <li>All answers are forced lowercase and trimmed to prevent unintentional lockouts</li>
-  </ul>
-
-  <h2>File and Environment Security</h2>
-  <ul>
-    <li>All files are encrypted using AES-GCM with 256-bit keys</li>
-    <li>Metadata, filenames, and final messages are encrypted</li>
-    <li>Vaults are output as tamper-evident, portable ZIP files</li>
-    <li>The vault cannot be recovered if the vault file is altered.</li>
-  </ul>
-
-  <p>Decryption only succeeds if the exact vault structure, cryptographic parameters, and answer order are preserved. This binds each vault to its original interface without revealing any secrets.</p>
-
-  <h2>Flexible Distribution</h2>
-
-  <p>Memoro Vault supports a wide range of secure sharing strategies:</p>
-  <ul>
-    <li>Keep it private and fully self-recoverable</li>
-    <li>Distribute questions among trusted collaborators</li>
-    <li>Store vaults publicly (USB, IPFS, cloud)—without risk of exposure</li>
-  </ul>
-
-  <p><strong>There is no backdoor.</strong> Without the exact answer sequence and matching vault version, recovery is mathematically impossible.</p>
+  <p><strong>There are no backdoors and no exceptions.</strong> 
+  Decryption is mathematically impossible without the exact answers in the correct order and the original vault file. 
+  Memoro Vault does not rely on any external server or authority, making it an enduring safeguard for digital sovereignty.</p>
 
   <div class="button-container">
     <button class="button" onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
   </div>
 </div>
-
-
 
 <script>
   const canvas = document.getElementById('matrixCanvas');
@@ -209,26 +201,6 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   });
-
-  async function nukeEverything() {
-  try {
-    localStorage.clear();
-    sessionStorage.clear();
-    if (indexedDB.databases) {
-      const dbs = await indexedDB.databases();
-      for (const db of dbs) {
-        indexedDB.deleteDatabase(db.name);
-      }
-    } else {
-      indexedDB.deleteDatabase("memoroVaultVaultStorage");
-      indexedDB.deleteDatabase("memoroVaultDB");
-    }
-    console.log("Memoro Vault: Local memory wiped.");
-  } catch (err) {
-    console.warn("Memoro Vault wipe failed:", err);
-  }
-}
-
 </script>
 </body>
 </html>

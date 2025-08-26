@@ -19,219 +19,268 @@
 <!-- QR decoder -->
 <script src="libs/jsqr.min.js"></script>
 
-  <style>
-  /* ===========================
-   Memoro Vault — Dashboard UI
-   Professional Neo/Cypherpunk
-   =========================== */
-
-/* Theme tokens */
-:root{
+<style>
+:root {
   --bg:#000;
-  --fg:#b8ffd9;
-  --fg-strong:#c9ffd7;
-  --accent:#00ff99;
-  --accent-dim:rgba(0,255,153,.55);
-  --panel:#0b0f0c;
-  --panel-2:#101410;
-  --panel-3:#151a16;
+  --fg:#00ff99;
+  --fg-strong:#0f0;
+  --border:#00ff99;
+  --border-dim:rgba(0,255,153,.28);
+
+  --panel:#111;
   --radius:12px;
-  --radius-sm:10px;
   --radius-xs:8px;
+
   --gap:clamp(10px,2.2vw,18px);
-  --pad:clamp(12px,2.4vw,24px);
-  --pad-lg:clamp(18px,3vw,30px);
+  --pad:clamp(12px,2.2vw,22px);
+  --pad-lg:clamp(16px,2.8vw,28px);
 }
 
-/* Base */
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{
+/* ---------- Base ---------- */
+* { box-sizing:border-box; }
+html,body { height:100%; }
+body {
   margin:0;
   padding:min(3vh,28px);
   background:var(--bg);
   color:var(--fg);
-  font-family:"Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
+  font-family:"Fira Code", monospace;
   display:flex; flex-direction:column; align-items:center;
 }
 
-/* Typography */
-h1,h2,h3{ margin:0; line-height:1.1; color:var(--accent); }
-h1{ font-size:clamp(28px,4.6vw,54px); letter-spacing:.3px; text-shadow:0 0 18px rgba(0,255,153,.12); }
-h2{ font-size:clamp(18px,2.2vw,26px); color:var(--fg-strong); }
-h3{ font-size:clamp(16px,2vw,22px); color:var(--fg-strong); }
-p{  margin:0; color:#9ff6cf; text-align:center; font-size:clamp(14px,1.8vw,19px); }
+/* Canvas layers */
+canvas { position:fixed; inset:0; z-index:-2; }
+#matrixCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:-3; }
+.matrix-overlay { position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:-2; }
 
-/* Tight hero spacing */
-h1{ margin-bottom:.22em; }
-h1 + div p.typewriter-text{ margin:0 0 .14em; line-height:1.18; }
-h1 + div + div p.typewriter-text{ margin-top:0; }
+/* ---------- Typography ---------- */
+h1,h2,h3 { margin:0; line-height:1.12; }
+h1 { color:var(--fg); font-size:clamp(28px,4.6vw,52px); }
+h2 { color:var(--fg-strong); font-size:clamp(18px,2.2vw,26px); }
+h3 { color:var(--fg-strong); font-size:clamp(16px,2vw,22px); }
+p  { margin:0; color:var(--fg); text-align:center; font-size:clamp(14px,1.8vw,18px); }
 
-/* Optional typing reveal */
-.typewriter-text{
-  display:inline-block; overflow:hidden; white-space:nowrap;
-  border-right:2px solid transparent; color:transparent;
-  animation:mv-reveal 0s forwards, mv-typing 1.8s steps(40,end) .05s forwards, mv-blink .9s step-end 6 1.85s forwards;
-  pointer-events:none;
+/* ---------- Typewriter Hero ---------- */
+.mv-hero {
+  display:flex; flex-direction:column; align-items:center;
+  gap:8px; margin-top:6px; margin-bottom:10px; text-align:center;
 }
-@keyframes mv-reveal{ to{ color:#b8ffd9; border-right-color:#b8ffd9; } }
-@keyframes mv-typing{ from{width:0} to{width:100%} }
-@keyframes mv-blink{ 0%,100%{border-color:transparent} 50%{border-color:#b8ffd9} }
 
-/* Buttons */
-.button, .modal-buttons button, .unlock-button, .three-dots{
-  background:linear-gradient(180deg,#0a2d21,#071c15);
-  color:#d8ffea;
-  border:1px solid var(--accent-dim);
+/* Typewriter effect */
+.typewriter-text {
+  display:inline-block;
+  overflow:hidden;
+  white-space:nowrap;
+  border-right:2px solid transparent;
+  color:transparent;
+  animation:
+    revealText 0s forwards,
+    typing 2s steps(40,end) forwards 0.05s,
+    blink-caret 0.75s step-end 7 2s forwards;
+}
+
+@keyframes revealText { to { color:#00ff99; border-right-color:#00ff99; } }
+@keyframes typing     { from { width:0 } to { width:100% } }
+@keyframes blink-caret{ 0%,100%{border-color:transparent} 50%{border-color:#00ff99} }
+
+/* Buttons fade in after typing */
+.button-group {
+  opacity:0; transform:translateY(6px);
+  animation: fadeInUp .5s ease-out forwards;
+  animation-delay:3.5s; /* adjust depending on line timing */
+}
+@keyframes fadeInUp { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+
+/* ---------- Buttons (full rewrite, same look; better on all screens) ---------- */
+.button,
+.modal-buttons button,
+.unlock-button,
+.three-dots {
+  background: #111;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 12px 20px;
+  font-size: clamp(14px, 1.6vw, 18px);
+  cursor: pointer;
+  transition: transform .12s, box-shadow .16s, background .18s;
+  box-shadow: 0 0 6px var(--fg);
+}
+
+/* keep the hover/active/focus styling exactly as you had */
+.button:hover,
+.modal-buttons button:hover,
+.unlock-button:hover {
+  background: #1a1a1a;
+  transform: translateY(-1px);
+}
+.button:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(0,255,153,.3);
+}
+.button:active { transform: translateY(0); }
+.button[disabled] { opacity: .5; filter: grayscale(100%); cursor: not-allowed; }
+
+/* ensure real buttons have a sensible minimum; do NOT affect the three-dots icon */
+.button,
+.modal-buttons button,
+.unlock-button {
+  min-width: 220px;
+}
+
+/* ---------- Buttons (full rewrite, same look; better on all screens) ---------- */
+.button,
+.modal-buttons button,
+.unlock-button,
+.three-dots {
+  background: #111;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 12px 20px;
+  font-size: clamp(14px, 1.6vw, 18px);
+  cursor: pointer;
+  transition: transform .12s, box-shadow .16s, background .18s;
+  box-shadow: 0 0 6px var(--fg);
+}
+
+/* keep the hover/active/focus styling exactly as you had */
+.button:hover,
+.modal-buttons button:hover,
+.unlock-button:hover {
+  background: #1a1a1a;
+  transform: translateY(-1px);
+}
+.button:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(0,255,153,.3);
+}
+.button:active { transform: translateY(0); }
+.button[disabled] { opacity: .5; filter: grayscale(100%); cursor: not-allowed; }
+
+/* ensure real buttons have a sensible minimum; do NOT affect the three-dots icon */
+.button,
+.modal-buttons button,
+.unlock-button {
+  min-width: 220px;
+}
+
+/* ---------- Buttons (unchanged visual style) ---------- */
+.button,
+.modal-buttons button,
+.unlock-button,
+.three-dots {
+  background:#111;
+  color:var(--fg);
+  border:1px solid var(--border);
   border-radius:var(--radius-xs);
-  padding:13px 22px;
+  padding:12px 20px;
   font-size:clamp(14px,1.6vw,18px);
   cursor:pointer;
-  transition:transform .12s, box-shadow .18s, background .25s, opacity .2s, filter .2s;
-  box-shadow:0 6px 18px rgba(0,255,153,.12), inset 0 0 0 1px rgba(0,255,153,.10);
+  transition:transform .12s, box-shadow .16s, background .18s;
+  box-shadow:0 0 6px var(--fg);
 }
-.button:hover, .modal-buttons button:hover, .unlock-button:hover{
-  background:linear-gradient(180deg,#0e3b2b,#0a2e22);
-  transform:translateY(-1px);
-  box-shadow:0 10px 26px rgba(0,255,153,.18), inset 0 0 0 1px rgba(0,255,153,.16);
-}
-.button:focus-visible, .modal-buttons button:focus-visible, .unlock-button:focus-visible{
-  outline:0; box-shadow:0 0 0 3px rgba(0,255,153,.28), 0 10px 26px rgba(0,255,153,.18);
-}
-.button:active{ transform:translateY(0); }
-.button[disabled], .modal-buttons button[disabled], .unlock-button[disabled]{ opacity:.45; filter:grayscale(100%); box-shadow:none; cursor:not-allowed; }
+.button:hover,
+.modal-buttons button:hover,
+.unlock-button:hover { background:#1a1a1a; transform:translateY(-1px); }
+.button:focus-visible { outline:0; box-shadow:0 0 0 3px rgba(0,255,153,.3); }
+.button:active { transform:translateY(0); }
+.button[disabled] { opacity:.5; filter:grayscale(100%); cursor:not-allowed; }
 
-/* CTA row — 4 across on wide screens, hugs content */
+/* keep real buttons from squishing; they fill their grid track */
+.button,
+.modal-buttons button,
+.unlock-button {
+  min-width: 220px;
+  width: 100%;
+}
+
+/* ---------- CTA row (discrete layouts only) ---------- */
 .button-group{
-  display: inline-grid;                  /* shrink-wrap container */
-  grid-auto-flow: column;                /* lay items left→right in one row */
-  grid-auto-columns: max-content;        /* each button keeps natural width */
-  gap: 14px 18px;
-  justify-content: center;
-  margin: 12px auto 0;
-  padding: clamp(10px,1.2vw,14px) clamp(12px,1.6vw,18px);
-  background: linear-gradient(180deg, rgba(0,255,153,.04), rgba(0,255,153,.02));
-  border: 1px solid rgba(0,255,153,.22);
-  border-radius: 16px;
-  box-shadow: 0 0 18px rgba(0,255,153,.12), inset 0 0 0 1px rgba(0,255,153,.08);
-  backdrop-filter: blur(2.5px);
-  width: auto;                           /* key: no 100% / max-width */
+  display:grid;
+  gap:14px 16px;
+  justify-content:center;       /* center the grid block */
+  align-content:center;
+  margin:14px auto 0;
+  padding:12px 16px;
+  background:rgba(0,255,153,.05);
+  border:1px solid var(--border-dim);
+  border-radius:16px;
+  width:auto;
+  max-width:96vw;               /* avoid horizontal overflow in tight windows */
 }
 
-/* Tablet: 2×2 grid (still snug) */
-@media (max-width: 1024px){
+/* 1×4 row — wide screens */
+@media (min-width: 1100px){
   .button-group{
-    grid-auto-flow: row;
-    grid-template-columns: repeat(4, max-content);
+    grid-template-columns: repeat(4, minmax(220px, max-content));
   }
 }
 
-/* Mobile: single column, snug frame */
-@media (max-width: 750px){
+/* 2×2 grid — medium screens */
+@media (min-width: 600px) and (max-width: 1099px){
+  .button-group{
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+/* 1×N column — small screens */
+@media (max-width: 599px){
   .button-group{
     grid-template-columns: 1fr;
-    padding: clamp(8px,1vw,12px) clamp(10px,1.2vw,14px);
   }
-  .button{ width: 100%; }
 }
 
-/* Vault list cards */
-.vault-list{
-  width:min(825px,100%);
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:var(--gap); margin-top:24px;
+/* ---------- Vault Grid ---------- */
+.vault-list {
+  width:min(900px,100%);
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:var(--gap);
+  margin-top:24px;
 }
-.vault-item{
-  background:var(--panel-2);
-  border:1px solid rgba(0,255,153,.28);
+.vault-item {
+  background:var(--panel);
+  border:1px solid var(--border-dim);
   border-radius:var(--radius);
   padding:var(--pad-lg);
   display:flex; flex-direction:column; gap:10px;
-  position:relative;
-  box-shadow:0 10px 28px rgba(0,255,153,.10), inset 0 0 0 1px rgba(0,255,153,.08);
-  animation:fadeIn .45s ease both;
+  box-shadow:0 0 14px rgba(0,255,153,.12);
 }
-.vault-item h2{ font-size:clamp(18px,2.1vw,22px); color:#ddffe9; word-break:break-word; }
-.vault-item p{ font-size:clamp(13px,1.6vw,16px); color:#cfeede; text-align:left; }
-.unlock-button{ align-self:stretch; }
-.three-dots{ position:absolute; top:12px; right:12px; background:transparent; border:none; font-size:22px; box-shadow:none; color:#d8ffea; }
-.vault-menu{
-  display:none; position:absolute; top:44px; right:12px;
-  background:#0b0b0b; border:1px solid rgba(0,255,153,.25); border-radius:var(--radius-xs);
-  overflow:hidden; z-index:10; box-shadow:0 10px 22px rgba(0,0,0,.4);
-}
-.vault-menu button{
-  width:210px; background:#000; border:0; border-bottom:1px solid rgba(0,255,153,.18);
-  color:#d8ffea; text-align:left; font-size:15px; padding:12px 14px;
-}
-.vault-menu button:last-child{ border-bottom:0; }
-.vault-menu button:hover{ background:#062717; }
+.vault-item h2 { font-size:clamp(18px,2.1vw,22px); color:#b9ffd9; }
+.vault-item p  { font-size:clamp(13px,1.6vw,16px); color:#b9ffd9; text-align:left; }
 
-/* Modals */
-.modal-overlay{
+/* ---------- Modals ---------- */
+.modal-overlay {
   display:none; position:fixed; inset:0; z-index:9999;
-  background:rgba(0,0,0,.72);
+  background:rgba(0,0,0,.78);
   align-items:center; justify-content:center; padding:20px;
 }
-.modal{
-  background:#101410; color:#d9ffe9; font-family:'Fira Code', monospace;
+.modal {
+  background:#111; color:var(--fg);
   width:92%; max-width:520px;
-  padding:42px 34px 30px;
-  border:1px solid rgba(0,255,153,.35);
+  padding:40px 32px 28px;
+  border:1px solid var(--border);
   border-radius:12px;
-  box-shadow:0 0 16px rgba(0,255,153,.15), 0 18px 40px rgba(0,0,0,.6);
-  max-height:calc(100vh - 80px); overflow-y:auto; box-sizing:border-box;
-  display:flex; flex-direction:column; gap:16px; text-align:center; align-items:stretch;
+  box-shadow:0 0 16px rgba(0,255,153,.18);
+  max-height:calc(100vh - 80px); overflow-y:auto;
+  display:flex; flex-direction:column; gap:16px; text-align:center;
 }
-.modal h2{ margin:0 0 6px; font-size:26px; color:#ddffe9; }
-.modal p{ margin:0; font-size:15px; line-height:1.6; color:#bfffe6; }
-.modal input, .modal select, .modal textarea{
-  width:100%; padding:10px 12px; min-height:46px; line-height:1.2;
-  border-radius:8px; border:1px solid rgba(0,255,153,.45);
-  background:#000; color:#cfffec; font-family:'Fira Code', monospace; font-size:15px;
-  outline:none; transition:box-shadow .2s, border-color .2s;
+.modal h2 { font-size:26px; color:var(--fg-strong); }
+.modal p  { font-size:15px; line-height:1.6; color:var(--fg); }
+.modal input {
+  width:100%; padding:10px 12px; min-height:44px;
+  border-radius:8px; border:1px solid var(--border);
+  background:#000; color:var(--fg);
+  font-family:'Fira Code', monospace; font-size:15px;
 }
-.modal input:focus, .modal select:focus, .modal textarea:focus{
-  border-color:#00ff99; box-shadow:0 0 10px #00ff99, 0 0 20px #00ff99;
-}
-.modal-buttons{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-top:6px; }
+.modal-buttons { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
 
-/* Progress bar in modal */
-#paperProgressHost{ width:100%; text-align:left; }
-#paperProgressText{ font-size:14px; color:#bfffe6; margin-bottom:6px; }
-.paper-progress-track{ background:#222; border:1px solid #00ff99; border-radius:6px; overflow:hidden; height:12px; }
-#paperProgressBar{ height:12px; width:0%; background:#00ff99; border-radius:6px; }
-
-/* Responsive modal tweaks */
-@media (max-width:520px){
-  .modal{ padding:30px 16px 20px; border-radius:10px; gap:12px; }
-  .modal h2{ font-size:22px; }
-  .modal p{ font-size:14px; }
-}
-
-/* Canvas layers */
-canvas{ position:fixed; inset:0 0 auto auto; z-index:-2; }
-#matrixCanvas{ position:fixed; inset:0; width:100vw; height:100vh; z-index:-3; }
-.matrix-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:-2; }
-
-/* Scrollbars (WebKit/Chromium) */
+/* ---------- Scrollbars ---------- */
 *::-webkit-scrollbar{ width:10px; height:10px; }
-*::-webkit-scrollbar-thumb{ background:linear-gradient(#00ff99,#009966); border-radius:10px; }
+*::-webkit-scrollbar-thumb{ background:linear-gradient(#00ff99,#0b7f55); border-radius:10px; }
 *::-webkit-scrollbar-track{ background:#0d0d0d; }
-
-/* Accessibility */
-@media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
-
-/* Helpers */
-.center{ text-align:center; }
-.hidden{ display:none !important; }
-.hr{ height:1px; width:100%; background:linear-gradient(90deg,transparent,rgba(0,255,153,.35),transparent); margin:6px 0; }
-
-@keyframes fadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
 </style>
-
 
 
 </head>
@@ -280,8 +329,8 @@ canvas{ position:fixed; inset:0 0 auto auto; z-index:-2; }
     </div>
 
     <div class="modal-buttons">
-      <button onclick="cancelUnlock()">Cancel</button>
       <button id="unlockButton" onclick="submitUnlock()">Unlock</button>
+      <button onclick="cancelUnlock()">Cancel</button>
     </div>
   </div>
 </div>
@@ -327,8 +376,8 @@ canvas{ position:fixed; inset:0 0 auto auto; z-index:-2; }
     <h2>Rename Vault</h2>
     <input type="text" id="renameInput" placeholder="New vault name">
     <div class="modal-buttons">
-      <button onclick="cancelRename()">Cancel</button>
       <button onclick="submitRename()">Rename</button>
+      <button onclick="cancelRename()">Cancel</button>
     </div>
   </div>
 </div>
@@ -471,8 +520,8 @@ function saveVaultsToLocalStorage() {
         <div style="position:relative;">
           <button class="three-dots" onclick="toggleMenu('${vaultId}')">⋮</button>
           <div class="vault-menu" id="menu-${vaultId}">
-            <button onclick="renameVault('${vaultId}')">Rename</button>
             <button onclick="deleteVault('${vaultId}')">Delete</button>
+            <button onclick="renameVault('${vaultId}')">Rename</button>
           </div>
         </div>
       </div>
