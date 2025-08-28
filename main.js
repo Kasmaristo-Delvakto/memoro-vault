@@ -2,7 +2,7 @@
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 process.env.NODE_ENV = 'production';
 
-const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron'); // ← add Menu
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 
 // Disable Chromium geolocation prompt
@@ -19,12 +19,6 @@ function createWindow() {
     show: false,
     icon: path.join(__dirname, 'src', 'assets', 'memoro-vault.ico'),
     title: 'Memoro Vault',
-
-    // --- window chrome & menu behavior ---
-    fullscreen: false,          // start windowed (not true fullscreen)
-    frame: true,                // keep OS title bar (maximize/fullscreen/close buttons)
-    autoHideMenuBar: true,      // hide menu bar on Win/Linux (Alt won't show it if menu is null)
-
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -35,7 +29,6 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.maximize();  // ✅ fill the screen by default (keeps title bar/buttons)
     mainWindow.show();
     mainWindow.focus();
   });
@@ -97,11 +90,7 @@ ipcMain.on('open-external-link', (event, url) => {
   }
 });
 
-app.whenReady().then(() => {
-  // Remove the application menu entirely so no devtools/menu bar appears
-  Menu.setApplicationMenu(null);     // ✅ no top menu/devtools bar
-  createWindow();
-});
+app.whenReady().then(createWindow);
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {

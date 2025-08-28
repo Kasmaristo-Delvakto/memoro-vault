@@ -6,7 +6,16 @@
 <script src="libs/zip.min.js"></script>
 <script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
 <script src="libs/secrets.min.js"></script>
+<!-- ZXing first (some polyfills will use it internally) -->
+<script src="libs/zxing.min.js"></script>
 
+<!-- Use the official WICG polyfill you downloaded -->
+<script src="libs/barcode-detector.polyfill.js"></script>
+
+<script>
+// The polyfill defines window.BarcodeDetector automatically if the
+// native API is missing. No manual assignment needed here.
+</script>
 <!-- PDF.js core -->
 <script src="libs/pdf.min.js"></script>
 <script>
@@ -20,7 +29,7 @@
 <script src="libs/jsqr.min.js"></script>
 
 <style>
-:root {
+:root{
   --bg:#000;
   --fg:#00ff99;
   --fg-strong:#0f0;
@@ -31,215 +40,161 @@
   --radius:12px;
   --radius-xs:8px;
 
-  --gap:clamp(10px,2.2vw,18px);
-  --pad:clamp(12px,2.2vw,22px);
-  --pad-lg:clamp(16px,2.8vw,28px);
+  --gap:clamp(12px,2.4vw,22px);
+  --pad:clamp(14px,2.6vw,26px);
+  --pad-lg:clamp(18px,3vw,30px);
 }
 
 /* ---------- Base ---------- */
-* { box-sizing:border-box; }
-html,body { height:100%; }
-body {
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
   margin:0;
-  padding:min(3vh,28px);
+  /* safe-area aware breathing room */
+  padding-block:
+    max(env(safe-area-inset-top), clamp(18px, 5dvh, 64px))
+    max(env(safe-area-inset-bottom), clamp(18px, 6dvh, 72px));
+  padding-inline: max(16px, clamp(14px, 5vw, 28px));
+
   background:var(--bg);
   color:var(--fg);
   font-family:"Fira Code", monospace;
-  display:flex; flex-direction:column; align-items:center;
+
+  /* Vertically center the landing content */
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  /* When there are 2+ vault cards, stop centering so the page scrolls normally */
+body:has(.vault-list .vault-item:nth-of-type(2)){
+  justify-content: flex-start;
+}
+
+/* Let the browser scroll all the way to the hero without clipping */
+html{
+  scroll-padding-top: max(20px, env(safe-area-inset-top));
+}
+}
+
+/* When there are 2+ vault cards, stop centering so the page scrolls normally */
+body:has(.vault-list .vault-item:nth-of-type(2)){
+  justify-content: flex-start;
+  min-height: auto; /* allow the page to grow taller than the viewport */
+}
+
+/* Let the browser scroll all the way to the hero without clipping */
+html{
+  scroll-padding-top: max(20px, env(safe-area-inset-top));
 }
 
 /* Canvas layers */
-canvas { position:fixed; inset:0; z-index:-2; }
-#matrixCanvas { position:fixed; inset:0; width:100vw; height:100vh; z-index:-3; }
-.matrix-overlay { position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:-2; }
+canvas{ position:fixed; inset:0; z-index:-2; }
+#matrixCanvas{ position:fixed; inset:0; width:100vw; height:100vh; z-index:-3; }
+.matrix-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:-2; }
 
-/* ---------- Typography ---------- */
-h1,h2,h3 { margin:0; line-height:1.12; }
-h1 { color:var(--fg); font-size:clamp(28px,4.6vw,52px); }
-h2 { color:var(--fg-strong); font-size:clamp(18px,2.2vw,26px); }
-h3 { color:var(--fg-strong); font-size:clamp(16px,2vw,22px); }
-p  { margin:0; color:var(--fg); text-align:center; font-size:clamp(14px,1.8vw,18px); }
+/* ---------- Typography (bigger, fluid) ---------- */
+h1,h2,h3{ margin:0; line-height:1.12; }
+h1{ 
+  color: var(--fg-strong);       /* neon green, same as "Offline Mode Recommended" */
+  font-size: clamp(36px, 7vw, 64px); 
+  letter-spacing: .02em; 
+  font-weight: 700;              /* make it bold */
+}
+h2{ color:var(--fg-strong);  font-size:clamp(20px, 3vw, 30px); }
+h3{ color:var(--fg-strong);  font-size:clamp(18px, 2.6vw, 24px); }
+p { color:var(--fg); text-align:center; font-size:clamp(16px, 2.2vw, 20px); margin:0; }
 
 /* ---------- Typewriter Hero ---------- */
-.mv-hero {
-  display:flex; flex-direction:column; align-items:center;
-  gap:8px; margin-top:6px; margin-bottom:10px; text-align:center;
+.mv-hero{
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  gap:10px; margin-top:6px; margin-bottom:12px;
 }
-
-/* Typewriter effect */
-.typewriter-text {
-  display:inline-block;
-  overflow:hidden;
-  white-space:nowrap;
-  border-right:2px solid transparent;
-  color:transparent;
+.typewriter-text{
+  display:inline-block; overflow:hidden; white-space:nowrap;
+  border-right:2px solid transparent; color:transparent;
   animation:
     revealText 0s forwards,
-    typing 2s steps(40,end) forwards 0.05s,
-    blink-caret 0.75s step-end 7 2s forwards;
+    typing 2s steps(40,end) forwards .05s,
+    blink-caret .75s step-end 7 2s forwards;
+}
+@keyframes revealText{ 
+  to{ 
+    color: var(--fg-strong);           /* neon green for main header */
+    border-right-color: var(--fg-strong);
+  } 
 }
 
-@keyframes revealText { to { color:#00ff99; border-right-color:#00ff99; } }
-@keyframes typing     { from { width:0 } to { width:100% } }
-@keyframes blink-caret{ 0%,100%{border-color:transparent} 50%{border-color:#00ff99} }
+@keyframes typing{ 
+  from{ width:0 } 
+  to{ width:100% } 
+}
+
+@keyframes blink-caret{ 
+  0%,100%{ border-color: transparent; } 
+  50%{ border-color: var(--fg-strong); }  /* caret blinks neon */
+}
 
 /* Buttons fade in after typing */
-.button-group {
-  opacity:0; transform:translateY(6px);
-  animation: fadeInUp .5s ease-out forwards;
-  animation-delay:3.5s; /* adjust depending on line timing */
-}
-@keyframes fadeInUp { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+.button-group{ opacity:0; transform:translateY(6px); animation:fadeInUp .5s ease-out forwards; animation-delay:3.5s; }
+@keyframes fadeInUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
 
-/* ---------- Buttons (full rewrite, same look; better on all screens) ---------- */
+/* ---------- Buttons (touch-friendly) ---------- */
 .button,
 .modal-buttons button,
 .unlock-button,
-.three-dots {
-  background: #111;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  padding: 12px 20px;
-  font-size: clamp(14px, 1.6vw, 18px);
-  cursor: pointer;
-  transition: transform .12s, box-shadow .16s, background .18s;
-  box-shadow: 0 0 6px var(--fg);
-}
-
-/* keep the hover/active/focus styling exactly as you had */
-.button:hover,
-.modal-buttons button:hover,
-.unlock-button:hover {
-  background: #1a1a1a;
-  transform: translateY(-1px);
-}
-.button:focus-visible {
-  outline: 0;
-  box-shadow: 0 0 0 3px rgba(0,255,153,.3);
-}
-.button:active { transform: translateY(0); }
-.button[disabled] { opacity: .5; filter: grayscale(100%); cursor: not-allowed; }
-
-/* ensure real buttons have a sensible minimum; do NOT affect the three-dots icon */
-.button,
-.modal-buttons button,
-.unlock-button {
-  min-width: 220px;
-}
-
-/* ---------- Buttons (full rewrite, same look; better on all screens) ---------- */
-.button,
-.modal-buttons button,
-.unlock-button,
-.three-dots {
-  background: #111;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  padding: 12px 20px;
-  font-size: clamp(14px, 1.6vw, 18px);
-  cursor: pointer;
-  transition: transform .12s, box-shadow .16s, background .18s;
-  box-shadow: 0 0 6px var(--fg);
-}
-
-/* keep the hover/active/focus styling exactly as you had */
-.button:hover,
-.modal-buttons button:hover,
-.unlock-button:hover {
-  background: #1a1a1a;
-  transform: translateY(-1px);
-}
-.button:focus-visible {
-  outline: 0;
-  box-shadow: 0 0 0 3px rgba(0,255,153,.3);
-}
-.button:active { transform: translateY(0); }
-.button[disabled] { opacity: .5; filter: grayscale(100%); cursor: not-allowed; }
-
-/* ensure real buttons have a sensible minimum; do NOT affect the three-dots icon */
-.button,
-.modal-buttons button,
-.unlock-button {
-  min-width: 220px;
-}
-
-/* ---------- Buttons (unchanged visual style) ---------- */
-.button,
-.modal-buttons button,
-.unlock-button,
-.three-dots {
-  background:#111;
-  color:var(--fg);
+.three-dots{
+  background:#111; color:var(--fg);
   border:1px solid var(--border);
   border-radius:var(--radius-xs);
-  padding:12px 20px;
-  font-size:clamp(14px,1.6vw,18px);
+  padding:14px 22px;
+  font-size:clamp(15px, 1.8vw, 19px);
   cursor:pointer;
   transition:transform .12s, box-shadow .16s, background .18s;
   box-shadow:0 0 6px var(--fg);
 }
 .button:hover,
 .modal-buttons button:hover,
-.unlock-button:hover { background:#1a1a1a; transform:translateY(-1px); }
-.button:focus-visible { outline:0; box-shadow:0 0 0 3px rgba(0,255,153,.3); }
-.button:active { transform:translateY(0); }
-.button[disabled] { opacity:.5; filter:grayscale(100%); cursor:not-allowed; }
+.unlock-button:hover{ background:#1a1a1a; transform:translateY(-1px); }
+.button:focus-visible{ outline:0; box-shadow:0 0 0 3px rgba(0,255,153,.3); }
+.button:active{ transform:translateY(0); }
+.button[disabled]{ opacity:.5; filter:grayscale(100%); cursor:not-allowed; }
 
-/* keep real buttons from squishing; they fill their grid track */
+/* Keep real buttons from squishing; fill their grid track */
 .button,
 .modal-buttons button,
-.unlock-button {
-  min-width: 220px;
-  width: 100%;
-}
+.unlock-button{ min-width:240px; width:100%; min-height:48px; }
 
-/* ---------- CTA row (discrete layouts only) ---------- */
+/* ---------- CTA row ---------- */
 .button-group{
-  display:grid;
-  gap:14px 16px;
-  justify-content:center;       /* center the grid block */
-  align-content:center;
-  margin:14px auto 0;
-  padding:12px 16px;
+  display:grid; gap:16px 18px;
+  justify-content:center; align-content:center;
+  margin:18px auto 0; padding:16px 18px;
   background:rgba(0,255,153,.05);
   border:1px solid var(--border-dim);
-  border-radius:16px;
-  width:auto;
-  max-width:96vw;               /* avoid horizontal overflow in tight windows */
+  border-radius:18px;
+  width:auto; max-width:96vw;
 }
-
 /* 1×4 row — wide screens */
-@media (min-width: 1100px){
-  .button-group{
-    grid-template-columns: repeat(4, minmax(220px, max-content));
-  }
+@media (min-width:1100px){
+  .button-group{ grid-template-columns:repeat(4, minmax(240px, max-content)); }
 }
-
 /* 2×2 grid — medium screens */
-@media (min-width: 600px) and (max-width: 1099px){
-  .button-group{
-    grid-template-columns: repeat(2, minmax(220px, 1fr));
-  }
+@media (min-width:600px) and (max-width:1099px){
+  .button-group{ grid-template-columns:repeat(2, minmax(240px, 1fr)); }
 }
-
 /* 1×N column — small screens */
-@media (max-width: 599px){
-  .button-group{
-    grid-template-columns: 1fr;
-  }
+@media (max-width:599px){
+  .button-group{ grid-template-columns:1fr; }
 }
 
 /* ---------- Vault Grid ---------- */
-.vault-list {
+.vault-list{
   width:min(900px,100%);
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:var(--gap);
-  margin-top:24px;
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr));
+  gap:var(--gap); margin-top:26px;
 }
-.vault-item {
+.vault-item{
   background:var(--panel);
   border:1px solid var(--border-dim);
   border-radius:var(--radius);
@@ -247,45 +202,176 @@ p  { margin:0; color:var(--fg); text-align:center; font-size:clamp(14px,1.8vw,18
   display:flex; flex-direction:column; gap:10px;
   box-shadow:0 0 14px rgba(0,255,153,.12);
 }
-.vault-item h2 { font-size:clamp(18px,2.1vw,22px); color:#b9ffd9; }
-.vault-item p  { font-size:clamp(13px,1.6vw,16px); color:#b9ffd9; text-align:left; }
+.vault-item h2{ font-size:clamp(20px, 2.2vw, 24px); color:#b9ffd9; }
+.vault-item p { font-size:clamp(14px, 1.9vw, 17px); color:#b9ffd9; text-align:left; }
 
 /* ---------- Modals ---------- */
-.modal-overlay {
+.modal-overlay{
   display:none; position:fixed; inset:0; z-index:9999;
   background:rgba(0,0,0,.78);
   align-items:center; justify-content:center; padding:20px;
 }
-.modal {
+.modal{
   background:#111; color:var(--fg);
   width:92%; max-width:520px;
   padding:40px 32px 28px;
-  border:1px solid var(--border);
-  border-radius:12px;
+  border:1px solid var(--border); border-radius:12px;
   box-shadow:0 0 16px rgba(0,255,153,.18);
   max-height:calc(100vh - 80px); overflow-y:auto;
   display:flex; flex-direction:column; gap:16px; text-align:center;
 }
-.modal h2 { font-size:26px; color:var(--fg-strong); }
-.modal p  { font-size:15px; line-height:1.6; color:var(--fg); }
-.modal input {
-  width:100%; padding:10px 12px; min-height:44px;
+.modal h2{ font-size:clamp(22px, 3.2vw, 28px); color:var(--fg-strong); }
+.modal p { font-size:clamp(14px, 2.1vw, 18px); line-height:1.6; }
+.modal input{
+  width:100%; padding:12px 14px; min-height:46px;
   border-radius:8px; border:1px solid var(--border);
   background:#000; color:var(--fg);
-  font-family:'Fira Code', monospace; font-size:15px;
+  font-family:"Fira Code", monospace; font-size:16px;
 }
-.modal-buttons { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+.modal-buttons{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+
+/* ---------- Paper Decrypt — narrow-screen ergonomics ---------- */
+#paperDecryptModal{ align-items:center; justify-content:center; padding:12px; }
+#paperDecryptModal .modal{
+  width:min(720px,100%);
+  max-height:90dvh; overflow:auto; box-sizing:border-box;
+}
+#paperProgressHost{ width:100%; }
+#paperStatus{ font-size:14px; line-height:1.35; }
+#paperCam{
+  width:100%; max-height:42dvh; object-fit:contain;
+  background:#000; border-radius:8px;
+}
 
 /* ---------- Scrollbars ---------- */
 *::-webkit-scrollbar{ width:10px; height:10px; }
 *::-webkit-scrollbar-thumb{ background:linear-gradient(#00ff99,#0b7f55); border-radius:10px; }
 *::-webkit-scrollbar-track{ background:#0d0d0d; }
+
+/* Frame container stays safe-area aware */
+.ui-frame{
+  position:fixed;
+  inset:
+    max(10px, env(safe-area-inset-top))
+    max(10px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
+  pointer-events:none;
+  z-index:5000;
+}
+@media (max-width:599px){
+  .ui-frame{
+    inset:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+}
+.ui-frame-svg{ width:100%; height:100%; display:block; }
+
+/* The animated border */
+.ui-frame-path{
+  fill:transparent;
+  stroke:var(--border);
+  stroke-width:1.6;
+  filter:url(#neonGlow);
+
+  /* trace-on */
+  stroke-dasharray:1000;
+  stroke-dashoffset:1000;
+  animation:
+    drawFrame 4s linear forwards,        /* 0→4s: outline draws in */
+    neonPulse 4s ease-in-out 4s infinite;/* 4s+: soft breathing glow */
+}
+
+/* optional soft inner/outer radiance using a pseudo ring */
+.ui-frame::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:16px;
+  box-shadow:
+    0 0 0 1px rgba(0,255,153,.22),
+    inset 0 0 18px rgba(0,255,153,.16),
+    0 0 22px rgba(0,255,153,.18);
+  pointer-events:none;
+  opacity:.0;
+  animation: frameHalo 4s linear forwards; /* fade halo in as line draws */
+}
+
+/* animations */
+@keyframes drawFrame { to { stroke-dashoffset:0; } }
+@keyframes neonPulse {
+  0%,100% { opacity:.9; stroke-width:1.6; }
+  50%     { opacity:1;  stroke-width:2.2; }
+}
+@keyframes frameHalo { to { opacity:1; } }
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .ui-frame-path{
+    animation:none;
+    stroke-dasharray:none; stroke-dashoffset:0;
+  }
+  .ui-frame::after{ animation:none; opacity:1; }
+}
+
+/* tighter on small screens */
+@media (max-width:599px){
+  .ui-frame{
+    inset:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    border-radius:14px;
+  }
+}
+
+/* Keep the last row clear of the neon frame */
+body::after{
+  content:"";
+  display:block;
+  /* room for the frame + glow + safe area */
+  height: max(36px, calc(env(safe-area-inset-bottom) + 26px));
+}
+
+/* small extra breathing room below the grid */
+.vault-list{ margin-bottom: 12px; }
+
+/* ===== Mobile tweaks ===== */
+@media (max-width:599px){
+  /* reduce side padding a touch */
+body{ padding-inline: max(14px, clamp(14px, 6vw, 22px)); }
+
+  /* larger headline on small phones for presence */
+  h1{ font-size:clamp(34px, 9vw, 60px); }
+  h2{ font-size:clamp(20px, 4.6vw, 28px); }
+  p { font-size:clamp(15px, 3.8vw, 18px); }
+
+  .button, .modal-buttons button, .unlock-button{
+    min-height:50px; border-radius:12px; font-size:16px;
+    box-shadow:0 0 0 1px rgba(0,255,153,.12), 0 6px 14px rgba(0,0,0,.45);
+  }
+
+  /* make inner “card” invisible if you still use .app-shell */
+  .app-shell{
+    background:transparent; border:none; box-shadow:none; backdrop-filter:none; padding:0;
+  }
+
+  .modal-overlay{ padding:12px; }
+  .modal{ max-height:92dvh; padding:28px 20px 22px; border-radius:14px; }
+}
+
+/* ===== Tablet scale-up ===== */
+@media (600px <= width <= 900px){
+  .app-shell{ width:min(640px,100%); border-radius:18px; }
+}
 </style>
 
-
 </head>
-
 <body>
+  <div class="ui-frame" aria-hidden="true"></div>
   <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
 <div style="display: flex; justify-content: center;">
   <h1><span class="typewriter-text" style="animation-delay: 0s;">Memoro Vault</span></h1>
@@ -520,8 +606,8 @@ function saveVaultsToLocalStorage() {
         <div style="position:relative;">
           <button class="three-dots" onclick="toggleMenu('${vaultId}')">⋮</button>
           <div class="vault-menu" id="menu-${vaultId}">
-            <button onclick="deleteVault('${vaultId}')">Delete</button>
             <button onclick="renameVault('${vaultId}')">Rename</button>
+            <button onclick="deleteVault('${vaultId}')">Delete</button>
           </div>
         </div>
       </div>
@@ -1129,8 +1215,478 @@ const paperEls = {
   camVideo:   () => document.getElementById('paperCam'),
 };
 
-let camStream = null;
-let camLoopId = null;
+// ---------- PDF scanner (4-col, Native BD → ZXing polyfill → jsQR, mini-sweep fallback) ----------
+async function scanPdfFile(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+  // Paper generator constants (letter @ ~300dpi)
+  const COLS      = 4;
+  const MARGIN_PT = 6;     // pt
+  const GAP_PT    = 6;     // pt
+  const LABEL_PT  = 6;     // pt
+  const BANNER_PT = 60;    // pt
+
+  const hasNativeBD = 'BarcodeDetector' in window && String(BarcodeDetector).indexOf('Polyfill') === -1;
+  const BD_NATIVE   = hasNativeBD ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
+  const BD_ZXING    = (typeof window.BarcodeDetectorPolyfill === 'function')
+    ? new window.BarcodeDetectorPolyfill({ formats: ['qr_code'] })
+    : null;
+
+  // region decoder: Native BD → ZXing (polyfill) → jsQR
+  async function decodeRegion(ctx, srcCanvas, x, y, w, h) {
+    if (w <= 0 || h <= 0) return [];
+    // crop → offscreen canvas → bitmap
+    const sub = document.createElement('canvas');
+    sub.width = w; sub.height = h;
+    const sctx = sub.getContext('2d', { willReadFrequently: true });
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(srcCanvas, x, y, w, h, 0, 0, w, h);
+
+    const hits = new Set();
+
+    // 1) Native BD
+    if (BD_NATIVE) {
+      try {
+        const bmp = await createImageBitmap(sub);
+        const codes = await BD_NATIVE.detect(bmp);
+        for (const c of (codes || [])) {
+          const val = (c.rawValue || '').trim();
+          if (val) hits.add(val);
+        }
+        if (hits.size) return Array.from(hits);
+      } catch {}
+    }
+
+    // 2) ZXing via BarcodeDetectorPolyfill (always uses ZXing under the hood)
+    if (BD_ZXING) {
+      try {
+        const bmp = await createImageBitmap(sub);
+        const codes = await BD_ZXING.detect(bmp);
+        for (const c of (codes || [])) {
+          const val = (c.rawValue || '').trim();
+          if (val) hits.add(val);
+        }
+        if (hits.size) return Array.from(hits);
+      } catch {}
+    }
+
+    // 3) jsQR fallback
+    try {
+      const img = sctx.getImageData(0, 0, w, h);
+      const qr = jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
+      if (qr?.data) hits.add(qr.data.trim());
+    } catch {}
+
+    return Array.from(hits);
+  }
+
+  // small helper to keep UI responsive
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    // Early-exit if we already have everything
+    if (paperState.header && paperState.keyHex &&
+        paperState.totalTiles && Object.keys(paperState.tiles).length === paperState.totalTiles) break;
+
+    const page = await pdf.getPage(p);
+
+    // ~300dpi: 72 pt/in → 4.166 px/pt → use 4.2 scale
+    const viewport = page.getViewport({ scale: 4.2 });
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = false;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const W = canvas.width, H = canvas.height;
+    const pxPerPt = W / 612;
+
+    const MARGIN = Math.round(MARGIN_PT * pxPerPt);
+    const GAP    = Math.round(GAP_PT    * pxPerPt);
+    const LABEL  = Math.round(LABEL_PT  * pxPerPt);
+    const BANNER = Math.round(BANNER_PT * pxPerPt);
+
+    const innerW = W - 2 * MARGIN;
+    const tile   = Math.floor((innerW - GAP * (COLS - 1)) / COLS);
+    const usedW  = COLS * tile + GAP * (COLS - 1);
+    const startX = MARGIN + Math.floor((innerW - usedW) / 2);
+    const rowH   = LABEL + tile + GAP;
+
+    // helper: try tight & padded crop
+    async function tryRect(x, y, w, h, tag) {
+      const variants = [
+        // tight
+        () => {
+          const inset = Math.round(Math.min(w, h) * 0.02);
+          const x1 = Math.max(0, x + inset), y1 = Math.max(0, y + inset);
+          const w1 = Math.max(0, Math.min(W - x1, w - inset * 2));
+          const h1 = Math.max(0, Math.min(H - y1, h - inset * 2));
+          return { x:x1, y:y1, w:w1, h:h1, kind:'tight' };
+        },
+        // padded
+        () => {
+          const pad = Math.round(Math.min(w, h) * 0.08);
+          const x0 = Math.max(0, x - pad), y0 = Math.max(0, y - pad);
+          const w0 = Math.min(W - x0, w + pad * 2), h0 = Math.min(H - y0, h + pad * 2);
+          return { x:x0, y:y0, w:w0, h:h0, kind:'pad' };
+        }
+      ];
+
+      for (const mk of variants) {
+        const r = mk(); if (r.w <= 0 || r.h <= 0) continue;
+        const vals = await decodeRegion(ctx, canvas, r.x, r.y, r.w, r.h);
+        if (vals.length) {
+          for (const v of vals) ingestQR(v, `${tag}:${r.kind}`);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // deterministic scan rows
+    let y = MARGIN + BANNER + LABEL;
+    let rowsScanned = 0;
+
+    while (y + tile <= H - MARGIN) {
+      for (let c = 0; c < COLS; c++) {
+        const x = startX + c * (tile + GAP);
+
+        // Page 1, first row: KEY | HDR | CT | CT
+        if (p === 1 && rowsScanned === 0) {
+          if      (c === 0) await tryRect(x, y, tile, tile, 'p1-key');
+          else if (c === 1) await tryRect(x, y, tile, tile, 'p1-hdr');
+          else              await tryRect(x, y, tile, tile, 'p1-ct');
+        } else {
+          await tryRect(x, y, tile, tile, `p${p}-ct`);
+        }
+      }
+      rowsScanned++;
+      y += rowH;
+
+      await tick();
+
+      if (paperState.header && paperState.keyHex &&
+          paperState.totalTiles && Object.keys(paperState.tiles).length === paperState.totalTiles) break;
+    }
+
+    // mini-sweep fallback: overlapping windows along rows
+    if (!paperState.totalTiles || Object.keys(paperState.tiles).length < (paperState.totalTiles || Infinity)) {
+      const cols = 3, rows = Math.max(6, Math.floor((H - (MARGIN + BANNER)) / (tile * 0.9)));
+      const winW = Math.floor(tile * 1.2), winH = Math.floor(tile * 1.2);
+      for (let r = 0; r < rows; r++) {
+        const yy = Math.max(MARGIN, Math.min(H - winH - MARGIN, MARGIN + BANNER + Math.round(r * (tile * 0.8))));
+        for (let c = 0; c < cols; c++) {
+          const xx = Math.max(MARGIN, Math.min(W - winW - MARGIN, startX + Math.round(c * (tile + GAP) - tile * 0.1)));
+          await tryRect(xx, yy, winW, winH, `p${p}-mini`);
+        }
+        await tick();
+      }
+    }
+
+    updatePaperProgress();
+    await tick();
+  }
+}
+
+// ---------- Image file scanner (layout-aware → sweeps → upscale; BD → ZXing → jsQR) ----------
+async function scanImageFile(file) {
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await new Promise(r => (img.onload = r));
+
+  const MAX = 3000;
+  const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+  const canvas = document.createElement('canvas');
+  canvas.width  = Math.floor(img.width  * ratio);
+  canvas.height = Math.floor(img.height * ratio);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const found = await findAllQRCodesOnCanvas(canvas);
+  if (!found.length) {
+    setPaperMsg(`No QR detected in ${file.name}.`);
+  } else {
+    for (const t of found) ingestQR(t, `Image ${file.name}`);
+  }
+  updatePaperProgress();
+}
+
+// ---------- Canvas sweep (4-col aware) with BD → ZXing-polyfill → jsQR + upscale ----------
+async function findAllQRCodesOnCanvas(canvas) {
+  const results = new Set();
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const hasNativeBD = 'BarcodeDetector' in window && String(BarcodeDetector).indexOf('Polyfill') === -1;
+  const BD_NATIVE   = hasNativeBD ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
+  const BD_ZXING    = (typeof window.BarcodeDetectorPolyfill === 'function')
+    ? new window.BarcodeDetectorPolyfill({ formats: ['qr_code'] })
+    : null;
+
+  const add = (s) => { if (s) results.add(s.trim()); };
+
+  async function decodeRegion(x, y, w, h) {
+    if (w <= 0 || h <= 0) return false;
+
+    const sub = document.createElement('canvas');
+    sub.width = w; sub.height = h;
+    const sctx = sub.getContext('2d', { willReadFrequently: true });
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+
+    // 1) Native BD
+    if (BD_NATIVE) {
+      try {
+        const bmp = await createImageBitmap(sub);
+        const codes = await BD_NATIVE.detect(bmp);
+        let any = false;
+        for (const c of (codes || [])) {
+          const v = (c.rawValue || '').trim();
+          if (v) { add(v); any = true; }
+        }
+        if (any) return true;
+      } catch {}
+    }
+
+    // 2) ZXing via polyfill (separate pass even if native exists)
+    if (BD_ZXING) {
+      try {
+        const bmp = await createImageBitmap(sub);
+        const codes = await BD_ZXING.detect(bmp);
+        let any = false;
+        for (const c of (codes || [])) {
+          const v = (c.rawValue || '').trim();
+          if (v) { add(v); any = true; }
+        }
+        if (any) return true;
+      } catch {}
+    }
+
+    // 3) jsQR
+    try {
+      const img = sctx.getImageData(0, 0, w, h);
+      const qr = jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
+      if (qr?.data) { add(qr.data); return true; }
+    } catch {}
+
+    return false;
+  }
+
+  // Pass 0: full frame
+  await decodeRegion(0, 0, canvas.width, canvas.height);
+
+  // Pass 1: 4-column grid (M=6pt, G=6pt, L=6pt, B=60pt at 300dpi)
+  {
+    const DPI = 300, PT_PER_IN = 72, pt2px = DPI / PT_PER_IN;
+    const MARGIN = Math.round(6  * pt2px);
+    const GAP    = Math.round(6  * pt2px);
+    const LABEL  = Math.round(6  * pt2px);
+    const BANNER = Math.round(60 * pt2px);
+    const COLS   = 4;
+
+    const W = canvas.width, H = canvas.height;
+    const innerW = W - 2 * MARGIN;
+    const tile   = Math.floor((innerW - GAP * (COLS - 1)) / COLS);
+    const usedW  = COLS * tile + GAP * (COLS - 1);
+    const startX = MARGIN + Math.floor((innerW - usedW) / 2);
+    const rowH   = LABEL + tile + GAP;
+
+    let y = MARGIN + BANNER + LABEL;
+    while (y + tile <= H - MARGIN) {
+      for (let c = 0; c < COLS; c++) {
+        const x = startX + c * (tile + GAP);
+        if (x + tile > W - MARGIN) break;
+        await decodeRegion(x, y, tile, tile);
+      }
+      y += rowH;
+    }
+  }
+
+  // Pass 2: sweeps (coarse → fine with overlap)
+  async function sweep(grid, overlap = 0) {
+    const stepX = Math.floor(canvas.width / grid);
+    const stepY = Math.floor(canvas.height / grid);
+    const oxs = overlap ? [0, Math.floor(stepX / 2)] : [0];
+    const oys = overlap ? [0, Math.floor(stepY / 2)] : [0];
+    for (const ox of oxs) for (const oy of oys) {
+      for (let gy = 0; gy < grid; gy++) for (let gx = 0; gx < grid; gx++) {
+        const x = gx * stepX + ox;
+        const y = gy * stepY + oy;
+        const w = Math.min(stepX, canvas.width  - x);
+        const h = Math.min(stepY, canvas.height - y);
+        await decodeRegion(x, y, w, h);
+      }
+    }
+  }
+  await sweep(4, 0);
+  await sweep(6, 1);
+
+  // Pass 3: upscale retry (1.5× full + 3×3 subtiles)
+  {
+    const scale = 1.5;
+    const tmp = document.createElement('canvas');
+    tmp.width  = Math.floor(canvas.width  * scale);
+    tmp.height = Math.floor(canvas.height * scale);
+    const tctx = tmp.getContext('2d', { willReadFrequently: true });
+    tctx.imageSmoothingEnabled = false;
+    tctx.drawImage(canvas, 0, 0, tmp.width, tmp.height);
+
+    // full upscaled
+    await (async () => {
+      // Native BD
+      if (BD_NATIVE) {
+        try {
+          const bmp = await createImageBitmap(tmp);
+          const codes = await BD_NATIVE.detect(bmp);
+          for (const c of (codes || [])) add((c.rawValue || '').trim());
+        } catch {}
+      }
+      // ZXing polyfill
+      if (BD_ZXING) {
+        try {
+          const bmp = await createImageBitmap(tmp);
+          const codes = await BD_ZXING.detect(bmp);
+          for (const c of (codes || [])) add((c.rawValue || '').trim());
+        } catch {}
+      }
+      // jsQR
+      try {
+        const img = tctx.getImageData(0, 0, tmp.width, tmp.height);
+        const qr = jsQR(img.data, tmp.width, tmp.height, { inversionAttempts: 'attemptBoth' });
+        if (qr?.data) add(qr.data.trim());
+      } catch {}
+    })();
+
+    // 3×3 subtiles
+    const sx = Math.floor(tmp.width  / 3);
+    const sy = Math.floor(tmp.height / 3);
+    for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 3; gx++) {
+      const x = gx * sx, y = gy * sy;
+      try {
+        const sub = tctx.getImageData(x, y, sx, sy);
+        const qr2 = jsQR(sub.data, sx, sy, { inversionAttempts: 'attemptBoth' });
+        if (qr2?.data) add(qr2.data.trim());
+      } catch {}
+    }
+  }
+
+  return Array.from(results);
+}
+
+// ---------- File picker ----------
+async function handlePaperFiles(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  // reset state
+  Object.assign(paperState, {
+    header: null, keyHex: null, tiles: {}, totalTiles: null, seenPayloads: new Set()
+  });
+  const status = paperEls.status();
+  if (status) status.innerHTML = "";
+  setPaperMsg(`Processing ${files.length} file(s)...`);
+  updatePaperProgress();
+
+  for (const f of files) {
+    const name = (f.name || '').toLowerCase();
+    if (f.type === 'application/pdf' || name.endsWith('.pdf')) {
+      await scanPdfFile(f);
+    } else {
+      await scanImageFile(f);
+    }
+  }
+  updatePaperProgress();
+}
+
+// ===== Simple camera loop just for MVKEY/MVHDR/MVCT scanning =====
+let __mvCamStream = null;
+let __mvCamLoop = null;
+
+async function startPaperCamera() {
+  // pick "environment" / rear if available
+  const constraints = {
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1280 },
+      height: { ideal: 720 }
+    },
+    audio: false
+  };
+
+  stopPaperCamera(); // clean any existing
+
+  const v = document.getElementById('paperCam');
+  if (!v) return;
+
+  __mvCamStream = await navigator.mediaDevices.getUserMedia(constraints);
+  v.srcObject = __mvCamStream;
+  v.playsInline = true;
+  v.style.display = 'block';
+  await v.play();
+
+  // light periodic scan (2–4 fps) to keep CPU down
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  let ticking = false;
+  __mvCamLoop = setInterval(async () => {
+    if (ticking) return;
+    if (!v.videoWidth || !v.videoHeight) return;
+    ticking = true;
+    try {
+      canvas.width = v.videoWidth;
+      canvas.height = v.videoHeight;
+      ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+
+      const found = await findAllQRCodesOnCanvas(canvas);
+      for (const t of found) ingestQR(t, 'camera');
+      updatePaperProgress();
+    } catch (e) {
+      console.warn('scan frame failed:', e);
+    } finally {
+      ticking = false;
+    }
+  }, 300); // ~3.3 fps; adjust if you want faster
+}
+
+function stopPaperCamera() {
+  if (__mvCamLoop) { clearInterval(__mvCamLoop); __mvCamLoop = null; }
+  if (__mvCamStream) {
+    for (const tr of __mvCamStream.getTracks()) tr.stop();
+    __mvCamStream = null;
+  }
+  const v = document.getElementById('paperCam');
+  if (v) {
+    v.pause();
+    v.removeAttribute('srcObject');
+    v.srcObject = null;
+    v.style.display = 'none';
+  }
+}
+
+// Small wrappers used by your HTML buttons
+async function startKeyCam(){ await startPaperCamera(); }
+function stopKeyCam(){ stopPaperCamera(); }
+
+async function scanFromVideoOnce(){
+  const v = document.getElementById('paperCam');
+  if (!v || !v.videoWidth) return;
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth;
+  c.height = v.videoHeight;
+  const cx = c.getContext('2d', { willReadFrequently: true });
+  cx.drawImage(v, 0, 0);
+  const found = await findAllQRCodesOnCanvas(c);
+  for (const t of found) ingestQR(t, 'camera-once');
+  updatePaperProgress();
+}
+
+// expose for inline onclick
+window.startKeyCam = startKeyCam;
+window.stopKeyCam = stopKeyCam;
+window.scanFromVideoOnce = scanFromVideoOnce;
 
 // ---------- Small helpers ----------
 function setPaperMsg(msg) {
@@ -1282,336 +1838,7 @@ function ingestQR(raw, src = "QR") {
   updatePaperProgress();
 }
 
-// ---------- PDF scanner (deterministic 3-col crop + mini-sweep fallback) ----------
-async function scanPdfFile(file) {
-  const buf = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
 
-  const MARGIN    = 24;   // pt (letter layout)
-  const GAP       = 12;   // pt
-  const LABEL_PAD = 14;   // pt
-  const BANNER_H  = 72;   // pt
-  const COLS      = 3;
-
-  // small helper to keep UI responsive
-  const tick = () => new Promise(r => setTimeout(r, 0));
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    // Early-exit if we already have everything
-    if (paperState.header && paperState.keyHex &&
-        paperState.totalTiles && Object.keys(paperState.tiles).length === paperState.totalTiles) {
-      break;
-    }
-
-    const page = await pdf.getPage(p);
-
-    // Render at a scale that yields ~300dpi for the QR tile (good for jsQR, not overkill)
-    // Letter page width = 612pt; 300dpi = 300/72 px/pt ≈ 4.166
-    // We use 4.2 but clamp in case of memory-starved devices.
-    const viewport = page.getViewport({ scale: 4.2 });
-    const canvas = document.createElement('canvas');
-    canvas.width  = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.imageSmoothingEnabled = false;
-    await page.render({ canvasContext: ctx, viewport }).promise;
-
-    const W = canvas.width, H = canvas.height;
-    const s = W / 612; // uniform scale from points → pixels
-
-    const marginX = Math.round(MARGIN * s);
-    const marginY = Math.round(MARGIN * s);
-    const gapX    = Math.round(GAP * s);
-    const gapY    = Math.round(GAP * s);
-    const banner  = Math.round(BANNER_H * s);
-    const label   = Math.round(LABEL_PAD * s);
-
-    const innerW  = W - 2 * marginX;
-    const tile    = Math.floor((innerW - gapX * (COLS - 1)) / COLS);
-    const usedW   = COLS * tile + gapX * (COLS - 1);
-    const startX  = marginX + Math.floor((innerW - usedW) / 2);
-
-    // decode helper (tight first, then padded if needed)
-    const tryRect = (x, y, w, h, tag) => {
-      const attempts = [
-        () => {
-          const inset = Math.round(Math.min(w, h) * 0.02);
-          const x1 = Math.max(0, x + inset), y1 = Math.max(0, y + inset);
-          const w1 = Math.max(0, Math.min(W - x1, w - inset * 2));
-          const h1 = Math.max(0, Math.min(H - y1, h - inset * 2));
-          if (w1 <= 0 || h1 <= 0) return false;
-          const img = ctx.getImageData(x1, y1, w1, h1);
-          const qr  = jsQR(img.data, w1, h1, { inversionAttempts: "attemptBoth" });
-          if (qr?.data) { ingestQR(qr.data, tag + ":tight"); return true; }
-          return false;
-        },
-        () => {
-          const pad = Math.round(Math.min(w, h) * 0.08);
-          const x0 = Math.max(0, x - pad), y0 = Math.max(0, y - pad);
-          const w0 = Math.min(W - x0, w + pad * 2), h0 = Math.min(H - y0, h + pad * 2);
-          if (w0 <= 0 || h0 <= 0) return false;
-          const img = ctx.getImageData(x0, y0, w0, h0);
-          const qr  = jsQR(img.data, w0, h0, { inversionAttempts: "attemptBoth" });
-          if (qr?.data) { ingestQR(qr.data, tag + ":pad"); return true; }
-          return false;
-        }
-      ];
-      for (const attempt of attempts) if (attempt()) return true;
-      return false;
-    };
-
-    // deterministic rows/cols like the builder
-    let y = marginY + banner + label;
-    const rowAdvance = label + tile + gapY;
-
-    // First row of page 1 has KEY|HDR|CT1
-    let rowsScanned = 0;
-    let foundOnThisPage = 0;
-    while (y + tile <= H - marginY) {
-      for (let c = 0; c < COLS; c++) {
-        const x = startX + c * (tile + gapX);
-        if (p === 1 && rowsScanned === 0) {
-          if      (c === 0) tryRect(x, y, tile, tile, "p1-key");
-          else if (c === 1) tryRect(x, y, tile, tile, "p1-hdr");
-          else              tryRect(x, y, tile, tile, "p1-ct");
-        } else {
-          if (tryRect(x, y, tile, tile, `p${p}-ct`)) foundOnThisPage++;
-        }
-      }
-      rowsScanned++;
-      y += rowAdvance;
-
-      // yield after each row so UI/progress updates and camera can still run
-      await tick();
-
-      // Early-exit if we’ve got everything
-      if (paperState.header && paperState.keyHex &&
-          paperState.totalTiles && Object.keys(paperState.tiles).length === paperState.totalTiles) {
-        break;
-      }
-    }
-
-    // Mini-sweep fallback: probe 3×N overlapping windows to catch stragglers
-    // (jsQR returns one code per call; these windows help discover missed tiles.)
-    if ((!paperState.totalTiles || Object.keys(paperState.tiles).length < (paperState.totalTiles || Infinity)) ) {
-      const cols = 3, rows = Math.max(6, Math.floor((H - (marginY + banner)) / (tile * 0.9)));
-      const winW = Math.floor(tile * 1.2), winH = Math.floor(tile * 1.2);
-      for (let r = 0; r < rows; r++) {
-        const yy = Math.max(marginY, Math.min(H - winH - marginY, marginY + banner + Math.round(r * (tile * 0.8))));
-        for (let c = 0; c < cols; c++) {
-          const xx = Math.max(marginX, Math.min(W - winW - marginX, startX + Math.round(c * (tile + gapX) - tile * 0.1)));
-          const img = ctx.getImageData(xx, yy, winW, winH);
-          const qr  = jsQR(img.data, winW, winH, { inversionAttempts: 'attemptBoth' });
-          if (qr?.data) {
-            const before = Object.keys(paperState.tiles).length;
-            ingestQR(qr.data, `p${p}-mini`);
-            const after = Object.keys(paperState.tiles).length;
-            if (after > before) foundOnThisPage += (after - before);
-          }
-        }
-        await tick();
-      }
-    }
-
-    // If a page produced nothing and we already have a good amount, don’t keep grinding
-    if (foundOnThisPage === 0 && paperState.totalTiles && Object.keys(paperState.tiles).length > 0) {
-      // nothing discovered here; continue to next page quickly
-    }
-
-    updatePaperProgress();
-    await tick();
-  }
-}
-
-async function scanImageFile(file) {
-  const img = new Image();
-  img.src = URL.createObjectURL(file);
-  await new Promise(r => img.onload = r);
-
-  const MAX = 2400;
-  const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.floor(img.width * ratio);
-  canvas.height = Math.floor(img.height * ratio);
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-  const found = await findAllQRCodesOnCanvas(canvas);
-  if (!found.length) {
-    setPaperMsg(`No QR detected in ${file.name}.`);
-  } else {
-    for (const t of found) ingestQR(t, `Image ${file.name}`);
-  }
-  updatePaperProgress();
-}
-
-// Robust page sweep with overlap + upscale
-async function findAllQRCodesOnCanvas(canvas) {
-  const results = new Set();
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-  // Pass 0: full frame
-  {
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
-    if (qr?.data) results.add(qr.data.trim());
-  }
-
-  // Grid sweep helper
-  function sweep(grid, overlap = 0) {
-    const stepX = canvas.width / grid;
-    const stepY = canvas.height / grid;
-    const oxs = overlap ? [0, stepX/2] : [0];
-    const oys = overlap ? [0, stepY/2] : [0];
-
-    for (const ox of oxs) for (const oy of oys) {
-      for (let gy=0; gy<grid; gy++) for (let gx=0; gx<grid; gx++) {
-        const x = Math.max(0, Math.floor(gx * stepX + ox));
-        const y = Math.max(0, Math.floor(gy * stepY + oy));
-        const w = Math.floor(stepX);
-        const h = Math.floor(stepY);
-        if (x + w > canvas.width || y + h > canvas.height) continue;
-        const img = ctx.getImageData(x, y, w, h);
-        const qr = jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
-        if (qr?.data) results.add(qr.data.trim());
-      }
-    }
-  }
-
-  sweep(4, 0);      // coarse
-  sweep(6, 1);      // finer + overlap
-
-  // Upscaled retry (helps tiny or slightly blurred codes)
-  {
-    const scale = 1.5;
-    const tmp = document.createElement('canvas');
-    tmp.width = Math.floor(canvas.width * scale);
-    tmp.height = Math.floor(canvas.height * scale);
-    const tctx = tmp.getContext('2d', { willReadFrequently: true });
-    tctx.imageSmoothingEnabled = false;
-    tctx.drawImage(canvas, 0, 0, tmp.width, tmp.height);
-
-    const img = tctx.getImageData(0, 0, tmp.width, tmp.height);
-    const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
-    if (qr?.data) results.add(qr.data.trim());
-
-    const stepX = Math.floor(tmp.width / 3);
-    const stepY = Math.floor(tmp.height / 3);
-    for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 3; gx++) {
-      const x = gx * stepX, y = gy * stepY, w = stepX, h = stepY;
-      const sub = tctx.getImageData(x, y, w, h);
-      const qr2 = jsQR(sub.data, w, h, { inversionAttempts: 'attemptBoth' });
-      if (qr2?.data) results.add(qr2.data.trim());
-    }
-  }
-
-  return Array.from(results);
-}
-
-// ---------- File picker ----------
-async function handlePaperFiles(e) {
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
-
-  // reset state
-  Object.assign(paperState, { header:null, keyHex:null, tiles:{}, totalTiles:null, seenPayloads:new Set() });
-  const status = paperEls.status();
-  if (status) status.innerHTML = "";
-  setPaperMsg(`Processing ${files.length} file(s)...`);
-  updatePaperProgress();
-
-  for (const f of files) {
-    if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
-      await scanPdfFile(f);
-    } else {
-      await scanImageFile(f);
-    }
-  }
-  updatePaperProgress();
-}
-
-// ==============================
-// Camera auto-scanner (continuous)
-// ==============================
-async function startPaperCamera() {
-  await stopPaperCamera();
-  try {
-    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    const video = paperEls.camVideo();
-    video.srcObject = camStream;
-    video.style.display = 'block';
-    await video.play();
-    setPaperMsg("Camera started. Hold KEY, HEADER, and CT tiles in view — capture is automatic.");
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-    const tick = () => {
-      if (!camStream) return;
-
-      const w = video.videoWidth || 640;
-      const h = video.videoHeight || 480;
-      if (w && h) {
-        canvas.width = w;
-        canvas.height = h;
-        ctx.drawImage(video, 0, 0, w, h);
-
-        // Full frame
-        let img = ctx.getImageData(0, 0, w, h);
-        let qr  = jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
-        if (qr?.data) ingestQR(qr.data);
-
-        // Coarse 3×3 to catch off-center
-        const GRID = 3;
-        for (let gy = 0; gy < GRID; gy++) for (let gx = 0; gx < GRID; gx++) {
-          const x = Math.floor((w * gx) / GRID);
-          const y = Math.floor((h * gy) / GRID);
-          const cw = Math.floor(w / GRID);
-          const ch = Math.floor(h / GRID);
-          const sub = ctx.getImageData(x, y, cw, ch);
-          const q2 = jsQR(sub.data, cw, ch, { inversionAttempts: "attemptBoth" });
-          if (q2?.data) ingestQR(q2.data);
-        }
-      }
-      camLoopId = requestAnimationFrame(tick);
-    };
-    camLoopId = requestAnimationFrame(tick);
-  } catch (e) {
-    setPaperMsg("Camera error: " + e.message);
-  }
-  updatePaperProgress();
-}
-
-async function stopPaperCamera() {
-  if (camLoopId) cancelAnimationFrame(camLoopId);
-  camLoopId = null;
-  if (camStream) {
-    camStream.getTracks().forEach(t => t.stop());
-    camStream = null;
-  }
-  const video = paperEls.camVideo();
-  if (video) {
-    video.pause();
-    video.srcObject = null;
-    video.style.display = 'none';
-  }
-}
-
-// Legacy shims for existing HTML:
-function startKeyCam(){ startPaperCamera(); }
-function stopKeyCam(){ stopPaperCamera(); }
-function snapKeyShare(){
-  const video = paperEls.camVideo();
-  if (!video || !camStream) return;
-  const w = video.videoWidth || 640, h = video.videoHeight || 480;
-  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-  const ctx = cv.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(video, 0, 0, w, h);
-  const img = ctx.getImageData(0, 0, w, h);
-  const qr = jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
-  if (qr?.data) ingestQR(qr.data);
-}
 
 // ==============================
 // Open/Close modal + wiring (updated)
@@ -1758,7 +1985,6 @@ window.closePaperDecrypt = closePaperDecrypt;
 window.rebuildLiteFromPaper = rebuildLiteFromPaper;
 window.startKeyCam = startKeyCam;
 window.stopKeyCam  = stopKeyCam;
-window.snapKeyShare = snapKeyShare;
 
 </script>
 
