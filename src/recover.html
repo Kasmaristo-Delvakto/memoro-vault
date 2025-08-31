@@ -427,6 +427,41 @@
     }
   }
 
+  /* Make the modal’s inner panel flush-wide and stack action buttons on narrow screens */
+@media (max-width: 560px) {
+  /* The outer modal box: shrink side padding so the inner black panel can be nearly edge-to-edge */
+  .modal-content {
+    width: calc(100vw - 10px);   /* ~5px gutter each side */
+    padding: 8px;                /* minimal inner padding */
+  }
+
+  /* The inner black panel: remove the 600px cap and force full width */
+  .pow-section {
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  /* Stack action buttons and make them full-width */
+  .modal-buttons,
+  .btn-row {
+    flex-direction: column;      /* stack */
+    align-items: stretch;        /* let buttons expand full width */
+    gap: 8px;
+  }
+
+  .modal-buttons button,
+  .btn-row .button {
+    width: 100%;
+  }
+}
+
+/* (Optional) allow wrapping on medium screens so buttons don’t overflow */
+.btn-row { 
+  flex-wrap: wrap;
+}
+
   /* Spacer classes for line count padding */
   .spacer { margin-bottom: 10px; }
   .spacer2 { margin-bottom: 20px; }
@@ -1761,6 +1796,7 @@ function blankRedHerring(answers, trapIndex) {
       }
 
       const btnRow = document.createElement("div");
+      btnRow.className = "btn-row";
       btnRow.style.display = "flex";
       btnRow.style.justifyContent = "center";
       btnRow.style.gap = "10px";

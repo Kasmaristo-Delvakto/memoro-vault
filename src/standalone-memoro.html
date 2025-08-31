@@ -1,32 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Memoro Vault - Dashboard</title>
-<script src="libs/zip.min.js"></script>
-<script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
-<script src="libs/secrets.min.js"></script>
-<!-- ZXing first (some polyfills will use it internally) -->
-<script src="libs/zxing.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memoro Vault — Single File (All Pages)</title>
 
-<!-- Use the official WICG polyfill you downloaded -->
-<script src="libs/barcode-detector.polyfill.js"></script>
-
-<script>
-// The polyfill defines window.BarcodeDetector automatically if the
-// native API is missing. No manual assignment needed here.
-</script>
-<!-- PDF.js core -->
-<script src="libs/pdf.min.js"></script>
-<script>
-  // Configure PDF.js to use the worker from your local libs folder
-  if (window['pdfjsLib']) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
-  }
-</script>
-
-<!-- QR decoder -->
-<script src="libs/jsqr.min.js"></script>
+  <!-- Bring your real CSS/JS here -->
+  <!-- <link rel="stylesheet" href="app.css"> -->
+  <!-- <script defer src="app.js"></script> -->
 
 <style>
 :root{
@@ -371,141 +352,641 @@ body{ padding-inline: max(14px, clamp(14px, 6vw, 22px)); }
 
 </head>
 <body>
-  <div class="ui-frame" aria-hidden="true"></div>
-  <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
-<div style="display: flex; justify-content: center;">
-  <h1><span class="typewriter-text" style="animation-delay: 0s;">Memoro Vault</span></h1>
-</div>
-<div style="position: relative; width: 100%; display: flex; justify-content: center;">
-  <p class="typewriter-text" style="animation-delay: 1.3s; margin-bottom: 0.3em; pointer-events: none;">
-    What matters most.
-  </p>
-</div>
-<div style="position: relative; width: 100%; display: flex; justify-content: center;">
-  <p class="typewriter-text" style="animation-delay: 2.5s; margin-top: 0; pointer-events: none;">
-    Hidden in plain sight.
-  </p>
-</div>
 
+  <!-- =======================
+       PAGE: INDEX (Landing)
+       ======================= -->
+  <section id="page-index" class="page" aria-current="page">
+    <div class="content">
+      <img src="assets/memoro-logo-with-words.png"
+           alt="Memoro Vault Logo"
+           style="max-width: 300px; height: auto; margin-bottom: 20px;" />
+      <p id="mainText"></p>
+      <button onclick="showSafetyModal()" id="startBtn">Begin</button>
+    </div>
 
-<div class="button-group">
-  <button class="button" style="animation-delay: 3.5s;" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
-  <button class="button" style="animation-delay: 5.5s;" onclick="promptOfflineWarning('load')">Load Vault File</button>
-  <button class="button" style="animation-delay: 9.5s;" onclick="openPaperDecrypt()">Restore Physical Backup</button>
-  <button class="button" style="animation-delay: 7.5s;" onclick="goToHowItWorks()">How Memoro Works</button>
-</div>
-
-<div class="vault-list" id="vaultList"></div>
-
-<!-- Unlock Vault Modal -->
-<div class="modal-overlay" id="unlockModal">
-  <div class="modal">
-    <h2>Unlock Vault</h2>
-    <h3 id="question1Label"></h3>
-    <input type="text" id="answer1Input" placeholder="Answer 1">
-    <h3 id="question2Label"></h3>
-    <input type="text" id="answer2Input" placeholder="Answer 2">
-
-    <!-- Lockout Visuals -->
-    <div id="lockoutSection" style="display:none; width:100%; margin-top:10px; text-align:center;">
-      <p id="lockoutTimerText" style="margin:5px 0; font-size:16px; color:#ccc;">Locked for 15s</p>
-      <div style="background-color:#444; width:100%; height:10px; border-radius:5px; overflow:hidden;">
-      <div id="lockoutProgress" style="background-color:#00ff99; width:100%; height:10px;"></div>
+    <div id="safetyModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>Before You Begin</h2>
+        <ul>
+          <li>Use a clean, trusted computer.</li>
+          <li>Disconnect from WiFi or turn off internet access.</li>
+          <li>Close unnecessary apps and browsers.</li>
+          <li>Do not use public or shared computers.</li>
+          <li>Ensure no suspicious browser extensions are installed.</li>
+        </ul>
+        <div class="modal-buttons">
+          <button onclick="acceptSafety()">I Understand</button>
+        </div>
       </div>
     </div>
 
-    <div class="modal-buttons">
-      <button id="unlockButton" onclick="submitUnlock()">Unlock</button>
-      <button onclick="cancelUnlock()">Cancel</button>
+    <script>
+      function showSafetyModal() {
+        document.getElementById('safetyModal').style.display = 'flex';
+      }
+      function typeWriterEffect(text, element, delay = 30, callback = null) {
+        let i = 0; element.innerText = "";
+        (function type(){ if(i<text.length){ element.innerText+=text.charAt(i++); setTimeout(type,delay);} else if(callback){callback();} })();
+      }
+      function acceptSafety() {
+        typeWriterEffect("Welcome_to_Memoro_Vault", document.getElementById('mainText'), 40, () => {
+          showPage('dashboard');
+        });
+      }
+    </script>
+  </section>
+
+  <!-- =======================
+       PAGE: DASHBOARD (canonical IDs)
+       ======================= -->
+  <section id="page-dashboard" class="page" aria-current="false">
+    <div class="ui-frame" aria-hidden="true"></div>
+
+    <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
+
+    <div style="display: flex; justify-content: center;">
+      <h1><span class="typewriter-text" style="animation-delay: 0s;">Memoro Vault</span></h1>
     </div>
-  </div>
-</div>
-
-<!-- Offline Warning Modal -->
-<div class="modal-overlay" id="offlineWarning">
-  <div class="modal">
-    <h2>Offline Mode Recommended</h2>
-    <p>We recommend disabling your internet connection temporarily for maximum security.</p>
-    <div class="modal-buttons">
-      <button onclick="proceedAfterOfflineWarning()">Continue</button>
-      <button onclick="cancelOfflineWarning()">Cancel</button>
+    <div style="position: relative; width: 100%; display: flex; justify-content: center;">
+      <p class="typewriter-text" style="animation-delay: 1.3s; margin-bottom: 0.3em; pointer-events: none;">What matters most.</p>
     </div>
-  </div>
-</div>
-
-<!-- Message Modal -->
-<div class="modal-overlay" id="messageModal">
-  <div class="modal">
-    <h2 id="messageModalTitle">Title</h2>
-    <p id="messageModalText">Message goes here.</p>
-    <div class="modal-buttons">
-      <button onclick="closeMessageModal()">OK</button>
+    <div style="position: relative; width: 100%; display: flex; justify-content: center;">
+      <p class="typewriter-text" style="animation-delay: 2.5s; margin-top: 0; pointer-events: none;">Hidden in plain sight.</p>
     </div>
-  </div>
-</div>
 
-<!-- Confirm Modal -->
-<div class="modal-overlay" id="confirmModal">
-  <div class="modal">
-    <h2>Confirm</h2>
-    <p id="confirmModalText">Are you sure?</p>
-    <div class="modal-buttons">
-      <button onclick="confirmNo()">No</button>
-      <button onclick="confirmYes()">Yes</button>
+    <div class="button-group">
+      <button class="button" style="animation-delay: 3.5s;" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
+      <button class="button" style="animation-delay: 5.5s;" onclick="promptOfflineWarning('load')">Load Vault File</button>
+      <button class="button" style="animation-delay: 7.5s;" onclick="showPage('how')">How Memoro Works</button>
+      <button class="button" style="animation-delay: 9.5s;" onclick="showPage('recover')">Recover Vault</button>
     </div>
-  </div>
-</div>
 
-<!-- Rename Vault Modal -->
-<div class="modal-overlay" id="renameModal">
-  <div class="modal">
-    <h2>Rename Vault</h2>
-    <input type="text" id="renameInput" placeholder="New vault name">
-    <div class="modal-buttons">
-      <button onclick="submitRename()">Rename</button>
-      <button onclick="cancelRename()">Cancel</button>
-    </div>
-  </div>
-</div>
+    <div class="vault-list" id="vaultList"></div>
 
-<!-- Paper Decrypt Modal -->
-<div class="modal-overlay" id="paperDecryptModal">
-  <div class="modal" style="max-width: 720px;">
-    <h2>Restore Physical Backup</h2>
-    <p style="white-space: normal; text-align:left;">
-        Upload the full PDF or individual page images. We’ll extract:<br>
-        • 1× <code>MVKEY</code> (single key QR)<br>
-        • 1× <code>MVHDR</code> (header) and all <code>MVCT</code> tiles (ciphertext)<br>
-        Then we rebuild <code>memoro-lite.zip</code>.
-      </p>
-
-
-    <!-- File input -->
-    <input id="paperFiles" type="file" accept=".pdf,image/*" multiple
-           style="width:100%; margin-bottom:12px;">
-
-    <!-- Optional: simple camera for key shares -->
-    <div style="width:100%; border:1px solid #0f0; padding:10px; border-radius:8px; margin:8px 0;">
-      <h3 style="margin:0 0 8px 0;">Scan Key Shares (Optional)</h3>
-      <p style="margin:0 0 8px 0; font-size:14px; color:#ccc;">
-        If you prefer, aim the camera at an MVKEY QR (one at a time). We still recommend uploading a page/PDF for the tiles.
-      </p>
-      <video id="paperCam" playsinline style="width:100%; max-height:240px; background:#000; display:none;"></video>
-      <div class="modal-buttons" style="gap:8px;">
-        <button onclick="startKeyCam()">Start Camera</button>
-        <button onclick="stopKeyCam()">Stop Camera</button>
-        <button onclick="scanFromVideoOnce()">Scan Key</button>
+    <!-- Unlock Vault Modal -->
+    <div class="modal-overlay" id="unlockModal">
+      <div class="modal">
+        <h2>Unlock Vault</h2>
+        <h3 id="question1Label"></h3>
+        <input type="text" id="answer1Input" placeholder="Answer 1">
+        <h3 id="question2Label"></h3>
+        <input type="text" id="answer2Input" placeholder="Answer 2">
+        <div id="lockoutSection" style="display:none; width:100%; margin-top:10px; text-align:center;">
+          <p id="lockoutTimerText" style="margin:5px 0; font-size:16px; color:#ccc;">Locked for 15s</p>
+          <div style="background-color:#444; width:100%; height:10px; border-radius:5px; overflow:hidden;">
+            <div id="lockoutProgress" style="background-color:#00ff99; width:100%; height:10px;"></div>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button id="unlockButton" onclick="submitUnlock()">Unlock</button>
+          <button onclick="cancelUnlock()">Cancel</button>
+        </div>
       </div>
     </div>
 
-    <div id="paperStatus" style="width:100%; text-align:left; font-size:14px; color:#ccc;"></div>
-
-    <div class="modal-buttons" style="margin-top:10px;">
-      <button onclick="closePaperDecrypt()">Close</button>
-      <button id="rebuildBtn" onclick="rebuildLiteFromPaper()" disabled>Rebuild Lite ZIP</button>
+    <!-- Offline Warning Modal -->
+    <div class="modal-overlay" id="offlineWarning">
+      <div class="modal">
+        <h2>Offline Mode Recommended</h2>
+        <p>We recommend disabling your internet connection temporarily for maximum security.</p>
+        <div class="modal-buttons">
+          <button onclick="proceedAfterOfflineWarning()">Continue</button>
+          <button onclick="cancelOfflineWarning()">Cancel</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
+
+    <!-- Message Modal (canonical) -->
+    <div class="modal-overlay" id="messageModal">
+      <div class="modal">
+        <h2 id="messageModalTitle">Title</h2>
+        <p id="messageModalText">Message goes here.</p>
+        <div class="modal-buttons">
+          <button onclick="closeMessageModal()">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+      <div class="modal">
+        <h2>Confirm</h2>
+        <p id="confirmModalText">Are you sure?</p>
+        <div class="modal-buttons">
+          <button onclick="confirmNo()">No</button>
+          <button onclick="confirmYes()">Yes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rename Vault Modal -->
+    <div class="modal-overlay" id="renameModal">
+      <div class="modal">
+        <h2>Rename Vault</h2>
+        <input type="text" id="renameInput" placeholder="New vault name">
+        <div class="modal-buttons">
+          <button onclick="submitRename()">Rename</button>
+          <button onclick="cancelRename()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paper Decrypt Modal -->
+    <div class="modal-overlay" id="paperDecryptModal">
+      <div class="modal" style="max-width: 720px;">
+        <h2>Restore Physical Backup</h2>
+        <p style="white-space: normal; text-align:left;">
+          Upload the full PDF or individual page images. We’ll extract:<br>
+          • 1× <code>MVKEY</code> (single key QR)<br>
+          • 1× <code>MVHDR</code> (header) and all <code>MVCT</code> tiles (ciphertext)<br>
+          Then we rebuild <code>memoro-lite.zip</code>.
+        </p>
+        <input id="paperFiles" type="file" accept=".pdf,image/*" multiple style="width:100%; margin-bottom:12px;">
+        <div style="width:100%; border:1px solid #0f0; padding:10px; border-radius:8px; margin:8px 0;">
+          <h3 style="margin:0 0 8px 0;">Scan Key Shares (Optional)</h3>
+          <p style="margin:0 0 8px 0; font-size:14px; color:#ccc;">Aim camera at an MVKEY QR (one at a time).</p>
+          <video id="paperCam" playsinline style="width:100%; max-height:240px; background:#000; display:none;"></video>
+          <div class="modal-buttons" style="gap:8px;">
+            <button onclick="startKeyCam()">Start Camera</button>
+            <button onclick="stopKeyCam()">Stop Camera</button>
+            <button onclick="scanFromVideoOnce()">Scan Key</button>
+          </div>
+        </div>
+        <div id="paperStatus" style="width:100%; text-align:left; font-size:14px; color:#ccc;"></div>
+        <div class="modal-buttons" style="margin-top:10px;">
+          <button onclick="closePaperDecrypt()">Close</button>
+          <button id="rebuildBtn" onclick="rebuildLiteFromPaper()" disabled>Rebuild Lite ZIP</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canonical dashboard canvas & overlay -->
+    <canvas id="matrix"></canvas>
+    <div class="overlay"></div>
+
+    <!-- Dashboard CTAs to flows -->
+    <div class="button-group" style="margin-top:24px;">
+      <button class="button" onclick="showPage('create')">Create Vault (Choose Count)</button>
+      <button class="button" onclick="showPage('setup')">Setup Questions</button>
+      <button class="button" onclick="showPage('answers')">Answer Questions</button>
+      <button class="button" onclick="showPage('build')">Build Vault</button>
+    </div>
+  </section>
+
+  <!-- =======================
+       PAGE: HOW IT WORKS
+       ======================= -->
+  <section id="page-how" class="page" aria-current="false">
+    <canvas id="matrixHow"></canvas>
+    <div class="overlay" id="overlay-how"></div>
+
+    <div class="content">
+      <h1>How Memoro Vault Works</h1>
+
+      <h2>TL;DR</h2>
+      <p>Memoro Vault is an offline, self-contained encryption tool… (text preserved from your paste).</p>
+
+      <h2>Why Memoro Vault Is Necessary</h2>
+      <p>In the digital age… (text preserved).</p>
+
+      <h2>How the Encryption Works</h2>
+      <p>When you build a vault… (text preserved).</p>
+
+      <h2>Red Herrings and Required Order</h2>
+      <p>To further strengthen security… (text preserved).</p>
+
+      <h2>File and Vault Integrity</h2>
+      <p>Every file inside the vault… (text preserved).</p>
+
+      <h2>Physical Backups Using QR Codes</h2>
+      <p>Memoro Vault also supports… (text preserved).</p>
+
+      <h2>Practical Applications</h2>
+      <p>Memoro Vault can safeguard… (text preserved).</p>
+
+      <p><strong>There are no backdoors and no exceptions.</strong> … (text preserved).</p>
+
+      <div class="button-container">
+        <button class="button" onclick="backToDashboard()">Return to Dashboard</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================
+       PAGE: CREATE (choose count)
+       ======================= -->
+  <section id="page-create" class="page" aria-current="false">
+    <canvas id="matrixCreate"></canvas>
+    <div class="overlay" id="overlay-create"></div>
+
+    <div class="content">
+      <h1>Select the number of security questions</h1>
+      <div class="slider-section">
+        <span id="questionCount">14</span>
+        <input type="range" id="questionSlider" min="4" max="25" value="14" oninput="updateQuestionCount()" />
+      </div>
+
+      <div class="button-container">
+        <button class="button" onclick="backToDashboard()">← Back</button>
+        <button class="button" onclick="startVaultSetup()">Next</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================
+       PAGE: SETUP QUESTIONS
+       ======================= -->
+  <section id="page-setup" class="page" aria-current="false">
+    <canvas id="matrixSetup"></canvas>
+    <div class="matrix-overlay" id="matrix-overlay-setup"></div>
+
+    <h1>Setup Your Security Questions</h1>
+    <p class="instruction">
+      You can use the default questions or edit them.<br>
+      Select exactly <b>two</b> questions to act as your first line of defense.
+      <br>
+      <a href="#" onclick="openHelpModal()" style="color:#00ff99; text-decoration: underline; font-size: 15px;">How does unlocking work?</a>
+    </p>
+
+    <!-- Help Modal (setup-specific) -->
+    <div id="helpModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>How Unlocking Works</h2>
+        <p style="text-align: left; color: #ccc; font-size: 15px; line-height: 1.6;">
+          (content preserved)
+        </p>
+        <div class="modal-buttons">
+          <button onclick="closeHelpModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="question-list" id="questionList"></div>
+
+    <div class="button-container">
+      <button class="button" onclick="backToDashboard()">Back</button>
+      <button class="button" onclick="showDisclaimer()">Continue</button>
+    </div>
+
+    <!-- Edit Question Modal -->
+    <div id="editModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>Edit Question</h2>
+        <div style="margin-bottom: 10px;">
+          <input type="text" id="editInput">
+        </div>
+        <div style="margin-top: 20px; margin-bottom: 15px;">
+          <label style="font-size:16px; color:#00ff99; font-family:'Fira Code', monospace;">Suggestions:</label>
+          <select id="categoryDropdown">
+            <option value="">-- Select Category --</option>
+            <option value="home">Home</option>
+            <option value="family">Family</option>
+            <option value="life">Life Events</option>
+            <option value="Pets">Pets</option>
+            <option value="favorites">Favorites</option>
+            <option value="random">Random</option>
+            <option value="school">School</option>
+            <option value="career">Career</option>
+            <option value="travel">Travel</option>
+            <option value="hobbies">Hobbies</option>
+            <option value="special">Special Memories</option>
+          </select>
+        </div>
+        <div id="suggestionsList" style="max-height: 150px; overflow-y: auto; margin-bottom:15px;"></div>
+        <div class="modal-buttons">
+          <button onclick="saveModalEdit()">Save</button>
+          <button onclick="closeModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disclaimer Modal (setup-specific) -->
+    <div id="disclaimerModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>Before You Continue</h2>
+        <p style="font-size:16px; color:#ccc; margin-top: 15px; margin-bottom: 20px;">
+          (content preserved)
+        </p>
+        <div class="modal-buttons">
+          <button onclick="proceedToAnswers()">I Understand — Continue</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================
+       PAGE: ANSWER QUESTIONS
+       ======================= -->
+  <section id="page-answers" class="page" aria-current="false">
+    <canvas id="matrixAnswers" style="position: fixed; top:0; left:0; width:100vw; height:100vh; z-index:0; background:black;"></canvas>
+
+    <h1>Answer Your Questions and Upload Files</h1>
+    <div id="countdown"></div>
+
+    <form class="question-form" id="answerForm"></form>
+    <div id="extraSeedsSection" style="margin-top: 30px; width: 100%; max-width: 900px;"></div>
+
+    <div id="totalEntropyContainer" style="margin: 30px auto 0; width: fit-content; text-align: center; border: 1px solid #0f0; padding: 12px 24px; border-radius: 8px; background-color: #111; box-shadow: 0 0 8px #0f0;">
+      <p style="font-size: 16px; color: #ccc;">
+        Estimated Vault Strength:
+        <span id="totalEntropyBits" style="color:#00ff99;">0.0</span> bits —
+        <span id="entropyAssessment" style="color:#ff3333;">Very Weak</span>
+        <br>
+        <span style="color:#ccc; font-size: 14px;">Total Combinations: <span id="totalCombinations" style="color:#00ff99;">0</span></span>
+        <span style="color:#aaa; font-size: 13px;">
+          Estimated Crack Time: <span id="estimatedCrackTime" style="color:#ff9933;">Instantly crackable</span><br>
+          <em style="color:#777;">(assuming 1 trillion guesses/sec)</em>
+        </span>
+        <br>
+        <span id="crackabilityTier" style="display: block; margin-top: 8px; font-size: 14px; color: #ff3333;"></span>
+        <span style="color: #888; font-size: 13px; display: block; margin-top: 4px;">
+          This estimation does not factor in phishing or social engineering.
+        </span>
+      </p>
+    </div>
+
+    <details style="margin-top: 30px; color: #0f0;">
+      <summary style="cursor: pointer; font-size: 16px;">What is entropy and how is my vault protected?</summary>
+      <div style="margin-top: 15px; font-size: 15px; color: #ccc; line-height: 1.6;">
+        (entropy section preserved)
+      </div>
+    </details>
+
+    <!-- Multi-seed input -->
+    <div id="multiSeedSection" style="margin-top: 40px; width: 100%; max-width: 900px;">
+      <h2 style="color:#0f0;">Saved Seed or Password Files</h2>
+      <div class="input-group">
+        <label for="newSeedName">Seed File/Password Name:</label>
+        <input type="text" id="newSeedName" placeholder="e.g. Primary Wallet" />
+      </div>
+      <div class="input-group" style="margin-top:10px;">
+        <label for="newSeedContent">Seed Phrase or Password:</label>
+        <textarea id="newSeedContent" rows="3" placeholder="type or paste seed phrase or private passphrase here"></textarea>
+      </div>
+      <button class="button" type="button" onclick="saveNamedSeed()">Save Password/Seed File</button>
+      <div id="namedSeedsList" style="margin-top: 20px;"></div>
+    </div>
+
+    <div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
+      <label for="fileUpload" style="font-size: 18px;">Optional: Upload Documents to Include in Your Vault</label>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <input type="file" id="fileUpload" multiple hidden />
+        <label for="fileUpload" id="fileUploadLabel">Choose Files</label>
+        <span id="fileUploadStatus" style="color: #0f0; font-size: 16px;">No files uploaded</span>
+      </div>
+      <p style="font-size: 14px; color: #aaa; margin-top: 5px;">You can upload text, images, videos, or scans.</p>
+    </div>
+
+    <div id="uploadedFileList" style="margin-top: 20px; width: 100%; max-width: 900px;"></div>
+
+    <div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
+      <label for="finalMessage" style="font-size: 18px;">Optional: Final Message for Yourself or Your Family</label>
+      <textarea id="finalMessage" rows="4" placeholder="Example: 'Looks like someone was ACTUALLY listening…'"></textarea>
+      <p style="font-size: 14px; color: #aaa; margin-top: 5px;">This message will be stored securely with your vault.</p>
+    </div>
+
+    <div class="button-container">
+      <button class="button" type="button" onclick="showPage('setup')">← Back</button>
+      <button class="button" type="button" onclick="submitAnswers()">Create Vault</button>
+      <button class="button" type="button" onclick="startSecurityTimer()">Reset Timer</button>
+    </div>
+
+    <!-- Hint Modal (answers-specific, unique id) -->
+    <div id="hintModalAnswers" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>Hint Options</h2>
+        <div class="input-group" style="margin-bottom: 14px;">
+          <label><input type="checkbox" id="showLength" checked> Show answer length during unlock</label>
+        </div>
+        <div class="input-group">
+          <label>Reveal specific letters from the answer</label>
+          <select id="numLetters" onchange="buildLetterSelectors()"></select>
+        </div>
+        <div id="letterSelectors" class="input-group" style="margin-top: 15px;"></div>
+        <div class="input-group" style="margin-top: 20px;">
+          <label>Optional: Custom Hint Text</label>
+          <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
+        </div>
+        <div class="modal-buttons">
+          <button onclick="saveCustomHint()">Save</button>
+          <button onclick="document.getElementById('hintModalAnswers').style.display='none'">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================
+       PAGE: BUILD VAULT
+       ======================= -->
+  <section id="page-build" class="page" aria-current="false">
+    <canvas id="matrixBuild"></canvas>
+
+    <div id="vaultContainer">
+      <!-- Keep one canvas per page; removed duplicates -->
+      <div id="mainContainer">
+        <img id="memoroLogo" src="assets/memoro-logo-with-words.png" alt="Memoro Vault Logo" />
+
+        <div id="progressBarWrapper">
+          <div class="progress-label" id="progressLabel">Initializing vault builder...</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progressFill">
+              <!-- 20 blocks -->
+              <div class="progress-block"></div><div class="progress-block"></div><div class="progress-block"></div>
+              <div class="progress-block"></div><div class="progress-block"></div><div class="progress-block"></div>
+              <div class="progress-block"></div><div class="progress-block"></div><div class="progress-block"></div>
+              <div class="progress-block"></div><div class="progress-block"></div><div class="progress-block"></div>
+              <div class="progress-block"></div><div class="progress-block"></div><div class="progress-block"></div>
+              <div class="progress-block"></div><div class="progress-block"></div><div class="progress-block"></div>
+              <div class="progress-block"></div><div class="progress-block"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="actionButtons">
+          <button onclick="preserveAndGoBack()">Back to Answers</button>
+          <button onclick="retryDownload()">Retry Download</button>
+          <button onclick="backToDashboard()">Return to Dashboard</button>
+        </div>
+      </div>
+
+      <div id="powPanel" class="pow-panel">
+        <div class="pow-panel-wrapper"></div>
+      </div>
+    </div>
+
+    <!-- Final Instructions Modal -->
+    <div id="postBuildModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.96); z-index: 5000; color: #0f0; font-family: 'Fira Code', monospace; padding: 40px; box-sizing: border-box; overflow-y: auto;">
+      <div style="max-width: 800px; width: 100%; border: 1px solid #0f0; padding: 30px; background: #000; box-shadow: 0 0 20px #0f0; margin: auto;">
+        <h2 style="color: #00ff99; text-shadow: 0 0 10px #0f0;">Please Read Carefully</h2>
+        <p>Your Memoro Vault has been successfully built and downloaded.</p>
+        <p>Bit rot… (content preserved)</p>
+        <h3 style="margin-top: 25px; color: #88ffcc;">What to Do Next</h3>
+        <ol style="margin-left: 20px;">
+          <li>Create a folder …</li>
+          <li>Place both of the following …</li>
+          <li><strong>Duplicate that folder …</strong></li>
+          <li><strong>Create a paper backup …</strong></li>
+          <li>Test access on another device …</li>
+          <li>Repeat when you update …</li>
+        </ol>
+        <h3 style="margin-top: 25px; color: #88ffcc;">Why M-DISC?</h3>
+        <p>(content preserved)</p>
+        <h3 style="margin-top: 25px; color: #88ffcc;">Final Advice</h3>
+        <ul style="margin-left: 20px;">
+          <li>Do <strong>not</strong> rely on a single copy.</li>
+          <li>Do <strong>not</strong> trust cloud providers to exist forever.</li>
+          <li>Do <strong>not</strong> assume your future self will remember every step.</li>
+        </ul>
+        <p>A copy of these instructions is also included as <code>Vault_Builder_Instructions.txt</code>.</p>
+        <div style="text-align: center; margin-top: 30px;">
+          <button onclick="closePostBuildModal()" style="padding: 10px 20px; font-size: 14px; background: #111; border: 1px solid #0f0; color: #0f0; cursor: pointer;">Got it</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lite Picker Modal -->
+    <div id="litePickerModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.96); z-index:6000; color:#0f0; font-family:'Fira Code',monospace; overflow-y:auto; padding:16px 0;">
+      <div style="max-width:600px; margin:40px auto; border:1px solid #0f0; background:#000; box-shadow:0 0 20px #0f0; max-height:calc(100vh - 80px); overflow:auto; border-radius:10px;">
+        <div style="padding:18px 22px; border-bottom:1px solid #0f0; display:flex; align-items:center; gap:10px;">
+          <h2 style="margin:0; color:#00ff99;">Choose what to include in your Paper Backup (≤ 150 KB)</h2>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:22px; padding:22px;">
+          <div style="flex:1 1 380px; min-width:300px;">
+            <h3 style="margin:0 0 10px 0; color:#88ffcc;">Seeds & Final Message</h3>
+            <div id="liteSeedsList" style="border:1px solid #0f0; padding:10px; border-radius:8px; max-height:220px; overflow:auto;"></div>
+            <div style="margin-top:18px;">
+              <label style="display:flex; align-items:center; gap:8px;">
+                <input id="litePickFinalMsg" type="checkbox" />
+                <span>Include final message (as <code>final-message.txt</code>)</span>
+              </label>
+            </div>
+            <h3 style="margin:18px 0 10px 0; color:#88ffcc;">Uploads</h3>
+            <div id="liteUploadsList" style="border:1px solid #0f0; padding:10px; border-radius:8px; max-height:280px; overflow:auto;"></div>
+          </div>
+          <div style="flex:1 1 260px; min-width:240px;">
+            <h3 style="margin:0 0 10px 0; color:#88ffcc;">Summary</h3>
+            <div style="border:1px solid #0f0; border-radius:8px; padding:12px;">
+              <div style="margin-bottom:8px;">Total selected (raw): <strong id="liteTotalBytes">0</strong> bytes</div>
+              <div style="font-size:12px; color:#b8ffd9;">Limit: 153,600 bytes (≈ 150 KB).</div>
+              <hr style="border:none; border-top:1px solid #0f0; margin:12px 0;">
+              <div id="litePickerError" style="color:#ff6; min-height:18px;"></div>
+              <div style="display:flex; gap:10px; margin-top:10px;">
+                <button id="litePickerConfirm" style="background:#0f0; color:#000; border:1px solid #0f0; padding:10px 14px; border-radius:6px; cursor:pointer;">Build Paper Backup</button>
+                <button id="litePickerCancel" style="background:#111; border:1px solid #0f0; color:#0f0; padding:10px 14px; border-radius:6px; cursor:pointer;">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =======================
+       PAGE: RECOVER (integrated earlier)
+       ======================= -->
+  <section id="page-recover" class="page" aria-current="false">
+    <h1>Recover Your Vault</h1>
+
+    <div class="button-container">
+      <button class="button" onclick="backToDashboard()">Return to Dashboard</button>
+    </div>
+
+    <form class="recovery-form" id="recoveryForm"></form>
+
+    <div class="button-container">
+      <button class="button" onclick="submitRecovery()">Recover Vault</button>
+    </div>
+
+    <div id="seedModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <div class="pow-section">
+          <div class="donation-heading">Support Memoro Vault</div>
+          <img src="assets/Screenshot (691).png" alt="Monero Donation QR"
+               style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
+          <p style="color: #00ff99; font-family: 'Fira Code', monospace; font-size: 15px; line-height: 1.6; text-shadow: 0 0 6px #00ff99; margin: 10px 0;">
+            <span style="font-weight: bold;">Thanks for using Memoro Vault.</span><br>
+            If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
+          </p>
+          <button onclick="window.memoroAPI?.openExternalLink && window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')"
+                  style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+            Donate with preferred crypto
+          </button>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px;">
+            <p style="font-size: 13px; color: #0f0; margin: 0;">Offline? Paste it into your browser later.</p>
+            <button onclick="copyDonationLink()"
+                    style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+              Copy Donation Link
+            </button>
+          </div>
+        </div>
+
+        <div class="pow-section">
+          <h2 style="font-size: 28px; color: #00ff99; text-align: center; text-shadow: 0 0 8px #00ff99; font-family: 'Fira Code', monospace; margin-bottom: 10px;">
+            Vault Recovered!
+          </h2>
+          <pre id="recoveredSeed" style="white-space: pre-wrap; color: #0f0; margin-top: 10px;"></pre>
+          <pre id="finalMessage" style="white-space: pre-wrap; color: #88ff88; margin-top: 15px;"></pre>
+          <div class="modal-buttons">
+            <button onclick="closeSeedModal()">Return to Dashboard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="previewModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>File Preview</h2>
+        <div id="previewContent" style="margin-top: 20px;"></div>
+        <div class="modal-buttons">
+          <button onclick="closePreview()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="powOverlay" style="display:none;">
+      <div id="powMessage">Checking answers... please wait</div>
+      <div id="powTerminal"></div>
+      <div class="progress-label">Processing...</div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div id="redHerringModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2 style="color:#00ff99; margin-bottom: 20px; text-shadow: 0 0 10px #00ff99;">Pay Attention Before You Begin</h2>
+        <p style="font-size: 16px; line-height: 1.7; color: #00ff99;">
+          One of these questions might be a <span style="color: #88ffcc;">Red Herring</span> — leave it blank.
+        </p>
+        <div class="modal-buttons">
+          <button onclick="closeRedHerringModal()">Got it</button>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="matrixRecover"></canvas>
+    <div class="overlay" id="overlay-recover"></div>
+    <div id="vaultCrackOverlay"></div>
+    <div id="crackOverlay"></div>
+    <div id="burstFlash"></div>
+    <div id="toast"></div>
+  </section>
+
+  <!-- =======================
+       ROUTER & BASIC STUBS
+       ======================= -->
+  <script>
+    // Router
+    function showPage(name) {
+      document.querySelectorAll('.page').forEach(p => {
+        const on = (p.id === 'page-' + name);
+        p.setAttribute('aria-current', on ? 'page' : 'false');
+        p.style.display = on ? 'block' : 'none';
+      });
+    }
+    function backToDashboard() { showPage('dashboard'); }
+</script>
 
 <script>
 const loadedVaults = {};
@@ -2114,5 +2595,515 @@ window.stopKeyCam  = stopKeyCam;
 
 </script>
 
+<script>
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    const letters = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%^&*";
+    const fontSize = 14;
+    let columns, drops;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
+    }
+
+    function drawMatrix() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00ff99';
+      ctx.font = fontSize + "px monospace";
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    setInterval(drawMatrix, 33);
+
+    function updateQuestionCount() {
+      document.getElementById('questionCount').textContent = document.getElementById('questionSlider').value;
+    }
+
+    function startVaultSetup() {
+      const questionCount = document.getElementById('questionSlider').value;
+      localStorage.setItem('customQuestionCount', questionCount);
+      window.location.href = "setup-questions.html";
+    }
+
+    function goBack() {
+      window.history.back();
+    }
+
+    window.onload = () => {
+      const saved = localStorage.getItem('customQuestionCount');
+      if (saved) {
+        document.getElementById('questionSlider').value = saved;
+        updateQuestionCount();
+      }
+    };
+  </script>
+
+  <script>
+let questions = [];
+let currentEditIndex = null;
+
+const defaultQuestions = [
+  "What is my full name?",
+  "What is the name of my favorite childhood dog?",
+  "What is my wife's maiden name?",
+  "What city was I born in?",
+  "In what city did my wife and I compete in our first Ironman?",
+  "What is the name of my wife's favorite childhood dog?",
+  "What is the first name of my wife's biological brother?",
+  "What is the mascot of the 2nd high school I attended?",
+  "What is my father's middle name?",
+  "In what city did my wife and I go on our first date?",
+  "Journey before... (complete the phrase)",
+  "What was the name of my yellow Suzuki V-Strom 650 motorcycle?",
+  "What is the name of my childhood best friend?",
+  "Was my wife my first kiss? (y/n)",
+  "Was I her first kiss? (y/n)",
+  "Do I like mustard? (y/n)",
+  "I play the guitar AND piano (t/f)",
+  "My wife was a collegiate dancer for Auburn (t/f)",
+  "We had our first child in 2019 (t/f)",
+  "I have played league tennis (t/f)",
+  "I played tennis in high school (t/f)",
+  "My wife and I met in high school (t/f)",
+  "My wife is left-handed (t/f)",
+  "I am left-handed (t/f)",
+  "I have travelled overseas AND am bilingual (t/f)"
+];
+
+function loadQuestions() {
+  const vaultType = localStorage.getItem('selectedVaultType');
+let numberOfQuestions;
+
+if (vaultType === 'monero') numberOfQuestions = 25;
+else if (vaultType === 'monero-polyseed') numberOfQuestions = 16;
+else if (vaultType === 'bitcoin') numberOfQuestions = 24;
+else if (vaultType === 'bitcoin-legacy') numberOfQuestions = 12;
+else {
+  const customCount = parseInt(localStorage.getItem('customQuestionCount'));
+  numberOfQuestions = isNaN(customCount) ? 12 : customCount;
+}
+
+
+  // Save it again just to ensure continuity
+  localStorage.setItem('questionCount', numberOfQuestions);
+
+  const savedQuestions = JSON.parse(localStorage.getItem('questions'));
+  questions = (savedQuestions && savedQuestions.length >= numberOfQuestions)
+    ? savedQuestions.slice(0, numberOfQuestions)
+    : defaultQuestions.slice(0, numberOfQuestions);
+
+  const questionList = document.getElementById('questionList');
+  questionList.innerHTML = "";
+
+  for (let i = 0; i < numberOfQuestions; i++) {
+    const div = document.createElement('div');
+    div.className = 'question-item';
+    div.innerHTML = `
+      <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${questions[i]}</div>
+<div class="action-row">
+  <button class="edit-button" onclick="openModal(${i})">Edit</button>
+  <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
+</div>
+    `;
+    questionList.appendChild(div);
+  }
+}
+
+function openModal(index) {
+  currentEditIndex = index;
+
+  const input = document.getElementById('editInput');
+  if (input) {
+    input.value = questions[index] || '';
+  }
+
+  const dropdown = document.getElementById('categoryDropdown');
+  if (dropdown) {
+    dropdown.removeEventListener("change", populateSuggestions); // Prevent duplicate listeners
+    dropdown.addEventListener("change", populateSuggestions);
+  }
+
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+
+function closeModal() {
+  document.getElementById('editModal').style.display = 'none';
+  currentEditIndex = null;
+}
+
+function saveModalEdit() {
+  const newQuestion = document.getElementById('editInput').value.trim();
+  if (newQuestion && currentEditIndex !== null) {
+    questions[currentEditIndex] = newQuestion;
+    document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${newQuestion}`;
+    localStorage.setItem('questions', JSON.stringify(questions));
+  }
+  closeModal();
+}
+
+function limitSelection() {
+  const checkboxes = document.querySelectorAll('.unlock-checkbox');
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  if (checked.length >= 2) {
+    checkboxes.forEach(cb => { if (!cb.checked) cb.disabled = true; });
+  } else {
+    checkboxes.forEach(cb => cb.disabled = false);
+  }
+}
+
+function showDisclaimer() {
+  const checkboxes = document.querySelectorAll('.unlock-checkbox');
+  const selected = Array.from(checkboxes).filter(cb => cb.checked);
+  if (selected.length !== 2) {
+    showMessageModal('Selection Error', 'Please select exactly TWO unlock questions.');
+    return;
+  }
+  document.getElementById('disclaimerModal').style.display = 'flex';
+}
+
+function proceedToAnswers() {
+  const checkboxes = document.querySelectorAll('.unlock-checkbox');
+  const selectedIndexes = [];
+  checkboxes.forEach((cb, idx) => { if (cb.checked) selectedIndexes.push(idx); });
+
+  localStorage.setItem('questions', JSON.stringify(questions));
+  localStorage.setItem('unlockQuestions', JSON.stringify(selectedIndexes));
+
+  window.location.href = "answer-questions.html";
+}
+
+function goBack() {
+  window.history.back();
+}
+
+function showMessageModal(title, message) {
+  document.getElementById('messageModalTitle').innerText = title;
+  document.getElementById('messageModalText').innerText = message;
+  document.getElementById('messageModal').style.display = 'flex';
+}
+
+function closeMessageModal() {
+  document.getElementById('messageModal').style.display = 'none';
+}
+
+window.onload = loadQuestions;
+</script>
+
+<script>
+  const suggestionBank = {
+    home:[
+  "What was the name of the first street you lived on?",
+  "What color was your childhood home?",
+  "What was the name of your childhood best friend?",
+  "What was the name of your first neighborhood?",
+  "What was the first park you remember playing in?",
+  "What landmark was closest to your childhood home?",
+  "What was the name of your first grade teacher?",
+  "What was your favorite hiding place as a child?",
+  "What tree or plant do you remember from your backyard?",
+  "What was the number of your childhood house?",
+  "What was your favorite game to play outside?",
+  "Who lived across the street from you growing up?",
+  "What kind of fence (or no fence) did your house have?",
+  "What was the name of a nearby lake or river you visited?",
+  "What was your childhood bedroom color?",
+  "What was the nickname of your childhood home?",
+  "What road did you take to school as a kid?",
+  "What local business do you remember near your home?"
+],
+    family: [
+  "What is your mother's maiden name?",
+  "What was your grandfather's first name?",
+  "What was your grandmother’s nickname for you?",
+  "Which relative had the most unique hobby?",
+  "What was the city your parents first met in?",
+  "What was your sibling’s childhood nickname?",
+  "What was your family dog’s name growing up?",
+  "Where did your family go for reunions?",
+  "What was your father’s first car?",
+  "What was your mother’s favorite song?",
+  "Who was the oldest cousin in your family?",
+  "What tradition did your family have every year?",
+  "What family recipe was handed down?",
+  "What family member did you resemble most as a child?",
+  "What state did your grandparents retire to?",
+  "What was the middle name of your favorite aunt?",
+  "What holiday was most celebrated in your family?",
+  "Who had the loudest laugh in your family?"
+],
+    Pets: [
+  "What was the name of your first pet?",
+  "What species was your first pet?",
+  "What was the nickname you called your first pet?",
+  "What trick did your first pet know?",
+  "Where did you get your first pet from?",
+  "What was your pet’s favorite toy?",
+  "What was your pet's favorite sleeping spot?",
+  "What was the color of your first pet?",
+  "What unusual habit did your pet have?",
+  "What was the breed of your childhood dog or cat?",
+  "What was your pet’s favorite treat?",
+  "What was the pet’s vet’s name?",
+  "Where did your pet like to hide?",
+  "What was the most mischievous thing your pet did?",
+  "What was the name of the pet you wished you had?"
+],
+    life: [
+  "What was the first vacation you remember?",
+  "What was your childhood home’s street number?",
+  "What time did your school bus pick you up?",
+  "What was the name of your childhood doctor?",
+  "What chore did you hate the most growing up?",
+  "What was your first broken bone or injury?",
+  "What was the name of your kindergarten teacher?",
+  "What was the first movie you saw in a theater?",
+  "What was your favorite school subject?",
+  "What was your bedtime routine as a child?",
+  "What game did you play most at recess?",
+  "What was your first Halloween costume?",
+  "What was the first major news event you remember?",
+  "What was your favorite childhood weekend activity?",
+  "What was the name of your neighborhood or subdivision?"
+],
+    favorites: [
+  "What was your favorite book growing up?",
+  "What was your favorite movie as a teenager?",
+  "What was your favorite band in high school?",
+  "What was your favorite childhood toy?",
+  "What was your favorite sports team as a kid?",
+  "What was your favorite outdoor activity?",
+  "What was your favorite indoor game?",
+  "What was your favorite holiday tradition?",
+  "What was your favorite TV show growing up?",
+  "What was your favorite subject in school?",
+  "What was your favorite place to visit as a child?",
+  "What was your favorite restaurant when you were young?",
+  "What was your favorite color in elementary school?",
+  "What was your favorite cartoon character?",
+  "What was your favorite video game growing up?"
+],
+    random: [
+  "What was the name of your imaginary friend?",
+  "What was your favorite hiding spot as a child?",
+  "What was the first movie you remember seeing in a theater?",
+  "What did you want to be when you grew up at age 5?",
+  "What was your favorite board game growing up?",
+  "What unusual pet did you want but never had?",
+  "What was your favorite recess game?",
+  "What costume did you wear for Halloween most often?",
+  "What weird collection did you have as a kid?",
+  "What was your favorite subject in elementary school?",
+  "What fictional world did you wish was real?",
+  "What was the first prize you ever won?",
+  "What secret hiding place did you use as a kid?",
+  "What song reminds you of your childhood?",
+  "What superstition did you believe as a child?"
+],
+    school: [
+  "What was the name of your elementary school?",
+  "Who was your favorite high school teacher?",
+  "What was your favorite subject in middle school?",
+  "What sport did you play at school?",
+  "What was your favorite school event?",
+  "Who was your childhood best friend at school?",
+  "What was the mascot of your school?",
+  "What was the first book you remember reading for class?",
+  "What song reminds you of your school days?",
+  "What was your favorite field trip?",
+  "What was the first language class you took?",
+  "What award did you first win at school?",
+  "Who was your first school crush?",
+  "What was the name of your bus driver?",
+  "What was the color of your locker?",
+  "What elective class did you enjoy the most?",
+  "What was your school’s rival team name?",
+  "What lunch item did you always trade?"
+],
+    career: [
+  "What was the name of your first boss?",
+  "What was your very first job?",
+  "Where did you earn your first paycheck?",
+  "What was your dream job as a teenager?",
+  "What company gave you your first job offer?",
+  "What was your job title at your first job?",
+  "What was the name of your favorite coworker at your first job?",
+  "What tool or equipment did you first learn to use at work?",
+  "What skill did you first learn on the job?",
+  "What was the biggest mistake you made at your first job?",
+  "What uniform did you wear at your first job?",
+  "Where did you have your first job interview?",
+  "What was the first career you seriously considered?",
+  "What industry was your first job in?",
+  "What was your first promotion at work?"
+],
+    travel: [
+  "What was your first vacation destination?",
+  "What was the first country you visited?",
+  "What is your favorite national park?",
+  "What was the name of the first hotel you stayed in?",
+  "Which beach do you remember visiting first?",
+  "Where did you go on your first solo trip?",
+  "What city did you love visiting most as a child?",
+  "What was the first flight number you remember taking?",
+  "Where did you go for a childhood road trip?",
+  "What was the name of the amusement park you visited?",
+  "What mode of transport do you associate with your first trip?",
+  "What’s the name of a memorable airport you flew through?",
+  "Which relative’s house did you visit farthest away?",
+  "What river cruise or boat ride do you remember?",
+  "What was your favorite souvenir from a trip?"
+],
+  hobbies:[
+  "What was your favorite childhood hobby?",
+  "What hobby did you spend the most time on as a teenager?",
+  "What instrument did you first learn to play?",
+  "What was the first sport you participated in?",
+  "What craft or art project did you enjoy as a kid?",
+  "What was your favorite type of puzzle growing up?",
+  "What collection did you start as a child?",
+  "What board game did you always want to win?",
+  "What was your favorite thing to build with Legos?",
+  "What outdoor activity did you love most as a kid?",
+  "What was your favorite arcade or video game growing up?",
+  "What book series did you become obsessed with?",
+  "What was your favorite science experiment you tried?",
+  "What dance or performance hobby did you enjoy?",
+  "What hobby have you always wanted to master?"
+],
+  special: [
+  "What holiday holds the most meaning to you?",
+  "What tradition is most important to you?",
+  "What event in your life made you feel truly proud?",
+  "What family heirloom means the most to you?",
+  "What was the most memorable gift you ever received?",
+  "What location holds a special place in your heart?",
+  "What song reminds you of home?",
+  "What was your happiest childhood memory?",
+  "What teacher had the biggest impact on your life?",
+  "What was the most meaningful piece of advice you received?",
+  "What special trip do you cherish the most?",
+  "What was your first major personal achievement?",
+  "What keepsake have you held onto the longest?",
+  "What moment made you feel most connected to your family?",
+  "What book or story changed your perspective growing up?"
+],
+  };
+  
+  
+  function openHelpModal() {
+  document.getElementById('helpModal').style.display = 'flex';
+}
+
+function closeHelpModal() {
+  document.getElementById('helpModal').style.display = 'none';
+}
+
+  function populateSuggestions() {
+    const category = document.getElementById('categoryDropdown').value;
+    const listDiv = document.getElementById('suggestionsList');
+    listDiv.innerHTML = '';
+  
+    if (category && suggestionBank[category]) {
+      suggestionBank[category].forEach(q => {
+        const btn = document.createElement('button');
+        btn.textContent = q;
+        btn.style.cssText = `
+          display:block; width:100%; text-align:left; 
+          background:#333; border:none; color:white; 
+          padding:8px; margin-top:5px; border-radius:6px;
+          font-size:15px; cursor:pointer;
+        `;
+        btn.onclick = () => {
+          document.getElementById('editInput').value = q;
+        };
+        listDiv.appendChild(btn);
+      });
+    }
+  }
+  
+  function saveEditedQuestion() {
+    const newQuestion = document.getElementById('editInput').value.trim();
+    if (newQuestion && currentEditIndex !== null) {
+      questions[currentEditIndex] = newQuestion;
+      document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${newQuestion}`;
+      localStorage.setItem('questions', JSON.stringify(questions));
+    }
+    closeModal();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+  loadQuestions();
+  document.getElementById("categoryDropdown").addEventListener("change", populateSuggestions);
+});
+
+  </script>
+  
+  <script>
+  const canvas = document.getElementById("matrixCanvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+  const fontSize = 14;
+  const columns = Math.floor(canvas.width / fontSize);
+  const drops = Array(columns).fill(0);
+
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00ff99';
+    ctx.font = `${fontSize}px monospace`;
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = letters[Math.floor(Math.random() * letters.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+      drops[i]++;
+      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+    }
+  }
+
+  setInterval(drawMatrix, 66);
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+
+  async function nukeEverything() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+    console.log("Memoro Vault: Local memory wiped.");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
+</script>
 </body>
 </html>

@@ -701,7 +701,7 @@ async function buildPaperPdfFromLiteZip(liteZipBlob) {
 
   // 5) Ciphertext into QR tiles
   const CT_B64    = bytesToBase64(ct);
-  const CHUNK_LEN = 600; // payload per tile (scanner-friendly)
+  const CHUNK_LEN = 324; // payload per tile (scanner-friendly)
   const ctChunks  = chunkString(CT_B64, CHUNK_LEN);
   const total     = ctChunks.length;
 
@@ -715,10 +715,10 @@ async function buildPaperPdfFromLiteZip(liteZipBlob) {
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
-  const MARGIN    = 8;  // page side/top/bottom margins
-  const GAP       = 8;  // gap between tiles
-  const LABEL_PAD = 6;  // space above each tile for label
-  const BANNER_H  = 75;  // banner block height
+  const MARGIN    = 24;  // page side/top/bottom margins
+  const GAP       = 12;  // gap between tiles
+  const LABEL_PAD = 14;  // space above each tile for label
+  const BANNER_H  = 72;  // banner block height
 
   function compute3ColLayout() {
     const innerW = pageW - 2 * MARGIN;
@@ -796,7 +796,7 @@ async function buildPaperPdfFromLiteZip(liteZipBlob) {
     // Up to 3 CT tiles per row
     for (let c = 0; c < grid.cols && ctIdx < total; c++) {
       const tag = `${CT_PREFIX}${ctIdx + 1}/${total}|${ctChunks[ctIdx]}`;
-      await drawTile(x, y, grid.tile, tag, `CT ${ctIdx + 1}/${total}`, "Q");
+      await drawTile(x, y, grid.tile, tag, `CT ${ctIdx + 1}/${total}`, "M");
       ctIdx++;
       x += (c < grid.cols - 1) ? (grid.tile + GAP) : 0;
     }

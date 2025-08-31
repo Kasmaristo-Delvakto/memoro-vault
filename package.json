@@ -54,8 +54,11 @@
     "nsis": {
       "oneClick": false,
       "allowElevation": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
+      "runAfterFinish": true,
       "shortcutName": "Memoro Vault",
       "installerIcon": "src/assets/memoro-vault.ico",
       "uninstallerIcon": "src/assets/memoro-vault.ico",

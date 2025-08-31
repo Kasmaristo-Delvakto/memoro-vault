@@ -457,7 +457,6 @@ function loadQuestions() {
   const vaultType = localStorage.getItem('selectedVaultType');
 let numberOfQuestions;
 
-// Handle Monero and Bitcoin variants
 if (vaultType === 'monero') numberOfQuestions = 25;
 else if (vaultType === 'monero-polyseed') numberOfQuestions = 16;
 else if (vaultType === 'bitcoin') numberOfQuestions = 24;
