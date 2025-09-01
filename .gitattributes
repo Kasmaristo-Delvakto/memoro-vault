@@ -1,0 +1,4 @@
+﻿src/wasm/**            linguist-generated
+rust/**                -linguist-vendored
+rust/**                -linguist-generated
+*.rs                   linguist-detectable=true
