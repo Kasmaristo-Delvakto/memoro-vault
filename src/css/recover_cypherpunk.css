@@ -1,0 +1,649 @@
+
+  /* Styling for the body, setting a dark theme with neon green text */
+  body {
+    background-color: #000;
+    color: #00ff99;
+    font-family: 'Fira Code', monospace;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+
+  /* Canvas for matrix effect background */
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -2;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  /* Overlay to darken the background */
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: -1;
+  }
+
+  /* Heading style for the main title */
+  h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: bold;
+    color: #00ff99;
+  }
+
+  /* Container for buttons */
+  .button-container {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  /* General button styling */
+  .button {
+    background-color: #002611;
+    color: #00ff99;
+    border: 1px solid #00ff99;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 10px;
+    font-family: 'Fira Code', monospace;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+
+  /* Button hover effect */
+  .button:hover {
+    background-color: #004422;
+    transform: translateY(-2px);
+  }
+
+  /* Styling for the recovery form */
+  .recovery-form {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    align-items: center;
+  }
+
+  /* Styling for individual question blocks */
+  .question-block {
+    background-color: #111;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #00ff99;
+    box-shadow: 0 0 10px #00ff99;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Styling for question labels */
+  .question-block label {
+    font-size: 16px;
+    font-weight: bold;
+    color: #00ff99;
+  }
+
+  /* Styling for text inputs */
+  .question-block input[type="text"] {
+    background-color: #000;
+    border: 1px solid #00ff99;
+    border-radius: 8px;
+    padding: 10px;
+    color: #0f0;
+    font-size: 16px;
+    font-family: 'Fira Code', monospace;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Input focus effect */
+  .question-block input[type="text"]:focus {
+    outline: none;
+    box-shadow: 0 0 6px #00ff99;
+  }
+
+  /* Styling for hint text */
+  .hint-display {
+    font-size: 16px;
+    color: #88ff88;
+    font-style: italic;
+  }
+
+  /* Toast notification styling */
+  #toast {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f55;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 18px;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
+  /* Toast show state */
+  #toast.show {
+    display: block;
+    opacity: 1;
+  }
+
+  /* Modal styling */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Animation for modal glow effect */
+  @keyframes pulseGlow {
+    0% { box-shadow: 0 0 12px #00ff99; }
+    50% { box-shadow: 0 0 24px #00ff99; }
+    100% { box-shadow: 0 0 12px #00ff99; }
+  }
+
+  /* Modal content styling */
+  .modal-content {
+    background-color: #111;
+    color: #eee;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    width: calc(100vw - 80px);
+    max-width: 800px;
+    box-sizing: border-box;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid #00ff99;
+    box-shadow: 0 0 12px #00ff99;
+    animation: pulseGlow 2.5s ease-in-out infinite;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  /* Modal buttons container */
+  .modal-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  /* Modal button styling */
+  .modal-buttons button {
+    background-color: #003322;
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: 'Fira Code', monospace;
+  }
+
+  /* Modal button hover effect */
+  .modal-buttons button:hover {
+    background-color: #005544;
+  }
+
+  /* Proof-of-work overlay */
+  #powOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9998;
+    background: rgba(0, 0, 0, 0.9);
+    color: #0f0;
+    font-family: 'Fira Code', monospace;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Proof-of-work terminal */
+  #powTerminal {
+    background-color: #000;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #0f0;
+    width: 90%;
+    max-width: 800px;
+    height: 300px;
+    overflow-y: auto;
+    font-size: 14px;
+    text-align: left;
+  }
+
+  /* Proof-of-work message */
+  #powMessage {
+    font-size: 20px;
+    margin-bottom: 10px;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+  }
+
+  /* Modal fade-in animation */
+  @keyframes fadeInModal {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Modal show state */
+  .modal.show {
+    display: flex !important;
+    animation: fadeInModal 0.4s ease-out forwards;
+  }
+
+  /* Screen shake animation */
+  @keyframes screenShake {
+    0% { transform: translate(0px, 0px); }
+    25% { transform: translate(3px, -3px); }
+    50% { transform: translate(-3px, 3px); }
+    75% { transform: translate(3px, 3px); }
+    100% { transform: translate(0px, 0px); }
+  }
+
+  /* Crack flash animation */
+  @keyframes crackFlash {
+    0% { background-color: rgba(255,255,255,0); }
+    50% { background-color: rgba(255,255,255,0.9); }
+    100% { background-color: rgba(255,255,255,0); }
+  }
+
+  /* Vault dust animation */
+  @keyframes vaultDust {
+    0% { opacity: 0; transform: scale(1.5); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Crack overlay */
+  #crackOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: transparent;
+    z-index: 9998;
+    pointer-events: none;
+    transition: opacity 0.4s ease-out;
+  }
+
+  /* Burst flash effect */
+  #burstFlash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: white;
+    opacity: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  /* Proof-of-work section */
+  .pow-section {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+    border: 1px solid #0f0;
+    border-radius: 12px;
+    background: #000;
+    box-shadow: 0 0 12px rgba(0, 255, 0, 0.2);
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Donation heading */
+  .donation-heading {
+    font-size: 20px;
+    color: #00ff99;
+    font-family: 'Fira Code', monospace;
+    text-shadow: 0 0 6px #00ff99;
+    margin-bottom: 12px;
+    text-align: center;
+    position: relative;
+    padding-bottom: 12px;
+  }
+
+  /* Donation heading underline */
+  .donation-heading::after {
+    content: "";
+    display: block;
+    width: 80%;
+    height: 1px;
+    margin: 8px auto 0;
+    background: #00ff99;
+    box-shadow: 0 0 8px #00ff99;
+  }
+
+  /* Progress label */
+  .progress-label {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #0f0;
+    text-align: center;
+    width: 90%;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Progress bar container */
+  .progress-bar-container {
+    width: 90%;
+    max-width: 800px;
+    height: 30px;
+    background-color: #000;
+    border: 1px solid #0f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 8px #0f0;
+    padding: 2px;
+    box-sizing: border-box;
+    margin: 0 auto;
+  }
+
+  /* Progress bar fill */
+  .progress-bar-fill {
+    display: flex;
+    gap: 2px;
+    height: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px;
+  }
+
+  /* Individual progress block */
+  .progress-block {
+    flex: 0 0 auto;
+    width: calc((100% - 78px) / 40); /* 40 blocks + 39 gaps × 2px = 78px */
+    height: 100%;
+    background-color: #111;
+    border: 1px solid #0f0;
+    border-radius: 2px;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease;
+  }
+
+  /* Filled progress block */
+  .progress-block.filled {
+    background-color: #0f0;
+  }
+
+  /* Responsive design for smaller screens */
+  @media (max-width: 500px) {
+    .modal-content {
+      width: calc(100vw - 40px);
+    }
+    .pow-section {
+      width: 90%;
+    }
+  }
+
+  /* Make the modal’s inner panel flush-wide and stack action buttons on narrow screens */
+@media (max-width: 560px) {
+  /* The outer modal box: shrink side padding so the inner black panel can be nearly edge-to-edge */
+  .modal-content {
+    width: calc(100vw - 10px);   /* ~5px gutter each side */
+    padding: 8px;                /* minimal inner padding */
+  }
+
+  /* The inner black panel: remove the 600px cap and force full width */
+  .pow-section {
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  /* Stack action buttons and make them full-width */
+  .modal-buttons,
+  .btn-row {
+    flex-direction: column;      /* stack */
+    align-items: stretch;        /* let buttons expand full width */
+    gap: 8px;
+  }
+
+  .modal-buttons button,
+  .btn-row .button {
+    width: 100%;
+  }
+}
+
+/* (Optional) allow wrapping on medium screens so buttons don’t overflow */
+.btn-row { 
+  flex-wrap: wrap;
+}
+
+  /* Spacer classes for line count padding */
+  .spacer { margin-bottom: 10px; }
+  .spacer2 { margin-bottom: 20px; }
+  .spacer3 { margin-bottom: 30px; }
+  .spacer4 { margin-bottom: 40px; }
+  .spacer5 { margin-bottom: 50px; }
+  .spacer6 { margin-bottom: 60px; }
+  .spacer7 { margin-bottom: 70px; }
+  .spacer8 { margin-bottom: 80px; }
+  .spacer9 { margin-bottom: 90px; }
+  .spacer10 { margin-bottom: 100px; }
+  
+  /* --- Modal visibility (JS toggles .show) --- */
+.modal.show { display: flex !important; }
+
+/* --- Donation area --- */
+.donation-heading {
+  color: #00ff99;
+  text-shadow: 0 0 8px #00ff99;
+  font-family: 'Fira Code', monospace;
+  text-align: center;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.donation-qr {
+  margin-top: 10px;
+  width: 150px;
+  border: 2px solid #0f0;
+  border-radius: 8px;
+  box-shadow: 0 0 8px #0f0;
+}
+
+.donation-text {
+  color: #00ff99;
+  font-family: 'Fira Code', monospace;
+  font-size: 15px;
+  line-height: 1.6;
+  text-shadow: 0 0 6px #00ff99;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.donation-strong { font-weight: 700; }
+
+.donation-button {
+  background-color: #111;
+  color: #0f0;
+  border: 1px solid #0f0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.donation-button:hover { filter: brightness(1.05); }
+
+.donation-subcontainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.donation-subtext {
+  font-size: 13px;
+  color: #0f0;
+  margin: 0;
+  text-shadow: 0 0 4px rgba(0,255,153,.3);
+}
+
+/* --- Recovered section --- */
+.vault-recovered {
+  font-size: 28px;
+  color: #00ff99;
+  text-align: center;
+  text-shadow: 0 0 8px #00ff99;
+  font-family: 'Fira Code', monospace;
+  margin-bottom: 10px;
+}
+
+.recovered-seed {
+  white-space: pre-wrap;
+  color: #0f0;
+  margin-top: 10px;
+}
+
+.final-message {
+  white-space: pre-wrap;
+  color: #88ff88;
+  margin-top: 15px;
+}
+
+/* --- Preview modal content --- */
+.preview-content { margin-top: 20px; }
+
+/* --- Red Herring modal --- */
+.red-herring-title {
+  color: #00ff99;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px #00ff99;
+  text-align: center;
+}
+
+.red-herring-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #00ff99;
+}
+
+.red-herring-highlight {
+  color: #88ffcc;
+  text-shadow: 0 0 5px #88ffcc;
+}
+
+.leave-blank {
+  color: #00ff99;
+  text-shadow: 0 0 4px #00ff99;
+}
+
+.example-label { color: #44ff88; }
+.example-code  { color: #44ff88; }
+
+.exactly-one {
+  color: #00ffcc;
+  text-shadow: 0 0 4px #00ffcc;
+}
+
+.underline-strong { text-decoration-color: #44ff88; }
+
+/* --- Toast (keeps your neon look, just classed) --- */
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 24px;
+  background: rgba(0,0,0,.8);
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  box-shadow: 0 0 10px #00ff99;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: 'Fira Code', monospace;
+  display: none; /* your JS can flip this */
+  z-index: 10000;
+}
+
+/* File list */
+.file-entry { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+
+/* Make sure browser :link/:visited can’t flip to blue */
+.recovery-file-links a.file-link,
+.recovery-file-links a.file-link:link,
+.recovery-file-links a.file-link:visited,
+.recovery-file-links a.file-link:hover,
+.recovery-file-links a.file-link:active {
+  color: #00ff99 !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.preview-btn { padding: 4px 8px; }
+.btn-row { display:flex; justify-content:center; gap:10px; margin-top:20px; }
+
+/* Hints — Cypherpunk theme */
+body[data-theme="cypherpunk"] .hint-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body[data-theme="cypherpunk"] .hint-code {
+  font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 15px;
+  white-space: pre;
+  /* inherits the page’s neon green text; no explicit color set */
+}
+
+body[data-theme="cypherpunk"] .hint-custom-text {
+  font-size: 14px;
+  color: #88ffcc;      /* matches your previous inline color */
+}
+
+/* Mobile: custom hint drops below and wraps */
+@media (max-width: 520px) {
+  body[data-theme="cypherpunk"] .hint-row {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+  body[data-theme="cypherpunk"] .hint-custom-text {
+    width: 100%;
+    margin-left: 0;
+  }
+}

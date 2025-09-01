@@ -1,0 +1,426 @@
+/* Body uses system canvas/text colors */
+body {
+  background: Canvas;
+  color: CanvasText;
+  font-family: 'Fira Code', monospace;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+/* Matrix background canvas */
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -2;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Overlay just dims background slightly */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: color-mix(in srgb, CanvasText 20%, transparent);
+  z-index: -1;
+}
+
+/* Heading style */
+h1 {
+  font-size: 36px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Button container */
+.button-container {
+  margin: 20px 0;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* General button styling */
+.button {
+  background: ButtonFace;
+  color: ButtonText;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  padding: 12px 24px;
+  font-size: 16px;
+  border-radius: 10px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+/* Recovery form */
+.recovery-form {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  align-items: center;
+}
+
+/* Question blocks */
+.question-block {
+  background: Canvas;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.question-block label {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Text inputs */
+.question-block input[type="text"] {
+  background: Field;
+  color: FieldText;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.question-block input[type="text"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, CanvasText 28%, transparent);
+}
+
+/* Hint text */
+.hint-display {
+  font-size: 16px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Toast */
+#toast {
+  display: none;
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, CanvasText 80%, Canvas 20%);
+  color: Canvas;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 18px;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+#toast.show {
+  display: block;
+  opacity: 1;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, CanvasText 55%, transparent);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: Canvas;
+  color: CanvasText;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+  width: calc(100vw - 80px);
+  max-width: 800px;
+  box-sizing: border-box;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Modal buttons */
+.modal-buttons {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.modal-buttons button {
+  background: ButtonFace;
+  color: ButtonText;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+}
+.modal-buttons button:hover {
+  filter: brightness(95%);
+}
+
+/* Proof-of-work overlay */
+#powOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: color-mix(in srgb, CanvasText 65%, transparent);
+  font-family: 'Fira Code', monospace;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Proof-of-work terminal */
+#powTerminal {
+  background: Canvas;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  width: 90%;
+  max-width: 800px;
+  height: 300px;
+  overflow-y: auto;
+  font-size: 14px;
+  text-align: left;
+}
+
+/* Progress / donation blocks — stripped to neutral */
+.donation-heading,
+.progress-label {
+  font-family: 'Fira Code', monospace;
+  text-align: center;
+}
+
+.progress-bar-container {
+  width: 90%;
+  max-width: 800px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 2px;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.progress-bar-fill {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.progress-block {
+  flex: 0 0 auto;
+  width: calc((100% - 78px) / 40);
+  height: 100%;
+  background: color-mix(in srgb, CanvasText 10%, transparent);
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  border-radius: 2px;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease;
+}
+.progress-block.filled {
+  background: CanvasText;
+}
+
+body[data-theme="clean"] #matrixCanvas,
+body[data-theme="clean"] .overlay {
+  display: none !important;
+}
+
+/* Make modals visible when JS adds .show */
+.modal.show {
+  display: flex !important;
+  animation: fadeInModal 0.4s ease-out forwards;
+}
+
+/* Optional: reuse the same fade-in used in cypherpunk */
+@keyframes fadeInModal {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Clean theme root colors (adjust if you already set CSS vars) */
+body[data-theme="clean"] {
+  --mv-fg: #222;
+  --mv-muted: #6b7280;
+  --mv-border: #e5e7eb;
+  --mv-accent: #111827;
+}
+
+/* Turn off matrix + overlays in clean (if not already) */
+body[data-theme="clean"] #matrixCanvas,
+body[data-theme="clean"] .overlay { display: none !important; }
+
+/* QR image — neutral styling */
+body[data-theme="clean"] .donation-qr {
+  display: block;
+  margin: 10px auto 0;
+  width: 150px;
+  border: 1px solid var(--mv-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
+
+/* Donation text/buttons — neutralize neon greens */
+body[data-theme="clean"] .donation-heading {
+  color: var(--mv-fg);
+  text-shadow: none;
+}
+
+body[data-theme="clean"] .donation-text,
+body[data-theme="clean"] .donation-subtext,
+body[data-theme="clean"] .vault-recovered,
+body[data-theme="clean"] .red-herring-title,
+body[data-theme="clean"] .red-herring-text {
+  color: var(--mv-fg);
+  text-shadow: none;
+}
+
+body[data-theme="clean"] .red-herring-highlight,
+body[data-theme="clean"] .example-label,
+body[data-theme="clean"] .example-code,
+body[data-theme="clean"] .exactly-one {
+  color: var(--mv-fg);
+  text-shadow: none;
+}
+
+body[data-theme="clean"] .underline-strong { text-decoration-color: currentColor; }
+
+/* Buttons in clean theme */
+body[data-theme="clean"] .donation-button,
+body[data-theme="clean"] .modal .button {
+  background: #f9fafb;
+  color: var(--mv-fg);
+  border: 1px solid var(--mv-border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+body[data-theme="clean"] .donation-button:hover,
+body[data-theme="clean"] .modal .button:hover {
+  background: #f3f4f6;
+}
+
+/* File list area */
+body[data-theme="clean"] .recovery-file-links { margin-top: 20px; }
+body[data-theme="clean"] .decrypted-files-title {
+  color: var(--mv-fg);
+  text-shadow: none;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+body[data-theme="clean"] .file-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+body[data-theme="clean"] .file-link {
+  color: #2563eb;                  /* a clean, accessible link color */
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+body[data-theme="clean"] .preview-btn { padding: 4px 8px; }
+
+/* Bottom action row */
+body[data-theme="clean"] .btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Neutralize neon in sections (you likely already added this) */
+body[data-theme="clean"] .pow-section { color: var(--mv-fg) !important; text-shadow:none !important; }
+
+/* File list */
+body[data-theme="clean"] .file-entry { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+
+/* The link: turn it blue and override any inherited green */
+body[data-theme="clean"] .recovery-file-links .file-link {
+  color:#2563eb !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Buttons + row layout */
+body[data-theme="clean"] .preview-btn { padding:4px 8px; }
+body[data-theme="clean"] .btn-row { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:20px; }
+
+/* Hints — Clean theme */
+body[data-theme="clean"] .hint-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body[data-theme="clean"] .hint-code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 15px;
+  white-space: pre;
+}
+
+body[data-theme="clean"] .hint-custom-text {
+  font-size: 14px;
+  color: inherit;      /* keep clean theme neutral */
+  opacity: 0.85;       /* subtle de-emphasis */
+}
+
+/* Mobile: let the custom hint wrap below the code nicely */
+@media (max-width: 520px) {
+  body[data-theme="clean"] .hint-row {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+  body[data-theme="clean"] .hint-custom-text {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+

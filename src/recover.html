@@ -7,623 +7,169 @@
   <script src="libs/argon2-browser.min.js"></script>
   <script src="libs/zip.min.js"></script>
 
-  <style>
-  /* Styling for the body, setting a dark theme with neon green text */
-  body {
-    background-color: #000;
-    color: #00ff99;
-    font-family: 'Fira Code', monospace;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-  }
+  <!-- in <head> -->
+<link id="theme-cypherpunk" rel="stylesheet" href="css/recover_cypherpunk.css">
+<link id="theme-clean"       rel="stylesheet" href="css/recover_clean.css" disabled>
 
-  /* Canvas for matrix effect background */
-  canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: -2;
-    width: 100vw;
-    height: 100vh;
-  }
+<script>
+  // Theme switcher for recover page
+  function applyRecoverTheme(theme) {
+    const cy = document.getElementById('theme-cypherpunk');
+    const cl = document.getElementById('theme-clean');
+    const isCypher = (theme === 'cypherpunk');
 
-  /* Overlay to darken the background */
-  .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.75);
-    z-index: -1;
-  }
+    if (cy) cy.disabled = !isCypher;
+    if (cl) cl.disabled =  isCypher;
 
-  /* Heading style for the main title */
-  h1 {
-    font-size: 36px;
-    margin-bottom: 20px;
-    text-align: center;
-    font-weight: bold;
-    color: #00ff99;
-  }
-
-  /* Container for buttons */
-  .button-container {
-    margin: 20px 0;
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    max-width: 600px;
-  }
-
-  /* General button styling */
-  .button {
-    background-color: #002611;
-    color: #00ff99;
-    border: 1px solid #00ff99;
-    padding: 12px 24px;
-    font-size: 16px;
-    border-radius: 10px;
-    font-family: 'Fira Code', monospace;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s;
-  }
-
-  /* Button hover effect */
-  .button:hover {
-    background-color: #004422;
-    transform: translateY(-2px);
-  }
-
-  /* Styling for the recovery form */
-  .recovery-form {
-    width: 100%;
-    max-width: 600px;
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-    align-items: center;
-  }
-
-  /* Styling for individual question blocks */
-  .question-block {
-    background-color: #111;
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #00ff99;
-    box-shadow: 0 0 10px #00ff99;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Styling for question labels */
-  .question-block label {
-    font-size: 16px;
-    font-weight: bold;
-    color: #00ff99;
-  }
-
-  /* Styling for text inputs */
-  .question-block input[type="text"] {
-    background-color: #000;
-    border: 1px solid #00ff99;
-    border-radius: 8px;
-    padding: 10px;
-    color: #0f0;
-    font-size: 16px;
-    font-family: 'Fira Code', monospace;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Input focus effect */
-  .question-block input[type="text"]:focus {
-    outline: none;
-    box-shadow: 0 0 6px #00ff99;
-  }
-
-  /* Styling for hint text */
-  .hint-display {
-    font-size: 16px;
-    color: #88ff88;
-    font-style: italic;
-  }
-
-  /* Toast notification styling */
-  #toast {
-    display: none;
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #f55;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 18px;
-    z-index: 9999;
-    opacity: 0;
-    transition: opacity 0.5s ease;
-  }
-
-  /* Toast show state */
-  #toast.show {
-    display: block;
-    opacity: 1;
-  }
-
-  /* Modal styling */
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 9999;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Animation for modal glow effect */
-  @keyframes pulseGlow {
-    0% { box-shadow: 0 0 12px #00ff99; }
-    50% { box-shadow: 0 0 24px #00ff99; }
-    100% { box-shadow: 0 0 12px #00ff99; }
-  }
-
-  /* Modal content styling */
-  .modal-content {
-    background-color: #111;
-    color: #eee;
-    padding: 30px;
-    border-radius: 10px;
-    text-align: center;
-    width: calc(100vw - 80px);
-    max-width: 800px;
-    box-sizing: border-box;
-    max-height: 90vh;
-    overflow-y: auto;
-    border: 1px solid #00ff99;
-    box-shadow: 0 0 12px #00ff99;
-    animation: pulseGlow 2.5s ease-in-out infinite;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-  }
-
-  /* Modal buttons container */
-  .modal-buttons {
-    margin-top: 20px;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-  }
-
-  /* Modal button styling */
-  .modal-buttons button {
-    background-color: #003322;
-    color: #0f0;
-    border: 1px solid #0f0;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
-    font-family: 'Fira Code', monospace;
-  }
-
-  /* Modal button hover effect */
-  .modal-buttons button:hover {
-    background-color: #005544;
-  }
-
-  /* Proof-of-work overlay */
-  #powOverlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 9998;
-    background: rgba(0, 0, 0, 0.9);
-    color: #0f0;
-    font-family: 'Fira Code', monospace;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  /* Proof-of-work terminal */
-  #powTerminal {
-    background-color: #000;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 15px #0f0;
-    width: 90%;
-    max-width: 800px;
-    height: 300px;
-    overflow-y: auto;
-    font-size: 14px;
-    text-align: left;
-  }
-
-  /* Proof-of-work message */
-  #powMessage {
-    font-size: 20px;
-    margin-bottom: 10px;
-    opacity: 1;
-    transition: opacity 0.5s ease;
-  }
-
-  /* Modal fade-in animation */
-  @keyframes fadeInModal {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  /* Modal show state */
-  .modal.show {
-    display: flex !important;
-    animation: fadeInModal 0.4s ease-out forwards;
-  }
-
-  /* Screen shake animation */
-  @keyframes screenShake {
-    0% { transform: translate(0px, 0px); }
-    25% { transform: translate(3px, -3px); }
-    50% { transform: translate(-3px, 3px); }
-    75% { transform: translate(3px, 3px); }
-    100% { transform: translate(0px, 0px); }
-  }
-
-  /* Crack flash animation */
-  @keyframes crackFlash {
-    0% { background-color: rgba(255,255,255,0); }
-    50% { background-color: rgba(255,255,255,0.9); }
-    100% { background-color: rgba(255,255,255,0); }
-  }
-
-  /* Vault dust animation */
-  @keyframes vaultDust {
-    0% { opacity: 0; transform: scale(1.5); }
-    100% { opacity: 1; transform: scale(1); }
-  }
-
-  /* Crack overlay */
-  #crackOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: transparent;
-    z-index: 9998;
-    pointer-events: none;
-    transition: opacity 0.4s ease-out;
-  }
-
-  /* Burst flash effect */
-  #burstFlash {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: white;
-    opacity: 0;
-    z-index: 9999;
-    pointer-events: none;
-  }
-
-  /* Proof-of-work section */
-  .pow-section {
-    width: 100%;
-    max-width: 600px;
-    padding: 20px;
-    border: 1px solid #0f0;
-    border-radius: 12px;
-    background: #000;
-    box-shadow: 0 0 12px rgba(0, 255, 0, 0.2);
-    text-align: center;
-    box-sizing: border-box;
-  }
-
-  /* Donation heading */
-  .donation-heading {
-    font-size: 20px;
-    color: #00ff99;
-    font-family: 'Fira Code', monospace;
-    text-shadow: 0 0 6px #00ff99;
-    margin-bottom: 12px;
-    text-align: center;
-    position: relative;
-    padding-bottom: 12px;
-  }
-
-  /* Donation heading underline */
-  .donation-heading::after {
-    content: "";
-    display: block;
-    width: 80%;
-    height: 1px;
-    margin: 8px auto 0;
-    background: #00ff99;
-    box-shadow: 0 0 8px #00ff99;
-  }
-
-  /* Progress label */
-  .progress-label {
-    font-size: 14px;
-    margin-bottom: 8px;
-    color: #0f0;
-    text-align: center;
-    width: 90%;
-    max-width: 800px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  /* Progress bar container */
-  .progress-bar-container {
-    width: 90%;
-    max-width: 800px;
-    height: 30px;
-    background-color: #000;
-    border: 1px solid #0f0;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 0 8px #0f0;
-    padding: 2px;
-    box-sizing: border-box;
-    margin: 0 auto;
-  }
-
-  /* Progress bar fill */
-  .progress-bar-fill {
-    display: flex;
-    gap: 2px;
-    height: 100%;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 2px;
-  }
-
-  /* Individual progress block */
-  .progress-block {
-    flex: 0 0 auto;
-    width: calc((100% - 78px) / 40); /* 40 blocks + 39 gaps × 2px = 78px */
-    height: 100%;
-    background-color: #111;
-    border: 1px solid #0f0;
-    border-radius: 2px;
-    box-sizing: border-box;
-    transition: background-color 0.2s ease;
-  }
-
-  /* Filled progress block */
-  .progress-block.filled {
-    background-color: #0f0;
-  }
-
-  /* Responsive design for smaller screens */
-  @media (max-width: 500px) {
-    .modal-content {
-      width: calc(100vw - 40px);
+    const setBodyAttr = () => {
+      if (document.body) {
+        document.body.setAttribute('data-theme', isCypher ? 'cypherpunk' : 'clean');
+      }
+    };
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', setBodyAttr, { once: true });
+    } else {
+      setBodyAttr();
     }
-    .pow-section {
-      width: 90%;
+
+    // Matrix control (defined later at bottom of file)
+    if (window.RecoverMatrix) {
+      if (isCypher) RecoverMatrix.start();
+      else RecoverMatrix.stop();
     }
   }
 
-  /* Make the modal’s inner panel flush-wide and stack action buttons on narrow screens */
-@media (max-width: 560px) {
-  /* The outer modal box: shrink side padding so the inner black panel can be nearly edge-to-edge */
-  .modal-content {
-    width: calc(100vw - 10px);   /* ~5px gutter each side */
-    padding: 8px;                /* minimal inner padding */
-  }
+  (function initRecoverTheme(){
+const saved =
+  sessionStorage.getItem('theme') ??
+  localStorage.getItem('theme') ??
+  'cypherpunk';
+  window.__savedRecoverTheme = saved;
 
-  /* The inner black panel: remove the 600px cap and force full width */
-  .pow-section {
-    max-width: none;
-    width: 100%;
-    margin-left: 0;
-    margin-right: 0;
-  }
+  const cy = document.getElementById('theme-cypherpunk');
+  const cl = document.getElementById('theme-clean');
+  const isCypher = (saved === 'cypherpunk');
+  if (cy) cy.disabled = !isCypher;
+  if (cl) cl.disabled =  isCypher;
+})();
+</script>
 
-  /* Stack action buttons and make them full-width */
-  .modal-buttons,
-  .btn-row {
-    flex-direction: column;      /* stack */
-    align-items: stretch;        /* let buttons expand full width */
-    gap: 8px;
-  }
-
-  .modal-buttons button,
-  .btn-row .button {
-    width: 100%;
-  }
-}
-
-/* (Optional) allow wrapping on medium screens so buttons don’t overflow */
-.btn-row { 
-  flex-wrap: wrap;
-}
-
-  /* Spacer classes for line count padding */
-  .spacer { margin-bottom: 10px; }
-  .spacer2 { margin-bottom: 20px; }
-  .spacer3 { margin-bottom: 30px; }
-  .spacer4 { margin-bottom: 40px; }
-  .spacer5 { margin-bottom: 50px; }
-  .spacer6 { margin-bottom: 60px; }
-  .spacer7 { margin-bottom: 70px; }
-  .spacer8 { margin-bottom: 80px; }
-  .spacer9 { margin-bottom: 90px; }
-  .spacer10 { margin-bottom: 100px; }
-  </style>
 </head>
 <body>
   <!-- Main heading -->
-  <h1>Recover Your Vault</h1>
+<h1 id="pageTitle">Recover Your Vault</h1>
 
-  <!-- Button to return to dashboard -->
-  <div class="button-container">
-    <button class="button" onclick="backToDashboard()">Return to Dashboard</button> 
-  </div>
+<!-- Button to return to dashboard -->
+<div class="button-container">
+  <button class="button" onclick="backToDashboard()">Return to Dashboard</button>
+</div>
 
-  <!-- Form for entering recovery answers -->
-  <form class="recovery-form" id="recoveryForm"></form>
+<!-- Form for entering recovery answers -->
+<form class="recovery-form" id="recoveryForm"></form>
 
-  <!-- Button to submit recovery -->
-  <div class="button-container">
-    <button class="button" onclick="submitRecovery()">Recover Vault</button>
-  </div>
+<!-- Button to submit recovery -->
+<div class="button-container">
+  <button class="button" onclick="submitRecovery()">Recover Vault</button>
+</div>
 
-  <!-- Modal for displaying recovered vault contents and donation prompt -->
-  <div id="seedModal" class="modal">
-    <div class="modal-content">
-      <div class="pow-section">
-        <div class="donation-heading">Support Memoro Vault</div>
-        <img src="assets/Screenshot (691).png" alt="Monero Donation QR"
-             style="margin-top: 10px; width: 150px; border: 2px solid #0f0; border-radius: 8px; box-shadow: 0 0 8px #0f0;">
-        <p style="color: #00ff99; font-family: 'Fira Code', monospace; font-size: 15px; line-height: 1.6; text-shadow: 0 0 6px #00ff99; margin: 10px 0;">
-          <span style="font-weight: bold;">Thanks for using Memoro Vault.</span><br>
-          If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
-        </p>
-        <button onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')"
-                style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-          Donate with preferred crypto
-        </button>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px;">
-          <p style="font-size: 13px; color: #0f0; margin: 0;">
-            Offline? Paste it into your browser later.
-          </p>
-          <button onclick="copyDonationLink()"
-                  style="background-color: #111; color: #0f0; border: 1px solid #0f0; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-            Copy Donation Link
-          </button>
-        </div>
-      </div>
-
-      <div class="pow-section">
-        <h2 style="font-size: 28px; color: #00ff99; text-align: center; text-shadow: 0 0 8px #00ff99; font-family: 'Fira Code', monospace; margin-bottom: 10px;">
-          Vault Recovered!
-        </h2>
-        <pre id="recoveredSeed" style="white-space: pre-wrap; color: #0f0; margin-top: 10px;"></pre>
-        <pre id="finalMessage" style="white-space: pre-wrap; color: #88ff88; margin-top: 15px;"></pre>
-        <div class="modal-buttons">
-          <button onclick="closeSeedModal()">Return to Dashboard</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal for file preview -->
-  <div id="previewModal" class="modal">
-    <div class="modal-content">
-      <h2>File Preview</h2>
-      <div id="previewContent" style="margin-top: 20px;"></div>
-      <div class="modal-buttons">
-        <button onclick="closePreview()">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Proof-of-work overlay -->
-  <div id="powOverlay">
-    <div id="powMessage">Checking answers... please wait</div>
-    <div id="powTerminal"></div>
-    <div class="progress-label">Processing...</div>
-    <div class="progress-bar-container">
-      <div class="progress-bar-fill" id="progressBar"></div>
-    </div>
-  </div>
-
-  <!-- Red Herring instruction modal -->
-  <div id="redHerringModal" class="modal">
-    <div class="modal-content">
-      <h2 style="color:#00ff99; margin-bottom: 20px; text-shadow: 0 0 10px #00ff99;">Pay Attention Before You Begin</h2>
-      <p style="font-size: 16px; line-height: 1.7; color: #00ff99;">
-        One of these questions might be a 
-        <span style="color: #88ffcc; text-shadow: 0 0 5px #88ffcc;">Red Herring</span>
-        —a trick question that’s <u style="text-decoration-color:#44ff88;">not supposed to be answered correctly</u>.
-        <br><br>
-        If a Red Herring is present, you must 
-        <span style="color: #00ff99; text-shadow: 0 0 4px #00ff99;">leave it blank</span>. 
-        Entering an answer—even the real one—will prevent you from unlocking the vault.
-        <br><br>
-        <span style="color: #88ffcc; text-shadow: 0 0 4px #88ffcc;">How do I spot it?</span><br>
-        Look at the character hint beneath each question. 
-        If the expected character count <u style="text-decoration-color:#44ff88;">differs from the real answer by 2 or more characters</u>, it’s likely the Red Herring.
-        <br><br>
-        <span style="color:#44ff88;">Example:</span> If your favorite dog’s name was 
-        “<code style="color:#44ff88;">Samantha</code>” (8 letters), but the hint only shows 4 characters, 
-        <u style="text-decoration-color:#44ff88;">do not answer that question</u>.
-        <br><br>
-        There is either 
-        <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">exactly one</span> Red Herring 
-        or <span style="color:#00ffcc; text-shadow: 0 0 4px #00ffcc;">none at all</span>—never more than one.
+<!-- Modal for displaying recovered vault contents and donation prompt -->
+<div id="seedModal" class="modal">
+  <div class="modal-content">
+    <div class="pow-section">
+      <div class="donation-heading">Support Memoro Vault</div>
+      <img src="assets/Screenshot (691).png" alt="Monero Donation QR" class="donation-qr">
+      <p class="donation-text">
+        <span class="donation-strong">Thanks for using Memoro Vault.</span><br>
+        If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
       </p>
+      <button class="donation-button"
+        onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')">
+        Donate with preferred crypto
+      </button>
+      <div class="donation-subcontainer">
+        <p class="donation-subtext">Offline? Paste it into your browser later.</p>
+        <button class="donation-button" onclick="copyDonationLink()">Copy Donation Link</button>
+      </div>
+    </div>
+
+    <div class="pow-section">
+      <h2 id="vaultRecoveredHeading" class="vault-recovered">Vault Recovered!</h2>
+      <pre id="recoveredSeed" class="recovered-seed"></pre>
+      <pre id="finalMessage" class="final-message"></pre>
       <div class="modal-buttons">
-        <button onclick="closeRedHerringModal()">Got it</button>
+        <button onclick="closeSeedModal()">Return to Dashboard</button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Matrix effect canvas -->
-  <canvas id="matrixCanvas"></canvas>
-  <div class="overlay"></div>
-  <div id="vaultCrackOverlay"></div>
-  <div id="crackOverlay"></div>
-  <div id="burstFlash"></div>
+<!-- Modal for file preview -->
+<div id="previewModal" class="modal">
+  <div class="modal-content">
+    <h2 id="previewTitle">File Preview</h2>
+    <div id="previewContent" class="preview-content"></div>
+    <div class="modal-buttons">
+      <button onclick="closePreview()">Close</button>
+    </div>
+  </div>
+</div>
 
-  <!-- Toast notification -->
-  <div id="toast"></div>
+<!-- Proof-of-work overlay -->
+<div id="powOverlay">
+  <div id="powMessage">Checking answers... please wait</div>
+  <div id="powTerminal"></div>
+  <div class="progress-label">Processing...</div>
+  <div class="progress-bar-container">
+    <div class="progress-bar-fill" id="progressBar"></div>
+  </div>
+</div>
 
-  <!-- Spacers for line count -->
-  <div class="spacer"></div>
-  <div class="spacer2"></div>
-  <div class="spacer3"></div>
-  <div class="spacer4"></div>
-  <div class="spacer5"></div>
-  <div class="spacer6"></div>
-  <div class="spacer7"></div>
-  <div class="spacer8"></div>
-  <div class="spacer9"></div>
-  <div class="spacer10"></div>
-  <div class="spacer"></div>
-  <div class="spacer2"></div>
-  <div class="spacer3"></div>
-  <div class="spacer4"></div>
-  <div class="spacer5"></div>
-  <div class="spacer6"></div>
-  <div class="spacer7"></div>
-  <div class="spacer8"></div>
-  <div class="spacer9"></div>
-  <div class="spacer10"></div>
-  <div class="spacer"></div>
-  <div class="spacer2"></div>
-  <div class="spacer3"></div>
-  <div class="spacer4"></div>
-  <div class="spacer5"></div>
-  <div class="spacer6"></div>
-  <div class="spacer7"></div>
-  <div class="spacer8"></div>
-  <div class="spacer9"></div>
-  <div class="spacer10"></div>
+<!-- Red Herring instruction modal -->
+<div id="redHerringModal" class="modal">
+  <div class="modal-content">
+    <h2 id="redHerringTitle" class="red-herring-title">Pay Attention Before You Begin</h2>
+    <p id="redHerringText" class="red-herring-text">
+      One of these questions might be a 
+      <span class="red-herring-highlight">Red Herring</span>
+      —a trick question that’s <u class="underline-strong">not supposed to be answered correctly</u>.
+      <br><br>
+      If a Red Herring is present, you must 
+      <span class="leave-blank">leave it blank</span>. 
+      Entering an answer—even the real one—will prevent you from unlocking the vault.
+      <br><br>
+      <span class="red-herring-highlight">How do I spot it?</span><br>
+      Look at the character hint beneath each question. 
+      If the expected character count <u class="underline-strong">differs from the real answer by 2 or more characters</u>, it’s likely the Red Herring.
+      <br><br>
+      <span class="example-label">Example:</span> If your favorite dog’s name was 
+      “<code class="example-code">Samantha</code>” (8 letters), but the hint only shows 4 characters, 
+      <u class="underline-strong">do not answer that question</u>.
+      <br><br>
+      There is either 
+      <span class="exactly-one">exactly one</span> Red Herring 
+      or <span class="exactly-one">none at all</span>—never more than one.
+    </p>
+    <div class="modal-buttons">
+      <button onclick="closeRedHerringModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Matrix effect canvas and overlays -->
+<canvas id="matrixCanvas"></canvas>
+<div class="overlay" id="matrixOverlay"></div>
+<div id="vaultCrackOverlay"></div>
+<div id="crackOverlay"></div>
+<div id="burstFlash"></div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast"></div>
+
+<!-- Spacers (unchanged) -->
+<div class="spacer"></div><div class="spacer2"></div><div class="spacer3"></div><div class="spacer4"></div>
+<div class="spacer5"></div><div class="spacer6"></div><div class="spacer7"></div><div class="spacer8"></div>
+<div class="spacer9"></div><div class="spacer10"></div>
+
 
   <script type="module">
   // Initialize WebAssembly crypto module
@@ -1139,13 +685,20 @@ await showRecoveryModal(finalMessage, decryptedFiles);
   }
 
   const spacedHint = renderedHint.split('').join(' ');
+// (optional) tiny sanitizer to avoid injecting raw HTML from question.custom
+const escapeHtml = (s) => String(s)
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
 
-  hintDiv.innerHTML = `
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <code style="font-size: 15px; white-space: pre;">${spacedHint}</code>
-      ${question.custom ? `<div class="hint-custom-text" style="font-size: 14px; color: #88ffcc;">Hint: ${question.custom}</div>` : ''}
-    </div>
-  `;
+hintDiv.innerHTML = `
+  <div class="hint-row">
+    <code class="hint-code">${spacedHint}</code>
+    ${question.custom ? `<div class="hint-custom-text">Hint: ${escapeHtml(question.custom)}</div>` : ""}
+  </div>
+`;
 }
 
     // Get nth permutation of an array
@@ -1455,33 +1008,46 @@ async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
       document.getElementById("previewModal").style.display = "none";
     }
 
-    // Securely wipe data and exit
-    function secureExit() {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
+   async function secureExit() {
+  try {
+    const THEME_KEY = "theme";
+    // preserve current theme from either store
+    const preserved =
+      localStorage.getItem(THEME_KEY) ??
+      sessionStorage.getItem(THEME_KEY) ?? null;
 
-        indexedDB.databases().then(dbs => {
-          for (const db of dbs) {
-            if (db.name) indexedDB.deleteDatabase(db.name);
-          }
-        });
-
-        window.fileMap = null;
-        window.vaultData = null;
-        window.unlockKey = null;
-        window.savedQuestions = null;
-        window.fullKeyMaterial = null;
-        window.vaultId = null;
-
-        setTimeout(() => {
-          window.location.href = "dashboard.html";
-        }, 250);
-      } catch (err) {
-        console.warn("Secure exit error:", err);
-        window.location.href = "dashboard.html";
+    // clear everything except THEME_KEY
+    const safeClear = (store) => {
+      const keep = new Set([THEME_KEY]);
+      for (let i = store.length - 1; i >= 0; i--) {
+        const k = store.key(i);
+        if (!keep.has(k)) store.removeItem(k);
       }
+    };
+    safeClear(localStorage);
+    safeClear(sessionStorage);
+
+    // restore theme for both pages to see it
+    if (preserved !== null) {
+      localStorage.setItem(THEME_KEY, preserved);
+      sessionStorage.setItem(THEME_KEY, preserved);
     }
+
+    // wipe IndexedDBs
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) if (db.name) indexedDB.deleteDatabase(db.name);
+    } else {
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+
+  } catch (e) {
+    console.warn("Secure exit cleanup issue:", e);
+  } finally {
+    window.location.href = "dashboard.html";
+  }
+}
 
     // AES decryption with validation
     async function decryptAES(ciphertextArray, ivArray, key) {
@@ -1722,9 +1288,12 @@ async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
 
       const fileLinks = document.createElement("div");
       fileLinks.id = "recoveryFileLinks";
-      fileLinks.style.marginTop = "20px";
-      fileLinks.innerHTML = "<h3 style='color:#0f0;'>Decrypted Files:</h3>";
-
+      fileLinks.className = "recovery-file-links";
+      const title = document.createElement("h3");
+      title.className = "decrypted-files-title";
+      title.textContent = "Decrypted Files:";
+      fileLinks.appendChild(title);
+      
       const zipWriter = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
       const seenNames = new Set();
 
@@ -1781,7 +1350,7 @@ function blankRedHerring(answers, trapIndex) {
         link.href = URL.createObjectURL(file.blob);
         link.download = finalName;
         link.innerText = `📎 ${finalName}`;
-        link.style.color = "#0f0";
+        link.className = "file-link";
         link.style.marginRight = "12px";
 
         const previewBtn = document.createElement("button");
@@ -1797,10 +1366,6 @@ function blankRedHerring(answers, trapIndex) {
 
       const btnRow = document.createElement("div");
       btnRow.className = "btn-row";
-      btnRow.style.display = "flex";
-      btnRow.style.justifyContent = "center";
-      btnRow.style.gap = "10px";
-      btnRow.style.marginTop = "20px";
 
       const zipAllBtn = document.createElement("button");
       zipAllBtn.innerText = "Download All as ZIP";
@@ -1829,25 +1394,118 @@ function blankRedHerring(answers, trapIndex) {
       burstMatrixEffect();
     }
 
-    // Wipe all local data
-    async function nukeEverything() {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-        if (indexedDB.databases) {
-          const dbs = await indexedDB.databases();
-          for (const db of dbs) {
-            indexedDB.deleteDatabase(db.name);
-          }
-        } else {
-          indexedDB.deleteDatabase("memoroVaultVaultStorage");
-          indexedDB.deleteDatabase("memoroVaultDB");
+    // Wipe all local data EXCEPT the theme selection ("theme")
+async function nukeEverything() {
+  try {
+    const THEME_KEY = "theme";
+    // preserve current theme (prefer localStorage)
+    const preservedTheme =
+      localStorage.getItem(THEME_KEY) ??
+      sessionStorage.getItem(THEME_KEY) ??
+      null;
+
+    // helper: remove all keys except THEME_KEY
+    const safeClear = (store) => {
+      const keep = new Set([THEME_KEY]);
+      // iterate backwards so index doesn't shift as we remove
+      for (let i = store.length - 1; i >= 0; i--) {
+        const k = store.key(i);
+        if (!keep.has(k)) store.removeItem(k);
+      }
+    };
+
+    safeClear(localStorage);
+    safeClear(sessionStorage);
+
+    // restore theme to both stores so either page can read it
+    if (preservedTheme !== null) {
+      localStorage.setItem(THEME_KEY, preservedTheme);
+      sessionStorage.setItem(THEME_KEY, preservedTheme);
+    }
+
+    // delete all IndexedDB databases
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name) indexedDB.deleteDatabase(db.name);
+      }
+    } else {
+      // legacy fallback: delete known DBs
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+
+    console.log("Memoro Vault: Local memory wiped (theme preserved).");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+</script>
+
+  <script>
+  // Matrix controller for recover page
+  const RecoverMatrix = {
+    _interval: null,
+    _ctx: null,
+    _canvas: null,
+    _drops: [],
+    _fontSize: 14,
+    _letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split(''),
+
+    _draw() {
+      const ctx = this._ctx, c = this._canvas;
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#00ff99';
+      ctx.font = `${this._fontSize}px monospace`;
+
+      for (let i = 0; i < this._drops.length; i++) {
+        const t = this._letters[Math.floor(Math.random() * this._letters.length)];
+        ctx.fillText(t, i * this._fontSize, this._drops[i] * this._fontSize);
+        this._drops[i]++;
+        if (this._drops[i] * this._fontSize > c.height && Math.random() > 0.975) {
+          this._drops[i] = 0;
         }
-        console.log("Memoro Vault: Local memory wiped.");
-      } catch (err) {
-        console.warn("Memoro Vault wipe failed:", err);
+      }
+    },
+
+    _resize() {
+      const c = this._canvas;
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+      const cols = Math.floor(c.width / this._fontSize);
+      this._drops = Array(cols).fill(0);
+    },
+
+    start() {
+      if (this._interval) return;
+      if (!this._canvas) {
+        this._canvas = document.getElementById("matrixCanvas");
+        if (!this._canvas) return;
+        this._ctx = this._canvas.getContext("2d");
+        window.addEventListener('resize', () => this._resize());
+      }
+      this._resize();
+      this._canvas.style.display = 'block';
+      this._interval = setInterval(() => this._draw(), 66);
+    },
+
+    stop() {
+      if (this._interval) {
+        clearInterval(this._interval);
+        this._interval = null;
+      }
+      if (this._canvas && this._ctx) {
+        this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+        this._canvas.style.display = 'none';
       }
     }
-  </script>
+  };
+
+  // Apply theme + maybe start matrix once DOM is ready
+  window.addEventListener('DOMContentLoaded', () => {
+    applyRecoverTheme(window.__savedRecoverTheme || 'cypherpunk');
+  });
+</script>
 </body>
 </html>

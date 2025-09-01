@@ -1,0 +1,229 @@
+
+    body { background-color: #111; color: #eee; font-family: 'Fira Code', monospace; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    h1 { font-size: 32px; margin-bottom: 20px; }
+p.instruction {
+  font-size: 17px;
+  color: #00ff99;
+  background-color: #000;
+  padding: 15px 20px;
+  margin-top: 10px;
+  margin-bottom: 30px;
+  border: 1px solid #00ff99;
+  border-radius: 8px;
+  box-shadow: 0 0 6px #00ff99;
+  text-align: center;
+  max-width: 700px;
+  line-height: 1.6;
+}
+    .question-list { width: 100%; max-width: 800px; display: flex; flex-direction: column; }
+    .question-item { background-color: #222; padding: 15px; margin-bottom: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+.question-text {
+  flex-grow: 1;
+  margin-right: 20px;
+  font-family: 'Fira Code', monospace;
+  font-size: 16px;
+  background-color: #000;
+  color: #00ff99;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #00ff99;
+  box-shadow: 0 0 6px #00ff99;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+.edit-button {
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #004422;
+  transform: translateY(-1px);
+}
+    .unlock-checkbox { margin-left: 20px; transform: scale(1.5); }
+    /* Matrix-style custom checkbox */
+/* Custom Matrix Checkbox */
+.unlock-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #00ff99;
+  background-color: black;
+  border-radius: 4px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 6px #00ff99;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.unlock-checkbox:hover {
+  box-shadow: 0 0 8px #00ff99, 0 0 14px #00ff99;
+}
+
+.unlock-checkbox:checked {
+  background-color: #00ff99;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+
+.unlock-checkbox:checked::after {
+  content: "✔";
+  color: black;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-size: 14px;
+  font-weight: bold;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+}
+
+
+
+
+    .button-container { display: flex; justify-content: space-between; width: 100%; max-width: 400px; margin-top: 30px; }
+.button {
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background-color: #004422;
+  transform: translateY(-2px);
+}
+    .button:hover { background-color: #555; }
+
+    /* Modal Styles */
+    .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    .modal-content {
+  background-color: #111;
+  padding: 35px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  text-align: center;
+  box-shadow: 0 0 16px #00ff99;
+  border: 1px solid #00ff99;
+  color: #00ff99;
+  font-family: 'Fira Code', monospace;
+}
+
+    .modal-content input { width: 100%; padding: 10px; margin-top: 20px; margin-bottom: 20px; border: none; border-radius: 6px; background-color: #333; color: #eee; font-size: 16px; }
+    .modal-buttons { display: flex; justify-content: space-around; margin-top: 20px; }
+.modal-buttons button {
+  background-color: #002611;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.modal-buttons button:hover {
+  background-color: #004422;
+  transform: translateY(-1px);
+}
+    
+    canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -2;
+}
+
+.matrix-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: -2;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
+  z-index: -1;
+}
+
+body {
+  background-color: black;
+  color: #00ff99;
+  font-family: 'Fira Code', monospace;
+}
+
+#categoryDropdown {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  background-color: #000;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  border-radius: 6px;
+  box-shadow: 0 0 6px #00ff99;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#categoryDropdown:hover {
+  background-color: #002611;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+
+#editInput {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  background-color: #000;
+  color: #00ff99;
+  border: 1px solid #00ff99;
+  border-radius: 6px;
+  box-shadow: 0 0 6px #00ff99;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  box-sizing: border-box;
+  display: block;
+}
+
+#editInput:focus {
+  outline: none;
+  border-color: #00ff99;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+
+#categoryDropdown:focus {
+  outline: none;
+  border-color: #00ff99;
+  box-shadow: 0 0 10px #00ff99, 0 0 20px #00ff99;
+}
+
+.suggestions-label {
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  color: #00ff99; /* neon green for cypherpunk */
+}

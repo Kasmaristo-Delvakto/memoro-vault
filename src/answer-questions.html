@@ -5,413 +5,51 @@
   <title>Answer Your Questions - Memoro Vault</title>
   <script src="libs/zxcvbn.js"></script>
 
-  <style>
-  body {
-    background-color: black;
-    color: #00ff99;
-    font-family: 'Fira Code', monospace;
-    margin: 0;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
+<link id="theme-cypherpunk" rel="stylesheet" href="css/answer-questions_cypherpunk.css">
+<link id="theme-clean" rel="stylesheet" href="css/answer-questions_clean.css" disabled>
 
-  canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: -2;
-  }
+<script>
+  // Toggle Answer Questions page styles (and optional matrix)
+  function applyAnswerQuestionsTheme(theme) {
+    const cy = document.getElementById('theme-cypherpunk');
+    const cl = document.getElementById('theme-clean');
+    const isCypher = (theme === 'cypherpunk');
 
-  .matrix-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.75);
-    z-index: -1;
-  }
+    // 1) Flip stylesheets
+    if (cy) cy.disabled = !isCypher;
+    if (cl) cl.disabled =  isCypher;
 
-  h1 {
-    font-size: 32px;
-    margin-bottom: 10px;
-  }
-
-  #countdown {
-    font-size: 18px;
-    color: #0f0;
-    margin-bottom: 20px;
-  }
-
-  h1, #countdown {
-    text-align: center;
-    width: 100%;
-  }
-
-  .question-form {
-    width: 100%;
-    max-width: 900px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .question-block {
-    background-color: #111;
-    padding: 15px;
-    margin-bottom: 15px;
-    border-radius: 8px;
-    display: grid;
-    grid-template-columns: 3fr 1fr auto;
-    gap: 10px;
-    align-items: center;
-    border: 1px solid #0f0;
-  }
-
-  /* Force Red Herring checkbox to drop below earlier */
-@media (max-width: 650px) {
-  .question-block {
-    grid-template-columns: 1fr;  /* stack everything */
-    gap: 12px;
-  }
-}
-
-  label {
-    font-size: 16px;
-    margin-bottom: 5px;
-    word-break: break-word;
-    white-space: normal;
-  }
-
-  .input-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  input[type="text"], textarea, select {
-    padding: 10px;
-    border-radius: 6px;
-    border: none;
-    background-color: #222;
-    color: #0f0;
-    font-size: 16px;
-  }
-
-  .button-container {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap; /* ✅ wrap on overflow instead of stacking immediately */
-  gap: 10px;
-  margin-top: 30px;
-  width: 100%;
-}
-
-.button {
-  background-color: #222;
-  color: #00ff99;
-  border: 1px solid #00ff99;
-  padding: 12px 20px;
-  font-size: 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  min-width: 120px;         /* ✅ prevents buttons from shrinking too small */
-  flex: 1 1 auto;            /* ✅ allows flexible spacing side-by-side */
-  text-align: center;
-  white-space: nowrap;
-}
-
-.button:hover {
-  background-color: #333;
-}
-
-  #fileUploadLabel {
-    display: inline-block;
-    padding: 10px 20px;
-    background-color: #002611;
-    color: #00ff99;
-    border: 1px solid #00ff99;
-    border-radius: 8px;
-    font-size: 16px;
-    font-family: 'Fira Code', monospace;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s;
-    box-shadow: 0 0 6px #00ff99;
-  }
-
-  #fileUploadLabel:hover {
-    background-color: #004422;
-    transform: translateY(-1px);
-  }
-
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 9999;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.75);
-    align-items: flex-start;
-    justify-content: center;
-    overflow: auto;
-    padding: 60px;
-    box-sizing: border-box;
-  }
-
-  .modal-content {
-    background-color: #111;
-    padding: 30px;
-    border-radius: 10px;
-    text-align: center;
-    width: 90%;
-    max-width: 400px;
-    border: 1px solid #00ff99;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-
-  .modal-buttons {
-    margin-top: 20px;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-  }
-
-  .modal-buttons button {
-    background-color: #006600;
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
-  }
-
-  .modal-buttons button:hover {
-    background-color: #009900;
-  }
-
-  .modal.fade-out {
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  #letterSelectors {
-    max-height: 250px;
-    overflow-y: auto;
-    padding-right: 6px;
-    border: 1px solid #00ff99;
-    border-radius: 6px;
-  }
-
-  input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    background-color: #000;
-    border: 2px solid #00ff99;
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    cursor: pointer;
-    position: relative;
-    vertical-align: middle;
-    margin-right: 8px;
-    display: inline-block;
-    box-shadow: 0 0 5px rgba(0,255,153,0.5);
-  }
-
-  input[type="checkbox"]:checked::after {
-    content: "✔";
-    color: #00ff99;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 14px;
-    font-weight: bold;
-    line-height: 1;
-  }
-
-  input[type="checkbox"]:hover {
-    box-shadow: 0 0 8px #00ff99;
-  }
-
-  #messageModal {
-    z-index: 10000;
-  }
-
-  .info-icon {
-    color: #00ff99;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 16px;
-    padding: 0 4px;
-    border: 1px solid #00ff99;
-    border-radius: 50%;
-    line-height: 1;
-    display: inline-block;
-    text-align: center;
-    width: 18px;
-    height: 18px;
-    transition: background 0.3s ease;
-  }
-
-  .info-icon:hover {
-    background-color: #00ff99;
-    color: #000;
-  }
-
- .modal {
-  display: none;               /* <-- keep it hidden by default */
-  position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.75);
-  align-items: center;
-  justify-content: center;
-  padding: 5px;
-  box-sizing: border-box;
-}
-
-.modal-content {
-  background-color: #111;
-  padding: 30px;
-  border-radius: 10px;
-  text-align: left;
-  width: 95vw;
-  max-width: 95vw;
-  border: 1px solid #00ff99;
-}
-
-  @media (max-width: 420px) {
-  .button {
-    font-size: 14px;
-    padding: 10px 14px;
-    min-width: 90px;
-  }
-
-    h1 {
-      font-size: 22px;
+    // 2) Body attribute (CSS hooks)
+    const setBodyAttr = () => {
+      if (document.body) {
+        document.body.setAttribute('data-theme', isCypher ? 'cypherpunk' : 'clean');
+      }
+    };
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', setBodyAttr, { once: true });
+    } else {
+      setBodyAttr();
     }
 
-    #countdown {
-      font-size: 16px;
-    }
-
-    .question-form {
-      max-width: 100%;
-    }
-
-    .question-block {
-      grid-template-columns: 1fr;
-      padding: 12px;
-      gap: 12px;
-    }
-
-    .button-container {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .button {
-      width: 100%;
-      font-size: 16px;
-      padding: 12px;
-    }
-
-    .modal-content {
-  background-color: #111;
-  padding: 20px; /* ✅ was 30–40px, now reduced */
-  border-radius: 10px;
-  border: 1px solid #00ff99;
-  color: #ccc;
-  width: 100%;
-  max-width: 800px;
-  box-sizing: border-box;
-  text-align: left;
-  font-size: 16px;
-  line-height: 1.5;
-}
-
-#trapModal .modal-content {
-  margin-bottom: 30px; /* slightly reduced */
-}
-
-
-    input[type="text"], textarea, select {
-      font-size: 15px;
-    }
-
-    label {
-      font-size: 15px;
-    }
-
-    #fileUploadLabel {
-      font-size: 14px;
-      padding: 8px 16px;
-    }
-
-    .info-icon {
-      font-size: 14px;
-      width: 16px;
-      height: 16px;
-    }
-
-    #letterSelectors select {
-      font-size: 14px;
-    }
-
-    .modal-buttons button {
-      font-size: 14px;
-      padding: 8px 16px;
+    // 3) Matrix background control (if AnswerQuestionsMatrix is defined)
+    if (window.AnswerQuestionsMatrix) {
+      if (isCypher) AnswerQuestionsMatrix.start();
+      else AnswerQuestionsMatrix.stop();
     }
   }
 
-  /* Default: scrollable on larger screens */
-.ascii-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  padding: 0;
-  margin: 0;
-  text-align: left;
-}
+  // Initialize early to avoid FOUC
+  (function initAnswerQuestionsTheme(){
+    const saved = sessionStorage.getItem('theme') || 'cypherpunk';
+    window.__savedAnswerQuestionsTheme = saved;
 
-.ascii-table {
-  background-color: black;
-  color: #00ff99;
-  padding: 15px;
-  font-family: 'Fira Code', monospace;
-  font-size: 14px;
-  line-height: 1.3;
-  white-space: pre;
-  display: block;
-  border-radius: 6px;
-  min-width: fit-content;
-  margin: 0;
-}
-
-/* 📱 Small screens: shrink to fit instead of scrolling */
-@media (max-width: 600px) {
-  .ascii-table-wrapper {
-    overflow-x: hidden;   /* no horizontal scroll */
-  }
-  .ascii-table {
-    display: block;
-    white-space: pre-wrap; /* ✅ wrap long lines */
-    word-break: break-word; 
-    font-size: 10px;       /* ✅ shrink font size */
-    width: 100%;           /* ✅ force full width of screen */
-    min-width: unset;      /* ✅ no forced min-width */
-    overflow-wrap: anywhere;
-  }
-}
-
-</style>
+    const cy = document.getElementById('theme-cypherpunk');
+    const cl = document.getElementById('theme-clean');
+    const isCypher = (saved === 'cypherpunk');
+    if (cy) cy.disabled = !isCypher;
+    if (cl) cl.disabled =  isCypher;
+  })();
+</script>
 
 </head>
 
@@ -420,50 +58,46 @@
 <canvas id="matrixCanvas"></canvas>
 <div class="matrix-overlay"></div>
 
-
 <h1>Answer Your Questions and Upload Files</h1>
 <div id="countdown"></div>
 
-<form class="question-form" id="answerForm">
+<form class="question-form" id="answerForm"></form>
 
-</form>
-
-<div id="extraSeedsSection" style="margin-top: 30px; width: 100%; max-width: 900px;">
+<div id="extraSeedsSection" class="section section-wide">
   <!-- Extra seed inputs will go here if needed -->
 </div>
 
-<div id="totalEntropyContainer" style="margin: 30px auto 0 auto; width: fit-content; text-align: center; border: 1px solid #0f0; padding: 12px 24px; border-radius: 8px; background-color: #111; box-shadow: 0 0 8px #0f0;">
-  <p style="font-size: 16px; color: #ccc;">
+<div id="totalEntropyContainer" class="total-entropy">
+  <p class="entropy-summary">
     Estimated Vault Strength:
-    <span id="totalEntropyBits" style="color:#00ff99;">0.0</span> bits —
-    <span id="entropyAssessment" style="color:#ff3333;">Very Weak</span>
+    <span id="totalEntropyBits" class="metric-strong">0.0</span> bits —
+    <span id="entropyAssessment" class="metric-bad">Very Weak</span>
     <br>
-    <span style="color:#ccc; font-size: 14px;">
-      Total Combinations: <span id="totalCombinations" style="color:#00ff99;">0</span>
+    <span class="muted-1 small">
+      Total Combinations: <span id="totalCombinations" class="metric-strong">0</span>
     </span>
-    <span style="color:#aaa; font-size: 13px;">
-      Estimated Crack Time: <span id="estimatedCrackTime" style="color:#ff9933;">Instantly crackable</span><br>
-      <em style="color:#777;">(assuming 1 trillion guesses/sec — botnet-level offline attack)</em>
+    <span class="muted-2 xsmall">
+      Estimated Crack Time:
+      <span id="estimatedCrackTime" class="metric-warn">Instantly crackable</span><br>
+      <em class="muted-3">(assuming 1 trillion guesses/sec — botnet-level offline attack)</em>
     </span>
     <br>
-    <span id="crackabilityTier" style="display: block; margin-top: 8px; font-size: 14px; color: #ff3333;"></span>
-    <span style="color: #888; font-size: 13px; display: block; margin-top: 4px;">
+    <span id="crackabilityTier" class="tier-line"></span>
+    <span class="muted-4 xsmall block">
       This estimation does not factor in the potential for phishing, coercion, or social engineering — never share personal details.
     </span>
   </p>
 </div>
 
-
-<details style="margin-top: 30px; color: #0f0;">
-  <summary style="cursor: pointer; font-size: 16px;">What is entropy and how is my vault protected?</summary>
-  <div style="margin-top: 15px; font-size: 15px; color: #ccc; line-height: 1.6;">
-
+<details class="entropy-details">
+  <summary class="entropy-summary-toggle">What is entropy and how is my vault protected?</summary>
+  <div class="entropy-body">
     <p><strong>Entropy</strong> is a measure of unpredictability — how many guesses an attacker would need to crack your answers. Memoro Vault uses <code>zxcvbn</code>, a password strength estimator from Dropbox, to evaluate the entropy of each response. We calculate this conservatively — assuming only 26 lowercase letters and no symbols — to ensure you're not overestimating security.</p>
 
     <p>We assume <strong>the worst-case scenario</strong>: global adversaries with the fastest hardware on Earth.</p>
 
     <div class="ascii-table-wrapper">
-  <pre class="ascii-table">
+      <pre class="ascii-table">
 ╔═════════════════════════════════════════════════════════════════════════╗
 ║  ASSUMED ATTACKER HARDWARE         |   GUESSES/SEC   |   TIME TO CRACK     ║
 ╠═════════════════════════════════════════════════════════════════════════╣
@@ -480,24 +114,21 @@
 ║                                    |                 |   120-bit: 10¹⁹ yrs ║
 ║                                    |                 |   180-bit: 10⁴⁰ yrs ║
 ╚═════════════════════════════════════════════════════════════════════════╝
-  </pre>
-</div>
-
-
+      </pre>
+    </div>
 
     <p>Memoro Vault uses this to classify your vault strength:</p>
 
-    <ul style="margin-left: 20px;">
-  <li><strong style="color:#ff3333;">Very Weak</strong>: under 40 bits — crackable in seconds to minutes</li>
-  <li><strong style="color:#ff9933;">Weak</strong>: 40–79 bits — crackable in minutes to months</li>
-  <li><strong style="color:#ffff66;">Moderate</strong>: 80–119 bits — could take decades to millions of years</li>
-  <li><strong style="color:#66ff66;">Strong</strong>: 120–179 bits — would take longer than the age of the universe using today’s best hardware</li>
-  <li><strong style="color:#00ff99;">Very Strong</strong>: 180+ bits — beyond the reach of any current or foreseeable brute-force attack</li>
+    <ul>
+      <li><strong class="metric-bad">Very Weak</strong>: under 40 bits — crackable in seconds to minutes</li>
+      <li><strong class="metric-warn">Weak</strong>: 40–79 bits — crackable in minutes to months</li>
+      <li><strong class="metric-mid">Moderate</strong>: 80–119 bits — could take decades to millions of years</li>
+      <li><strong class="metric-strong">Strong</strong>: 120–179 bits — would take longer than the age of the universe using today’s best hardware</li>
+      <li><strong class="metric-very">Very Strong</strong>: 180+ bits — beyond the reach of any current or foreseeable brute-force attack</li>
     </ul>
 
-
     <p>Even one weak answer can collapse your vault. To strengthen it:</p>
-    <ul style="margin-left: 20px;">
+    <ul>
       <li>Use answers that only trusted people would know — not Google, Facebook, or public records</li>
       <li>Avoid names, birthplaces, and dates — these can often be socially engineered</li>
       <li>Use symbolic, metaphorical, or abstract memories, not surface facts</li>
@@ -505,42 +136,40 @@
     </ul>
 
     <p>Memoro Vault provides no hints, no partial credit, and no feedback on incorrect input. To unlock the vault, users must enter the exact correct answers for all questions, and for six of them, they must also provide the correct order. This creates a layered security model: the decryption key is only derived if every answer is 100% accurate, and the six ordered answers match the precise sequence used during vault creation. With no indication of which part is wrong, attackers must blindly guess both content and order across hundreds of possibilities—making brute-force attempts impractical and expensive.</p>
-
   </div>
 </details>
 
-
 <!-- Multi-seed input section -->
-<div id="multiSeedSection" style="margin-top: 40px; width: 100%; max-width: 900px;">
-  <h2 style="color:#0f0;">Saved Seed or Password Files</h2>
+<div id="multiSeedSection" class="section section-wide">
+  <h2 class="section-title">Saved Seed or Password Files</h2>
   <div class="input-group">
     <label for="newSeedName">Seed File/Password Name:</label>
     <input type="text" id="newSeedName" placeholder="e.g. Primary Wallet" />
   </div>
-  <div class="input-group" style="margin-top:10px;">
+  <div class="input-group mt-10">
     <label for="newSeedContent">Seed Phrase or Password:</label>
     <textarea id="newSeedContent" rows="3" placeholder="type or paste seed phrase or private passphrase here"></textarea>
   </div>
   <button class="button" type="button" onclick="saveNamedSeed()">Save Password/Seed File</button>
-  <div id="namedSeedsList" style="margin-top: 20px;"></div>
+  <div id="namedSeedsList" class="mt-20"></div>
 </div>
 
-<div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
-  <label for="fileUpload" style="font-size: 18px;">Optional: Upload Documents to Include in Your Vault</label>
-<div style="display: flex; align-items: center; gap: 12px;">
-<input type="file" id="fileUpload" multiple hidden />
-<label for="fileUpload" id="fileUploadLabel">Choose Files</label>
-<span id="fileUploadStatus" style="color: #0f0; font-size: 16px;">No files uploaded</span>
-</div>
-  <p style="font-size: 14px; color: #aaa; margin-top: 5px;">You can upload files like text notes, images, videos, or scanned documents.</p>
+<div class="input-group section section-wide">
+  <label for="fileUpload" class="field-label-lg">Optional: Upload Documents to Include in Your Vault</label>
+  <div class="upload-row">
+    <input type="file" id="fileUpload" multiple hidden />
+    <label for="fileUpload" id="fileUploadLabel">Choose Files</label>
+    <span id="fileUploadStatus" class="upload-status">No files uploaded</span>
+  </div>
+  <p class="note">You can upload files like text notes, images, videos, or scanned documents.</p>
 </div>
 
-<div id="uploadedFileList" style="margin-top: 20px; width: 100%; max-width: 900px;"></div>
+<div id="uploadedFileList" class="section section-wide mt-20"></div>
 
-<div class="input-group" style="margin-top: 40px; width: 100%; max-width: 900px;">
-  <label for="finalMessage" style="font-size: 18px;">Optional: Final Message for Yourself or Your Family</label>
+<div class="input-group section section-wide">
+  <label for="finalMessage" class="field-label-lg">Optional: Final Message for Yourself or Your Family</label>
   <textarea id="finalMessage" rows="4" placeholder="Example: 'Looks like someone was ACTUALLY listening to all those rants I gave at family dinner. Congratulations!'"></textarea>
-  <p style="font-size: 14px; color: #aaa; margin-top: 5px;">This message will be stored securely with your vault.</p>
+  <p class="note">This message will be stored securely with your vault.</p>
 </div>
 
 <div class="button-container">
@@ -562,33 +191,33 @@
 
 <div id="hintModal" class="modal">
   <div class="modal-content">
-  <h2>Hint Options</h2>
+    <h2>Hint Options</h2>
 
-  <!-- NEW: show length toggle -->
-  <div class="input-group" style="margin-bottom: 14px;">
-    <label>
-      <input type="checkbox" id="showLength" checked>
-      Show answer length during unlock
-    </label>
-  </div>
+    <!-- Show length toggle -->
+    <div class="input-group mb-14">
+      <label>
+        <input type="checkbox" id="showLength" checked>
+        Show answer length during unlock
+      </label>
+    </div>
 
-  <!-- Existing letter/position hint controls -->
-  <div class="input-group">
-    <label>Reveal specific letters from the answer</label>
-    <select id="numLetters" onchange="buildLetterSelectors()"></select>
-  </div>
-  <div id="letterSelectors" class="input-group" style="margin-top: 15px;"></div>
+    <!-- Existing letter/position hint controls -->
+    <div class="input-group">
+      <label>Reveal specific letters from the answer</label>
+      <select id="numLetters" onchange="buildLetterSelectors()"></select>
+    </div>
+    <div id="letterSelectors" class="input-group mt-15"></div>
 
-  <div class="input-group" style="margin-top: 20px;">
-    <label>Optional: Custom Hint Text</label>
-    <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
-  </div>
+    <div class="input-group mt-20">
+      <label>Optional: Custom Hint Text</label>
+      <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
+    </div>
 
-  <div class="modal-buttons">
-    <button onclick="saveCustomHint()">Save</button>
-    <button onclick="closeHintModal()">Cancel</button>
+    <div class="modal-buttons">
+      <button onclick="saveCustomHint()">Save</button>
+      <button onclick="closeHintModal()">Cancel</button>
+    </div>
   </div>
-</div>
 </div>
 
 <script>
@@ -674,28 +303,16 @@ function displayUploadedFiles() {
 
   storedFiles.forEach(file => {
     const entry = document.createElement('div');
-    entry.style.display = 'flex';
-    entry.style.justifyContent = 'space-between';
-    entry.style.alignItems = 'center';
-    entry.style.marginBottom = '6px';
-    entry.style.padding = '10px';
-    entry.style.border = '1px solid #00ff99';
-    entry.style.borderRadius = '8px';
-    entry.style.backgroundColor = '#111';
+    entry.classList.add('upload-entry');
 
     const fileLabel = document.createElement('span');
+    fileLabel.classList.add('upload-label');
     fileLabel.textContent = `📄 ${file.name} (${Math.round(file.size / 1024)} KB)`;
-    fileLabel.style.color = '#00ff99';
 
     const removeBtn = document.createElement('button');
+    removeBtn.classList.add('btn', 'btn-remove-upload');
+    removeBtn.type = 'button';
     removeBtn.textContent = 'Remove';
-    removeBtn.style.marginLeft = '10px';
-    removeBtn.style.padding = '4px 12px';
-    removeBtn.style.backgroundColor = '#550000';
-    removeBtn.style.color = '#fff';
-    removeBtn.style.border = 'none';
-    removeBtn.style.borderRadius = '6px';
-    removeBtn.style.cursor = 'pointer';
 
     removeBtn.onclick = () => {
       const updatedMeta = storedFiles.filter(f => f.id !== file.id);
@@ -805,46 +422,48 @@ window.addEventListener('DOMContentLoaded', () => {
     const block = document.createElement('div');
     block.className = 'question-block';
     block.innerHTML = `
-      <div class="input-group" style="grid-column: 1 / 2;">
-        <label><b>${i + 1}.</b> ${questionText}</label>
-        <input type="text"
-          id="answer-${i}"
-          placeholder="Your answer"
-          required
-          oninput="forceLowercase(this); refreshHintModal(); updateEntropy(${i})"
-          onpaste="handlePaste(event, ${i})"
-        >
-      </div>
-
-      <div style="display: flex; align-items: center;">
-  <input type="checkbox"
-    id="hint-options-${i}"
-    onchange="if(this.checked) openHintModal(${i})"
-  >
-  <span style="line-height: 1;">Hint Options</span>
-</div>
-
-
-      <div style="display: flex; align-items: center; gap: 6px;">
-  <label style="margin: 0;">
-    <input type="checkbox"
-      class="trap-checkbox"
-      data-index="${i}"
+  <div class="input-group" style="grid-column: 1 / 2;">
+    <label><b>${i + 1}.</b> ${questionText}</label>
+    <input type="text"
+      id="answer-${i}"
+      placeholder="Your answer"
+      required
+      oninput="forceLowercase(this); refreshHintModal(); updateEntropy(${i}); updateHintPreview(${i})"
+      onpaste="handlePaste(event, ${i})"
     >
-    Use as <strong style="color:#00ff99;">Red Herring</strong>
-  </label>
-  <span class="info-icon"
-        onclick="event.stopPropagation(); document.getElementById('trapModal').style.display='flex';"
-        title="What is a Red Herring?">ℹ</span>
+  </div>
+
+  <!-- Hint Options -->
+  <div style="display: flex; align-items: center;">
+    <input type="checkbox"
+      id="hint-options-${i}"
+      onchange="if(this.checked) openHintModal(${i})"
+    >
+    <span style="line-height: 1;">Hint Options</span>
+  </div>
+
+  <!-- Red Herring -->
+  <div style="display: flex; align-items: center; gap: 6px;">
+    <label style="margin: 0;">
+      <input type="checkbox"
+        class="trap-checkbox"
+        data-index="${i}"
+      >
+      Use as <strong class="red-herring">Red Herring</strong>
+    </label>
+    <span class="info-icon"
+          onclick="event.stopPropagation(); document.getElementById('trapModal').style.display='flex';"
+          title="What is a Red Herring?">ℹ</span>
+  </div>
+
+<!-- Recovery Preview row under Red Herring -->
+<div class="recovery-preview-label-group" style="grid-column: 1 / span 2;">
+  <span class="recovery-preview-label">Recovery Preview:</span>
+  <span id="hint-preview-${i}" class="hint-preview-row"></span>
 </div>
+<span id="entropy-${i}" class="entropy-inline" style="grid-column: 3;">Entropy: 0.0 bits</span>
 
-
-      <div id="entropy-${i}" style="grid-column: 1 / -1; text-align: right; font-size: 14px; color: #0f0; margin-top: 6px;">
-        Entropy: 0.0 bits
-      </div>
-</div>
-
-    `;
+`;
 
     form.appendChild(block);
     updateEntropy(i); // Initialize entropy
@@ -1288,41 +907,75 @@ function enforceRedHerringShowLength() {
 </script>
 
 <script>
-const canvas = document.getElementById("matrixCanvas");
-const ctx = canvas.getContext("2d");
+/* Matrix rain controller for Answer Questions page */
+(function () {
+  // Works with either #matrixCanvas or #matrix
+  const canvas = document.getElementById('matrixCanvas') || document.getElementById('matrix');
+  if (!canvas) return; // safe if no canvas on this page
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+  const fontSize = 14;
 
-const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
-const fontSize = 14;
-const columns = Math.floor(canvas.width / fontSize);
-const drops = Array(columns).fill(0);
+  let columns = 0;
+  let drops = [];
+  let timer = null;
 
-function drawMatrix() {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#00ff99';
-  ctx.font = `${fontSize}px monospace`;
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    columns = Math.floor(canvas.width / fontSize);
+    drops = Array(columns).fill(0);
+  }
 
-  for (let i = 0; i < drops.length; i++) {
-    const text = letters[Math.floor(Math.random() * letters.length)];
-    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-    drops[i]++;
-    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-      drops[i] = 0;
+  function draw() {
+    // trail
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // glyphs
+    ctx.fillStyle = '#00ff99';
+    ctx.font = `${fontSize}px monospace`;
+
+    for (let i = 0; i < drops.length; i++) {
+      const t = letters[(Math.random() * letters.length) | 0];
+      ctx.fillText(t, i * fontSize, drops[i] * fontSize);
+      drops[i]++;
+      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
     }
   }
-}
 
-setInterval(drawMatrix, 66);
-
-window.addEventListener('resize', () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
+  window.AnswerQuestionsMatrix = {
+    start() {
+      resize();
+      window.addEventListener('resize', resize);
+      if (!timer) timer = setInterval(draw, 66); // ~15 fps
+      canvas.style.display = 'block';
+    },
+    stop() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'none';
+      window.removeEventListener('resize', resize);
+    }
+  };
+})();
 </script>
 
+<!-- Make sure the saved theme is actually applied AFTER the controller exists -->
+<script>
+(function bootstrapAnswerQuestionsTheme(){
+  const apply = () => applyAnswerQuestionsTheme(window.__savedAnswerQuestionsTheme || 'cypherpunk');
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', apply, { once: true });
+  } else {
+    apply();
+  }
+})();
+</script>
 
 <script>
 let namedSeeds = JSON.parse(localStorage.getItem("namedSeeds") || "[]");
@@ -1354,15 +1007,11 @@ function renderNamedSeeds() {
 
   namedSeeds.forEach((entry, index) => {
     const div = document.createElement("div");
-    div.style.marginBottom = "10px";
-    div.style.padding = "10px";
-    div.style.background = "#111";
-    div.style.border = "1px solid #0f0";
-    div.style.borderRadius = "6px";
+    div.classList.add("seed-entry");
     div.innerHTML = `
       <strong>${entry.name}.txt</strong><br>
       <code>${entry.content.replace(/\s+/g, " ")}</code><br>
-      <button style="margin-top:6px;" class="button" onclick="deleteNamedSeed(${index})">Remove</button>
+      <button class="button seed-remove-btn" onclick="deleteNamedSeed(${index})">Remove</button>
     `;
     container.appendChild(div);
   });
@@ -1536,46 +1185,147 @@ if (tier) {
 
 window.addEventListener("DOMContentLoaded", calculateTotalEntropy);
 
+function updateHintPreview(index) {
+  const target = document.getElementById(`hint-preview-${index}`);
+  if (!target) return;
+
+  const inputEl = document.getElementById(`answer-${index}`);
+  const raw = (inputEl?.value || "").trim();
+  const show = (customHints[index]?.showLength ?? true);
+  const letters = Array.isArray(customHints[index]?.letters) ? customHints[index].letters : [];
+  const customText = (customHints[index]?.custom || "").trim();
+
+  // If length preview is OFF, match recover behavior: no map, only optional custom hint
+  if (!show) {
+    target.innerHTML = customText
+      ? `<div class="hint-custom-only">Hint: ${escapeHtml(customText)}</div>`
+      : `<div class="hint-none">(No length will be shown during recovery)</div>`;
+    return;
+  }
+
+  // Build the exact same map Recover shows:
+  // - underscores for unknown characters
+  // - preserve spaces at their indices
+  // - reveal selected letters by 1-based position in the "cleaned" answer (no spaces)
+  const expectedLength = raw.length;                 // includes spaces (Recover counts positions incl. spaces)
+  const spaceIndexes = [];                           // indices of ' ' in raw
+  for (let i = 0; i < raw.length; i++) if (raw[i] === ' ') spaceIndexes.push(i);
+
+  // Build hintValues by pulling characters from the *cleaned* string at the selected 1-based positions
+  const cleaned = raw.replace(/\s+/g, '');
+  const hintValues = letters.map(pos => {
+    const idx = (pos|0) - 1;
+    return (idx >= 0 && idx < cleaned.length) ? cleaned[idx] : undefined;
+  });
+
+  // Render map (this mirrors recover.html’s logic/shape). :contentReference[oaicite:0]{index=0}
+  let rendered = '';
+  let letterPos = 1;   // counts through cleaned answer (no spaces)
+  let valueIndex = 0;
+
+  for (let j = 0; j < expectedLength; j++) {
+    if (spaceIndexes.includes(j)) {
+      rendered += ' ';
+    } else if (letters.includes(letterPos)) {
+      const val = hintValues[valueIndex++];
+      rendered += (val === undefined ? '_' : val);
+      letterPos++;
+    } else {
+      rendered += '_';
+      letterPos++;
+    }
+  }
+
+  const spaced = rendered.split('').join(' ');
+
+  target.innerHTML = `
+    <div class="hint-preview-wrap" style="display:flex; gap:10px; align-items:center;">
+      <code class="hint-preview-code" style="font-size:15px; white-space:pre;">${escapeHtml(spaced)}</code>
+      ${customText ? `<div class="hint-custom-text" style="font-size:14px;">Hint: ${escapeHtml(customText)}</div>` : ''}
+    </div>
+  `;
+}
+
+// Keep previews in sync after saving Hint Options
+const _origSaveCustomHint = saveCustomHint;
+saveCustomHint = function() {
+  const idx = activeHintIndex;
+  _origSaveCustomHint();
+  if (typeof idx === 'number') updateHintPreview(idx);
+};
+
+// Also refresh if Red Herring checkbox changes (it can force showLength)
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.classList.contains('trap-checkbox')) {
+    const idx = parseInt(e.target.dataset.index, 10);
+    if (!isNaN(idx)) updateHintPreview(idx);
+  }
+});
+
+// Utility for safely placing user text in HTML
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 </script>
 
 <div id="trapModal" class="modal">
   <div class="modal-content">
     <h2>What is a Red Herring?</h2>
-    <p style="font-size: 15px; color: #ccc; line-height: 1.5;">
-      A <strong>Red Herring</strong> is a decoy question: it appears like the others, but you answer it <strong>incorrectly on purpose</strong>. During recovery, the correct action is to leave it <strong>blank</strong>.<br><br>
+    <div class="trap-text">
+      <p>
+        A <strong>Red Herring</strong> is a decoy question: it appears like the others, but you answer it <strong>incorrectly on purpose</strong>. During recovery, the correct action is to leave it <strong>blank</strong>.
+      </p>
 
-      <strong>Purpose:</strong><br>
-      Red Herrings add a powerful layer of protection against brute force attacks and social engineering. An attacker has no way to know which question is fake, and any attempt to answer it results in failure.<br><br>
+      <p>
+        <strong>Purpose:</strong><br>
+        Red Herrings add a powerful layer of protection against brute force attacks and social engineering. An attacker has no way to know which question is fake, and any attempt to answer it results in failure.
+      </p>
 
-      <strong>How to use it:</strong><br>
-      • Choose a <strong>real-looking question</strong> that only close friends or family would recognize.<br>
-      • Enter a <strong>wrong answer</strong> that subtly signals it’s not genuine.<br>
-      • Make sure the fake answer is at least <strong>two characters longer or shorter</strong> than the real one.<br><br>
+      <p>
+        <strong>How to use it:</strong><br>
+        • Choose a <strong>real-looking question</strong> that only close friends or family would recognize.<br>
+        • Enter a <strong>wrong answer</strong> that subtly signals it’s not genuine.<br>
+        • Make sure the fake answer is at least <strong>two characters longer or shorter</strong> than the real one.
+      </p>
 
-      <strong>Why length matters:</strong><br>
-      During recovery, Memoro Vault displays the expected number of characters for each answer by default.<br>
-      This lets trusted contacts recognize mismatches and know to leave the Red Herring blank.<br><br>
+      <p>
+        <strong>Why length matters:</strong><br>
+        During recovery, Memoro Vault displays the expected number of characters for each answer by default.
+        This lets trusted contacts recognize mismatches and know to leave the Red Herring blank.
+      </p>
 
-      <strong>Example:</strong><br>
-      <em>Question:</em> “What was my childhood nickname?”<br>
-      <em>Real Answer:</em> <code>Squirt</code> (6 characters)<br>
-      <em>Red Herring Answer:</em> <code>Tuf</code> (3 characters)<br>
-      If someone sees the vault is expecting a 3-character answer but knows the real answer has 6 characters, they'll know to leave it blank. Vault builders can also choose to give away letter/s to help those in their inner circle recognize the Red Herring.<br><br>
+      <p>
+        <strong>Example:</strong><br>
+        <em>Question:</em> “What was my childhood nickname?”<br>
+        <em>Real Answer:</em> <code>Squirt</code> (6 characters)<br>
+        <em>Red Herring Answer:</em> <code>Tuf</code> (3 characters)<br>
+        If someone sees the vault is expecting a 3-character answer but knows the real answer has 6 characters, they'll know to leave it blank. Vault builders can also choose to give away letter/s to help those in their inner circle recognize the Red Herring.
+      </p>
 
-      <strong>Psychological Advantage:</strong><br>
-      The beauty of the Red Herring is this: even if you choose not to use one, the attacker doesn’t know that.<br>
-      They’re forced to ask themselves: <em>"Do I leave one blank? If so, which one?"</em><br>
-      This uncertainty makes brute-force and social engineering attacks much more difficult, whether or not a Red Herring was actually used.<br><br>
+      <p>
+        <strong>Psychological Advantage:</strong><br>
+        The beauty of the Red Herring is this: even if you choose not to use one, the attacker doesn’t know that.<br>
+        They’re forced to ask themselves: <em>"Do I leave one blank? If so, which one?"</em><br>
+        This uncertainty makes brute-force and social engineering attacks much more difficult, whether or not a Red Herring was actually used.
+      </p>
 
-      <strong>Guidelines:</strong><br>
-      • Do not use questions that can be profiled, guessed, or searched online.<br>
-      • Only one Red Herring is allowed.<br>
-      • Using one is optional — but even the possibility dramatically increases your security.
-    </p>
+      <p>
+        <strong>Guidelines:</strong><br>
+        • Do not use questions that can be profiled, guessed, or searched online.<br>
+        • Only one Red Herring is allowed.<br>
+        • Using one is optional — but even the possibility dramatically increases your security.
+      </p>
+    </div>
+
     <div class="modal-buttons">
       <button onclick="document.getElementById('trapModal').style.display='none'">Got it</button>
     </div>
   </div>
+</div>
 
 </body>
 </html>

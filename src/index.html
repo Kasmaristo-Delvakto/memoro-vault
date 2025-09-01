@@ -4,174 +4,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta charset="UTF-8">
   <title>Memoro Vault</title>
-  <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    font-family: 'Fira Code', monospace;
-    background-color: black;
-    color: #00ff99;
-    overflow: hidden;
-  }
 
-  canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100dvh;
-    z-index: 0;
-  }
-
-  .content {
-    z-index: 1;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1.2rem; /* Clean vertical rhythm */
-    height: 100dvh;
-    max-height: 100dvh;
-    text-align: center;
-    background-color: rgba(0, 0, 0, 0.75);
-    padding: 4vh 5vw 3vh;
-    border-radius: 1rem;
-    box-shadow: 0 0 1rem rgba(0, 255, 153, 0.3);
-    box-sizing: border-box;
-    overflow-y: auto;
-  }
-
-  .content img {
-  max-width: 90vw;
-  max-height: 50vh;
-  height: auto;
-  margin-bottom: 0.75rem;
-}
-
-  p {
-    font-size: 1.25rem;
-    margin: 0 auto 0.75rem;
-    max-width: 90vw;
-    line-height: 1.6;
-    white-space: pre-line;
-    text-shadow: 0 0 6px #00ff99;
-    flex: 0 1 auto;
-  }
-
-  button {
-    padding: 1rem 2rem;
-    font-size: 1rem;
-    min-height: 44px;
-    background-color: #002611;
-    color: #00ff99;
-    border: 1px solid #00ff99;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    font-family: 'Fira Code', monospace;
-    box-shadow: 0 0 10px #00ff99;
-    transition: background-color 0.3s, transform 0.2s;
-    margin-top: 0.4rem;
-    flex-shrink: 0;
-  }
-
-  button:hover {
-    background-color: #004422;
-    transform: translateY(-2px);
-  }
-
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 9999;
-    left: 0;
-    top: 0;
-    width: 100vw;
-    height: 100dvh;
-    background: rgba(0, 0, 0, 0.85);
-    align-items: center;
-    justify-content: center;
-    padding: 5vw;
-    box-sizing: border-box;
-    overflow-y: auto;
-  }
-
-  .modal-content {
-    background: #111;
-    padding: 2rem;
-    border-radius: 1rem;
-    text-align: center;
-    width: 100%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 0 1rem #00ff99;
-    border: 1px solid #00ff99;
-    box-sizing: border-box;
-  }
-
-  .modal-content h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: #00ff99;
-  }
-
-  .modal-content ul {
-    text-align: left;
-    padding-left: 1.5rem;
-    margin-bottom: 1.5rem;
-    font-size: 1rem;
-    color: #88ffcc;
-    line-height: 1.6;
-  }
-
-  .modal-buttons button {
-    background-color: #002611;
-    color: #00ff99;
-    border: 1px solid #00ff99;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    border-radius: 0.5rem;
-    min-height: 44px;
-    cursor: pointer;
-    font-family: 'Fira Code', monospace;
-    transition: background-color 0.3s, transform 0.2s;
-  }
-
-  .modal-buttons button:hover {
-    background-color: #004422;
-    transform: translateY(-1px);
-  }
-
-  @media (min-width: 1280px) {
-    p {
-      font-size: 1.5rem;
-    }
-
-    .modal-content h2 {
-      font-size: 1.75rem;
-    }
-
-    button,
-    .modal-buttons button {
-      font-size: 1.25rem;
-      padding: 1.2rem 2.5rem;
-    }
-  }
-</style>
-
+  <!-- Default to Cypherpunk; Clean is loaded but disabled until chosen -->
+  <link id="theme-cypherpunk" rel="stylesheet" href="css/index_cypherpunk.css">
+  <link id="theme-clean" rel="stylesheet" href="css/index_clean.css" disabled>
 </head>
 <body>
-  <canvas id="matrix"></canvas>
+  <canvas id="matrix" style="display:none;"></canvas>
+  <div id="themeFade"></div>
 
   <div class="content">
-    <img src="assets/memoro-logo-with-words.png" alt="Memoro Vault Logo" style="max-width: 300px; height: auto; margin-bottom: 20px;" />
+    <img src="assets/memoro-logo-with-words.png"
+         alt="Memoro Vault Logo"
+         style="max-width:300px;height:auto;margin-bottom:20px;" />
     <p id="mainText"></p>
-    <button onclick="showSafetyModal()" id="startBtn">Begin</button>
+    <button id="startBtn" style="display:none;" onclick="showSafetyModal()">Begin</button>
   </div>
 
-  <div id="safetyModal" class="modal">
+  <!-- Theme selection modal -->
+  <div id="themeModal" class="modal">
+    <div class="modal-content">
+      <h2>Select Your Theme</h2>
+       <div class="modal-buttons">
+  <button onclick="handleThemeClick('cypherpunk')">Cypherpunk</button>
+  <button onclick="handleThemeClick('clean')">Clean</button>
+</div>
+   </div>
+  </div>
+
+  <!-- Safety modal -->
+  <div id="safetyModal" class="modal" style="display:none;">
     <div class="modal-content">
       <h2>Before You Begin</h2>
       <ul>
@@ -186,97 +48,6 @@
       </div>
     </div>
   </div>
-
-  <script>
-  function showSafetyModal() {
-    document.getElementById('safetyModal').style.display = 'flex';
-  }
-
-  function typeWriterEffect(text, element, delay = 30, callback = null) {
-    let i = 0;
-    element.innerText = "";
-    function type() {
-      if (i < text.length) {
-        element.innerText += text.charAt(i);
-        i++;
-        setTimeout(type, delay);
-      } else if (callback) {
-        callback();
-      }
-    }
-    type();
-  }
-
-  function acceptSafety() {
-    document.getElementById('safetyModal').style.display = 'none';
-    const p = document.getElementById('mainText');
-    const btn = document.getElementById('startBtn');
-    btn.style.display = 'none';
-
-    const message = `Welcome_to_Memoro_Vault`;
-
-    typeWriterEffect(message, p, 28, () => {
-      setTimeout(() => window.location.href = "dashboard.html", 1000);
-    });
-  }
-
-  // Delay + setInterval version (original timing but reliable start)
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      const canvas = document.getElementById('matrix');
-      const ctx = canvas.getContext('2d');
-      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&".split('');
-      const fontSize = 14;
-      let columns, drops;
-
-      function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        columns = Math.floor(canvas.width / fontSize);
-        drops = Array(columns).fill(0);
-      }
-
-      function drawMatrix() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#00ff99';
-        ctx.font = fontSize + "px monospace";
-
-        for (let i = 0; i < drops.length; i++) {
-          const text = letters[Math.floor(Math.random() * letters.length)];
-          ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-          if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-            drops[i] = 0;
-          }
-          drops[i]++;
-        }
-      }
-
-      resizeCanvas();
-      window.addEventListener('resize', resizeCanvas);
-      setInterval(drawMatrix, 66); // ← original smooth speed
-    }, 50); // short boot delay to fix first-frame race
-  });
-
-  async function nukeEverything() {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      if (indexedDB.databases) {
-        const dbs = await indexedDB.databases();
-        for (const db of dbs) {
-          indexedDB.deleteDatabase(db.name);
-        }
-      } else {
-        indexedDB.deleteDatabase("memoroVaultVaultStorage");
-        indexedDB.deleteDatabase("memoroVaultDB");
-      }
-      console.log("Memoro Vault: Local memory wiped.");
-    } catch (err) {
-      console.warn("Memoro Vault wipe failed:", err);
-    }
-  }
-</script>
-
+  <script src="js/index.js"></script>
 </body>
 </html>

@@ -1,0 +1,258 @@
+body {
+  font-family: 'Fira Code', monospace;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+
+p.instruction {
+  font-size: 17px;
+  padding: 15px 20px;
+  margin-top: 10px;
+  margin-bottom: 30px;
+  border: 1px solid;
+  border-radius: 8px;
+  box-shadow: 0 0 6px;
+  text-align: center;
+  max-width: 700px;
+  line-height: 1.6;
+}
+
+.question-list {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+}
+
+.question-item {
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.question-text {
+  flex-grow: 1;
+  margin-right: 20px;
+  font-family: 'Fira Code', monospace;
+  font-size: 16px;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid;
+  box-shadow: 0 0 6px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.edit-button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  border: 1px solid;
+}
+
+.edit-button:hover {
+  transform: translateY(-1px);
+}
+
+.unlock-checkbox {
+  margin-left: 20px;
+  transform: scale(1.5);
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid;
+  border-radius: 4px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 6px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.unlock-checkbox:hover {
+  box-shadow: 0 0 8px, 0 0 14px;
+}
+
+.unlock-checkbox:checked {
+  box-shadow: 0 0 10px, 0 0 20px;
+}
+
+.unlock-checkbox:checked::after {
+  content: "✔";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-size: 14px;
+  font-weight: bold;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+}
+
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 30px;
+}
+
+.button {
+  padding: 12px 20px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  white-space: nowrap;
+  border: 1px solid;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  padding: 35px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  text-align: center;
+  box-shadow: 0 0 16px;
+  border: 1px solid;
+  font-family: 'Fira Code', monospace;
+}
+
+.modal-content input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+}
+
+.modal-buttons button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  transition: background-color 0.3s, transform 0.2s;
+  border: 1px solid;
+}
+
+.modal-buttons button:hover {
+  transform: translateY(-1px);
+}
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -2;
+}
+
+.matrix-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+#categoryDropdown {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  border: 1px solid;
+  border-radius: 6px;
+  box-shadow: 0 0 6px;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#editInput {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+  border: 1px solid;
+  border-radius: 6px;
+  box-shadow: 0 0 6px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  box-sizing: border-box;
+  display: block;
+}
+
+#editInput:focus {
+  outline: none;
+  border-color: inherit;
+  box-shadow: 0 0 10px, 0 0 20px;
+}
+
+#categoryDropdown:focus {
+  outline: none;
+  border-color: inherit;
+  box-shadow: 0 0 10px, 0 0 20px;
+}
+
+.modal { backdrop-filter: blur(10px); }
+
+.suggestions-label {
+  font-size: 16px;
+  font-family: 'Fira Code', monospace;
+}
+
+/* setup-questions_clean.css */
+.hint-text {
+  font-size: 16px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  color: #000; /* black for clean theme */
+}

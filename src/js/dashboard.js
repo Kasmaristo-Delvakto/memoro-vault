@@ -1,36 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Memoro Vault - Dashboard</title>
-<script src="libs/zip.min.js"></script>
-<script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
-<script src="libs/secrets.min.js"></script>
-<!-- ZXing first (some polyfills will use it internally) -->
-<script src="libs/zxing.min.js"></script>
-
-<!-- Use the official WICG polyfill you downloaded -->
-<script src="libs/barcode-detector.polyfill.js"></script>
-
-<script>
-// The polyfill defines window.BarcodeDetector automatically if the
-// native API is missing. No manual assignment needed here.
-</script>
-<!-- PDF.js core -->
-<script src="libs/pdf.min.js"></script>
-<script>
-  // Configure PDF.js to use the worker from your local libs folder
-  if (window['pdfjsLib']) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
-  }
-</script>
-
-<!-- QR decoder -->
-<script src="libs/jsqr.min.js"></script>
-
-  <link id="theme-cypherpunk" rel="stylesheet" href="css/dashboard_cypherpunk.css">
-  <link id="theme-clean" rel="stylesheet" href="css/dashboard_clean.css" disabled>
-<script>
   // Toggle dashboard styles + (later) matrix by theme
   function applyDashboardTheme(theme) {
     const cy = document.getElementById('theme-cypherpunk');
@@ -74,148 +41,6 @@ const saved =
     if (cy) cy.disabled = !isCypher;
     if (cl) cl.disabled =  isCypher;
   })();
-</script>
-
-
-</head>
-<body>
-  <div class="ui-frame" aria-hidden="true"></div>
-  <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
-<div style="display: flex; justify-content: center;">
-  <h1><span class="typewriter-text" style="animation-delay: 0s;">Memoro Vault</span></h1>
-</div>
-<div style="position: relative; width: 100%; display: flex; justify-content: center;">
-  <p class="typewriter-text" style="animation-delay: 1.3s; margin-bottom: 0.3em; pointer-events: none;">
-    What matters most.
-  </p>
-</div>
-<div style="position: relative; width: 100%; display: flex; justify-content: center;">
-  <p class="typewriter-text" style="animation-delay: 2.5s; margin-top: 0; pointer-events: none;">
-    Hidden in plain sight.
-  </p>
-</div>
-
-
-<div class="button-group">
-  <button class="button" style="animation-delay: 3.5s;" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
-  <button class="button" style="animation-delay: 5.5s;" onclick="promptOfflineWarning('load')">Load Vault File</button>
-  <button class="button" style="animation-delay: 9.5s;" onclick="openPaperDecrypt()">Restore Physical Backup</button>
-  <button class="button" style="animation-delay: 7.5s;" onclick="goToHowItWorks()">How Memoro Works</button>
-</div>
-
-<div class="vault-list" id="vaultList"></div>
-
-<!-- Unlock Vault Modal -->
-<div class="modal-overlay" id="unlockModal">
-  <div class="modal">
-    <h2>Unlock Vault</h2>
-    <h3 id="question1Label"></h3>
-    <input type="text" id="answer1Input" placeholder="Answer 1">
-    <h3 id="question2Label"></h3>
-    <input type="text" id="answer2Input" placeholder="Answer 2">
-
-    <!-- Lockout Visuals -->
-    <div id="lockoutSection" style="display:none; width:100%; margin-top:10px; text-align:center;">
-      <p id="lockoutTimerText" style="margin:5px 0; font-size:16px; color:#ccc;">Locked for 15s</p>
-      <div style="background-color:#444; width:100%; height:10px; border-radius:5px; overflow:hidden;">
-      <div id="lockoutProgress" style="background-color:#00ff99; width:100%; height:10px;"></div>
-      </div>
-    </div>
-
-    <div class="modal-buttons">
-      <button id="unlockButton" onclick="submitUnlock()">Unlock</button>
-      <button onclick="cancelUnlock()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Offline Warning Modal -->
-<div class="modal-overlay" id="offlineWarning">
-  <div class="modal">
-    <h2>Offline Mode Recommended</h2>
-    <p>We recommend disabling your internet connection temporarily for maximum security.</p>
-    <div class="modal-buttons">
-      <button onclick="proceedAfterOfflineWarning()">Continue</button>
-      <button onclick="cancelOfflineWarning()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Message Modal -->
-<div class="modal-overlay" id="messageModal">
-  <div class="modal">
-    <h2 id="messageModalTitle">Title</h2>
-    <p id="messageModalText">Message goes here.</p>
-    <div class="modal-buttons">
-      <button onclick="closeMessageModal()">OK</button>
-    </div>
-  </div>
-</div>
-
-<!-- Confirm Modal -->
-<div class="modal-overlay" id="confirmModal">
-  <div class="modal">
-    <h2>Confirm</h2>
-    <p id="confirmModalText">Are you sure?</p>
-    <div class="modal-buttons">
-      <button onclick="confirmNo()">No</button>
-      <button onclick="confirmYes()">Yes</button>
-    </div>
-  </div>
-</div>
-
-<!-- Rename Vault Modal -->
-<div class="modal-overlay" id="renameModal">
-  <div class="modal">
-    <h2>Rename Vault</h2>
-    <input type="text" id="renameInput" placeholder="New vault name">
-    <div class="modal-buttons">
-      <button onclick="submitRename()">Rename</button>
-      <button onclick="cancelRename()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Paper Decrypt Modal -->
-<div class="modal-overlay" id="paperDecryptModal">
-  <div class="modal" style="max-width: 720px;">
-    <h2>Restore Physical Backup</h2>
-    <p style="white-space: normal; text-align:left;">
-        Upload the full PDF or individual page images. We’ll extract:<br>
-        • 1× <code>MVKEY</code> (single key QR)<br>
-        • 1× <code>MVHDR</code> (header) and all <code>MVCT</code> tiles (ciphertext)<br>
-        Then we rebuild <code>memoro-lite.zip</code>.
-      </p>
-
-
-    <!-- File input -->
-    <input id="paperFiles" type="file" accept=".pdf,image/*" multiple
-           style="width:100%; margin-bottom:12px;">
-
-    <!-- Optional: simple camera for key shares -->
-    <div style="width:100%; border:1px solid #0f0; padding:10px; border-radius:8px; margin:8px 0;">
-      <h3 style="margin:0 0 8px 0;">Scan Key Shares (Optional)</h3>
-      <p style="margin:0 0 8px 0; font-size:14px; color:#ccc;">
-        If you prefer, aim the camera at an MVKEY QR (one at a time). We still recommend uploading a page/PDF for the tiles.
-      </p>
-      <video id="paperCam" playsinline style="width:100%; max-height:240px; background:#000; display:none;"></video>
-      <div class="modal-buttons" style="gap:8px;">
-        <button onclick="startKeyCam()">Start Camera</button>
-        <button onclick="stopKeyCam()">Stop Camera</button>
-        <button onclick="scanFromVideoOnce()">Scan Key</button>
-      </div>
-    </div>
-
-    <div id="paperStatus" style="width:100%; text-align:left; font-size:14px; color:#ccc;"></div>
-
-    <div class="modal-buttons" style="margin-top:10px;">
-      <button onclick="closePaperDecrypt()">Close</button>
-      <button id="rebuildBtn" onclick="rebuildLiteFromPaper()" disabled>Rebuild Lite ZIP</button>
-    </div>
-  </div>
-</div>
-
-<script>
 const loadedVaults = {};
 let currentUnlockVaultId = null;
 let nextAction = null;
@@ -270,7 +95,7 @@ function saveVaultsToLocalStorage() {
 }
 
   function loadVaultsFromLocalStorage() {
-  const saved = localStorage.getItem('savedVaults');
+    const saved = localStorage.getItem('memoroVaultIndex');
   if (!saved) return;
 
   const vaultArray = JSON.parse(saved);
@@ -567,10 +392,7 @@ async function handleVaultZip(event) {
     event.target.value = '';
   }
 }
-</script>
 
-
-<script>
 async function deriveKey(password, saltHex = null, vaultData = null) {
   const encoder = new TextEncoder();
   const passwordBytes = encoder.encode(password);
@@ -830,12 +652,6 @@ function loadFilesFromIndexedDB(vaultId) {
   });
 }
 
-</script>
-
-<canvas id="matrixCanvas"></canvas>
-<div class="matrix-overlay"></div>
-
-<script>
   // Matrix controller that can be started/stopped by theme
   window.DashboardMatrix = {
     _interval: null,
@@ -1746,7 +1562,134 @@ window.rebuildLiteFromPaper = rebuildLiteFromPaper;
 window.startKeyCam = startKeyCam;
 window.stopKeyCam  = stopKeyCam;
 
-</script>
+/* ========= Delegated action handler ========= */
 
-</body>
-</html>
+// tiny helper so missing functions don't explode
+function callIf(name, ...args) {
+  const fn = (typeof name === "function") ? name
+           : (typeof window[name] === "function" ? window[name] : null);
+  if (!fn) return console.warn(`[dashboard] Missing handler: ${name}`);
+  return fn(...args);
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+
+  const action = el.getAttribute("data-action");
+
+  switch (action) {
+    /* Offline warning */
+    case "offline-warning":
+      callIf("promptOfflineWarning", el.getAttribute("data-mode"));
+      break;
+    case "offline-continue":
+      callIf("proceedAfterOfflineWarning");
+      break;
+    case "offline-cancel":
+      callIf("cancelOfflineWarning");
+      break;
+
+    /* Vault list items */
+    case "vault-menu":
+      callIf("toggleMenu", el.getAttribute("data-vault-id"));
+      break;
+    case "vault-rename":
+      callIf("renameVault", el.getAttribute("data-vault-id"));
+      break;
+    case "vault-delete":
+      callIf("deleteVault", el.getAttribute("data-vault-id"));
+      break;
+    case "vault-unlock":
+      callIf("openUnlockModal", el.getAttribute("data-vault-id"));
+      break;
+
+    /* Unlock modal */
+    case "unlock-submit":
+      callIf("submitUnlock");
+      break;
+    case "unlock-cancel":
+      callIf("cancelUnlock");
+      break;
+
+    /* Message modal */
+    case "message-close":
+      callIf("closeMessageModal");
+      break;
+
+    /* Confirm modal */
+    case "confirm-yes":
+      callIf("confirmYes");
+      break;
+    case "confirm-no":
+      callIf("confirmNo");
+      break;
+
+    /* Rename modal */
+    case "rename-submit":
+      callIf("submitRename");
+      break;
+    case "rename-cancel":
+      callIf("cancelRename");
+      break;
+
+    /* Paper decrypt modal */
+    case "open-paper-decrypt":
+      callIf("openPaperDecrypt");
+      break;
+    case "paper-close":
+      callIf("closePaperDecrypt");
+      break;
+    case "paper-rebuild":
+      callIf("rebuildLiteFromPaper");
+      break;
+    case "paper-cam-start":
+      callIf("startKeyCam");
+      break;
+    case "paper-cam-stop":
+      callIf("stopKeyCam");
+      break;
+    case "paper-cam-scan":
+      callIf("scanFromVideoOnce");
+      break;
+
+    /* Navigation */
+    case "go-how-it-works":
+      callIf("goToHowItWorks");
+      break;
+  }
+});
+
+/* ========= Non-click bindings & quality-of-life ========= */
+document.addEventListener("DOMContentLoaded", () => {
+  // Hidden inputs -> JS handlers
+  const zipInput = document.getElementById("vaultZipInput");
+  if (zipInput) zipInput.addEventListener("change", (ev) => callIf("handleVaultZip", ev));
+
+  const pdfInput = document.getElementById("paperPdfInput");
+  if (pdfInput) pdfInput.addEventListener("change", (ev) => callIf("scanPdfFile", ev));
+
+  const imgInput = document.getElementById("paperImageInput");
+  if (imgInput) imgInput.addEventListener("change", (ev) => callIf("scanImageFile", ev));
+});
+
+// Optional: close modals on backdrop click or ESC (only if you like)
+document.addEventListener("click", (e) => {
+  const id = (e.target && e.target.id) || "";
+  if (id === "offlineWarning") callIf("cancelOfflineWarning");
+  if (id === "messageModal")   callIf("closeMessageModal");
+  if (id === "confirmModal")   callIf("confirmNo");
+  if (id === "renameModal")    callIf("cancelRename");
+  if (id === "paperDecryptModal") callIf("closePaperDecrypt");
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  // Call the safest “close” for each modal if it’s open
+  const visible = (id) => document.getElementById(id)?.style.display === "flex";
+  if (visible("offlineWarning")) callIf("cancelOfflineWarning");
+  if (visible("messageModal"))   callIf("closeMessageModal");
+  if (visible("confirmModal"))   callIf("confirmNo");
+  if (visible("renameModal"))    callIf("cancelRename");
+  if (visible("paperDecryptModal")) callIf("closePaperDecrypt");
+});

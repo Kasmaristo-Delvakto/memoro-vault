@@ -20,579 +20,223 @@ window.initCryptoWasm = async () => {
 window.initCryptoWasm();
   </script>
 
-  <style>
+<!-- Theme styles for Build Vault -->
+<link id="theme-cypherpunk" rel="stylesheet" href="css/build-vault_cypherpunk.css">
+<link id="theme-clean" rel="stylesheet" href="css/build-vault_clean.css" disabled>
 
-    #powActions button {
-  background-color: #222;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 20px;
-  border-radius: 5px;
-  font-family: 'Fira Code', monospace;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-#powActions button:hover {
-  background-color: #0f0;
-  color: #000;
-}
+<script>
+  // Toggle Build Vault styles (and Matrix effect, if available)
+  function applyBuildTheme(theme) {
+    const cy = document.getElementById('theme-cypherpunk');
+    const cl = document.getElementById('theme-clean');
+    const isCypher = (theme === 'cypherpunk');
 
-.pow-panel-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
-  max-width: 600px;
-  padding: 0 20px;
-  box-sizing: border-box;
-}
+    // 1) Flip stylesheets
+    if (cy) cy.disabled = !isCypher;
+    if (cl) cl.disabled =  isCypher;
 
+    // 2) Set a body data-attribute (useful for CSS hooks)
+    const setBodyAttr = () => {
+      if (document.body) {
+        document.body.setAttribute('data-theme', isCypher ? 'cypherpunk' : 'clean');
+      }
+    };
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', setBodyAttr, { once: true });
+    } else {
+      setBodyAttr();
+    }
 
-
-.pow-section {
-  width: 100%;
-  padding: 20px;
-  border: 1px solid #0f0;
-  border-radius: 12px;
-  background: #000;
-  box-shadow: 0 0 12px rgba(0, 255, 0, 0.2);
-  text-align: center;
-}
-
-.pow-section h3 {
-  font-size: 20px;
-  border-bottom: 1px solid #0f0;
-  padding-bottom: 10px;
-  margin-bottom: 16px;
-}
-
-.pow-section p,
-.pow-section a,
-.pow-section button {
-  font-size: 14px;
-  margin: 8px 0;
-}
-
-
-
-#matrixCanvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  opacity: 0.15;
-}
-
-
-
-.pow-panel button {
-  background-color: #111;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 18px;
-  border-radius: 5px;
-  font-family: 'Fira Code', monospace;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.pow-panel button:hover {
-  background-color: #0f0;
-  color: #000;
-}
-
-body {
-  background-color: #111;
-  color: #eee;
-  font-family: 'Fira Code', monospace;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-#vaultContainer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 16px;
-  box-sizing: border-box;
-  position: relative;
-}
-
-@media (max-width: 600px), (max-height: 700px) {
-  #vaultContainer {
-    justify-content: flex-start;
-    padding-top: 20px;
-  }
-}
-
-#mainContainer {
-  z-index: 1;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
- justify-content: flex-start;
-  width: 100%;
-  max-width: 600px;
-  padding: 40px 20px;
-  box-sizing: border-box;
-}
-
-#logoSection {
-  width: 100%;
-  background-color: #111;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 30px 0;
-}
-
-#logoContent {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px 0;
-  opacity: 0;
-  transition: opacity 1s ease;
-}
-
-#powDifficultyModal {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
-  color: #0f0;
-  font-family: 'Fira Code', monospace;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  z-index: 1000;
-}
-
-#downloadBtn {
-  display: none;
-  margin-top: 20px;
-  padding: 12px 24px;
-  font-size: 16px;
-  border: none;
-  border-radius: 6px;
-  background-color: #00aa00;
-  color: #fff;
-  cursor: pointer;
-}
-#downloadBtn:hover {
-  background-color: #007700;
-}
-
-#actionButtons {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 30px;
-}
-
-#actionButtons button {
-  background-color: #222;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 18px;
-  border-radius: 5px;
-  font-size: 14px;
-  font-family: 'Fira Code', monospace;
-  cursor: pointer;
-  min-width: 140px;
-  flex: 1 1 40%;
-  max-width: 240px;
-}
-
-.powOption {
-  background-color: #111;
-  border: 1px solid #0f0;
-  color: #0f0;
-  padding: 10px 18px;
-  font-size: 14px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.powOption:hover {
-  background-color: #0f0;
-  color: #000;
-}
-
-/* === Responsive Tweaks for Mobile === */
-@media (max-width: 600px), (max-height: 700px) {
-  #mainContainer {
-    padding: 20px 10px;
+    // 3) Optional Matrix controller for this page
+    if (window.BuildMatrix) {
+      if (isCypher) BuildMatrix.start();
+      else BuildMatrix.stop();
+    }
   }
 
-  #logoContent {
-    padding: 10px 0;
+  // Initialize from saved preference and apply once DOM is ready
+(function initBuildTheme() {
+  const THEME_KEY = 'theme';
+
+  // 1) Prefer sessionStorage (index sets it there), then fall back to localStorage, then default
+  const sessionVal = sessionStorage.getItem(THEME_KEY);
+  const localVal   = localStorage.getItem(THEME_KEY);
+  const saved      = (sessionVal ?? localVal) ?? 'cypherpunk';
+
+  // 2) Keep BOTH storages in sync so other pages find the same value
+  if (localVal   !== saved) localStorage.setItem(THEME_KEY, saved);
+  if (sessionVal !== saved) sessionStorage.setItem(THEME_KEY, saved);
+
+  // 3) Pre-flip styles early to avoid FOUC
+  const cy = document.getElementById('theme-cypherpunk');
+  const cl = document.getElementById('theme-clean');
+  const isCypher = (saved === 'cypherpunk');
+  if (cy) cy.disabled = !isCypher;
+  if (cl) cl.disabled =  isCypher;
+
+  // 4) Apply body attribute + optional Matrix hook
+  const apply = () => applyBuildTheme(saved);
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', apply, { once: true });
+  } else {
+    apply();
   }
+})();
 
-#actionButtons button {
-  background-color: #111;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-family: 'Fira Code', monospace;
-  min-width: 140px;
-  max-width: 240px;
-  flex: 1 1 auto;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-#actionButtons button:hover {
-  background-color: #0f0;
-  color: #000;
-}
-
-}
-
-
-#memoroLogo {
-  width: 200px;
-  max-width: 90%;
-  margin-bottom: 30px;
-  transition: width 0.3s ease;
-}
-
-@media (max-width: 600px), (max-height: 700px) {
-  #memoroLogo {
-    width: 140px;
-    margin-bottom: 20px;
-  }
-}
-
-
-#progressBarWrapper {
-  width: 80%;
-  max-width: 400px;
-  margin: 20px auto;
-}
-
-.progress-label {
-  font-size: 14px;
-  margin-bottom: 8px;
-  color: #0f0;
-}
-
-.progress-bar-container {
-  width: 100%;
-  height: 20px;
-  background-color: #111;
-  border: 1px solid #0f0;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 0 8px #0f0;
-}
-
-.progress-bar-fill {
-  display: flex;
-  gap: 2px;
-  height: 100%;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 2px;
-}
-
-.progress-block {
-  flex: 0 0 auto;
-  width: calc((100% - 38px) / 20); /* 20 blocks + 19 gaps × 2px = 38px total gap */
-  height: 100%;
-  background-color: #111;
-  border: 1px solid #0f0;
-  border-radius: 2px;
-  box-sizing: border-box;
-  transition: background-color 0.2s ease;
-}
-
-.progress-block.filled {
-  background-color: #0f0;
-}
-
-
-@keyframes loading-stripes {
-  0% { background-position: 0 0; }
-  100% { background-position: 40px 0; }
-}
-
-#actionButtons {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 30px;
-  opacity: 1;
-  transition: opacity 1s ease;
-}
-
-#actionButtons button {
-  background-color: #111;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-family: 'Fira Code', monospace;
-  min-width: 140px;
-  flex: 1 1 40%;
-  max-width: 240px;
-}
-
-#actionButtons button:hover {
-  background-color: #0f0;
-  color: #000;
-}
-
-#actionButtons button {
-  background-color: #111;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-family: 'Fira Code', monospace;
-  min-width: 160px;
-  flex: 1 1 auto;
-  max-width: 220px;
-}
-
-#actionButtons button:hover {
-  background-color: #0f0;
-  color: #000;
-}
-
-
-#actionButtons button {
-  background-color: #111;
-  color: #0f0;
-  border: 1px solid #0f0;
-  padding: 10px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-family: 'Fira Code', monospace;
-}
-
-#actionButtons button:hover {
-  background-color: #0f0;
-  color: #000;
-}
-
-@media (max-width: 820px) {
-  #litePickerModal > div {
-    margin: 16px auto;
-    max-height: calc(100vh - 32px);
-  }
-}
-
-  </style>
+</script>
 </head>
 <body>
-<canvas id="matrixCanvas" style="
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0;
-  background: black;
-"></canvas>
 
-  <div id="vaultContainer">
+<div id="vaultContainer">
   <canvas id="matrixCanvas"></canvas>
 
-<div id="mainContainer">
-  <img id="memoroLogo" src="assets/memoro-logo-with-words.png" alt="Memoro Vault Logo" />
+  <div id="mainContainer">
+    <img id="memoroLogo" src="assets/memoro-logo-with-words.png" alt="Memoro Vault Logo" />
 
-  <div id="progressBarWrapper">
-    <div class="progress-label" id="progressLabel">Initializing vault builder...</div>
-    <div class="progress-bar-container">
-<div class="progress-bar-fill" id="progressFill">
-  <!-- 20 blocks (adjustable) -->
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-  <div class="progress-block"></div>
-</div>
+    <div id="progressBarWrapper">
+      <div class="progress-label" id="progressLabel">Initializing vault builder...</div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressFill">
+          <!-- 20 blocks (adjustable) -->
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+          <div class="progress-block"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="actionButtons">
+      <button onclick="preserveAndGoBack()">Back to Answers</button>
+      <button onclick="retryDownload()">Retry Download</button>
+      <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
     </div>
   </div>
-
-  <div id="actionButtons">
-    <button onclick="preserveAndGoBack()">Back to Answers</button>
-    <button onclick="retryDownload()">Retry Download</button>
-    <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
-  </div>
-</div>
 
   <div id="powPanel" class="pow-panel">
-  <div class="pow-panel-wrapper">
+    <div class="pow-panel-wrapper">
 
-<!-- Final Instructions Modal -->
-<div id="postBuildModal"
-     style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.96); z-index: 5000; color: #0f0; font-family: 'Fira Code', monospace;
-            padding: 40px; box-sizing: border-box; overflow-y: auto;">
-  <div style="max-width: 800px; width: 100%; border: 1px solid #0f0; padding: 30px;
-              background: #000; box-shadow: 0 0 20px #0f0; margin: auto;">
-    <h2 style="color: #00ff99; text-shadow: 0 0 10px #0f0;">Please Read Carefully</h2>
-    
-    <p style="margin-top: 20px;">
-      Your Memoro Vault has been successfully built and downloaded.
-    </p>
+      <!-- Final Instructions Modal -->
+      <div id="postBuildModal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <h2>Please Read Carefully</h2>
+          <p>Your Memoro Vault has been successfully built and downloaded.</p>
 
-    <p>
-      To ensure it remains accessible for decades, it's critical to guard against <strong>bit rot</strong> — a slow form of data decay that can silently corrupt files over time.
-    </p>
+          <p>To ensure it remains accessible for decades, it's critical to guard against <strong>bit rot</strong> — a slow form of data decay that can silently corrupt files over time.</p>
 
-    <p>
-      Even if someone remembers all your answers perfectly, a single missing byte can render your vault irretrievable. That's why secure, redundant storage is essential.
-    </p>
+          <p>Even if someone remembers all your answers perfectly, a single missing byte can render your vault irretrievable. That's why secure, redundant storage is essential.</p>
 
-    <h3 style="margin-top: 25px; color: #88ffcc;">What to Do Next</h3>
-    <ol style="margin-left: 20px;">
-      <li>Create a folder (e.g., <code>J's_Memoro_Vault</code>) on your computer.</li>
-      <li>Place both of the following into that folder:
-        <ul>
-          <li>The downloaded vault ZIP file</li>
-          <li>The Memoro Vault installer (e.g., <code>memoro-win.exe</code>, <code>.AppImage</code>, or <code>.dmg</code>)</li>
-        </ul>
-      </li>
-      <li><strong>Duplicate that folder to multiple destinations:</strong>
-        <ul>
-          <li>1× <strong>M-DISC</strong> (for long-term archival)</li>
-          <li>1× <strong>Cloud backup</strong> (e.g., Proton Drive or Google Drive)</li>
-          <li>1× <strong>Offline USB/SSD</strong> (stored in a fireproof safe or Faraday bag)</li>
-        </ul>
-      </li>
-      <li><strong>Create a paper backup (recommended):</strong>
-        <ul>
-          <li>Memoro Vault can generate a printable PDF of QR codes that reassemble your encrypted vault.</li>
-          <li>Print these QR tiles on archival paper and store them in a secure location.</li>
-          <li>This ensures recovery even if all digital copies are lost or corrupted.</li>
-        </ul>
-      </li>
-      <li>Test access on another device while offline to verify integrity and function.</li>
-      <li>Repeat this process whenever you update or rebuild your vault.</li>
-    </ol>
+          <h3>What to Do Next</h3>
+          <ol>
+            <li>Create a folder (e.g., <code>J's_Memoro_Vault</code>) on your computer.</li>
+            <li>Place both of the following into that folder:
+              <ul>
+                <li>The downloaded vault ZIP file</li>
+                <li>The Memoro Vault installer (e.g., <code>memoro-win.exe</code>, <code>.AppImage</code>, or <code>.dmg</code>)</li>
+              </ul>
+            </li>
+            <li><strong>Duplicate that folder to multiple destinations:</strong>
+              <ul>
+                <li>1× <strong>M-DISC</strong> (for long-term archival)</li>
+                <li>1× <strong>Cloud backup</strong> (e.g., Proton Drive or Google Drive)</li>
+                <li>1× <strong>Offline USB/SSD</strong> (stored in a fireproof safe or Faraday bag)</li>
+              </ul>
+            </li>
+            <li><strong>Create a paper backup (recommended):</strong>
+              <ul>
+                <li>Memoro Vault can generate a printable PDF of QR codes that reassemble your encrypted vault.</li>
+                <li>Print these QR tiles on archival paper and store them in a secure location.</li>
+                <li>This ensures recovery even if all digital copies are lost or corrupted.</li>
+              </ul>
+            </li>
+            <li>Test access on another device while offline to verify integrity and function.</li>
+            <li>Repeat this process whenever you update or rebuild your vault.</li>
+          </ol>
 
-    <h3 style="margin-top: 25px; color: #88ffcc;">Why M-DISC?</h3>
-    <p>
-      M-DISCs use a permanent, stone-like recording layer, unlike dye-based DVDs or flash memory. They're immune to bit rot, magnetic damage, EMPs, and most environmental degradation.
-    </p>
-    <p>
-      With proper storage, an M-DISC can last 100–1,000 years — making it ideal for preserving something irreplaceable.
-    </p>
+          <h3>Why M-DISC?</h3>
+          <p>M-DISCs use a permanent, stone-like recording layer, unlike dye-based DVDs or flash memory. They're immune to bit rot, magnetic damage, EMPs, and most environmental degradation.</p>
+          <p>With proper storage, an M-DISC can last 100–1,000 years — making it ideal for preserving something irreplaceable.</p>
 
-    <h3 style="margin-top: 25px; color: #88ffcc;">Final Advice</h3>
-    <ul style="margin-left: 20px;">
-      <li>Do <strong>not</strong> rely on a single copy.</li>
-      <li>Do <strong>not</strong> trust cloud providers to exist forever.</li>
-      <li>Do <strong>not</strong> assume your future self will remember every step.</li>
-    </ul>
-    <p>
-      Redundancy is key to ensuring your vault remains accessible for generations to come.
-    </p>
+          <h3>Final Advice</h3>
+          <ul>
+            <li>Do <strong>not</strong> rely on a single copy.</li>
+            <li>Do <strong>not</strong> trust cloud providers to exist forever.</li>
+            <li>Do <strong>not</strong> assume your future self will remember every step.</li>
+          </ul>
 
-    <p style="margin-top: 20px;">
-      A copy of these instructions is also included inside your vault ZIP as
-      <code>Vault_Builder_Instructions.txt</code>.
-    </p>
+          <p>Redundancy is key to ensuring your vault remains accessible for generations to come.</p>
 
-    <div style="text-align: center; margin-top: 30px;">
-      <button onclick="closePostBuildModal()" style="padding: 10px 20px; font-size: 14px; background: #111; border: 1px solid #0f0; color: #0f0; cursor: pointer;">Got it</button>
-    </div>
-  </div>
-</div>
+          <p>A copy of these instructions is also included inside your vault ZIP as
+            <code>Vault_Builder_Instructions.txt</code>.
+          </p>
 
-
-<!-- Lite Picker Modal -->
-<div id="litePickerModal"
-     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.96); z-index:6000; color:#0f0; font-family:'Fira Code',monospace; overflow-y:auto; overscroll-behavior:contain; padding:16px 0;">
-  <div style="max-width:600px; margin:40px auto; border:1px solid #0f0; background:#000; box-shadow:0 0 20px #0f0; max-height:calc(100vh - 80px); overflow:auto; border-radius:10px;">
-    <div style="padding:18px 22px; border-bottom:1px solid #0f0; display:flex; align-items:center; gap:10px;">
-      <h2 style="margin:0; color:#00ff99;">Choose what to include in your Paper Backup (≤ 150 KB)</h2>
-    </div>
-
-    <div style="display:flex; flex-wrap:wrap; gap:22px; padding:22px;">
-      <!-- Left: selections -->
-      <div style="flex:1 1 380px; min-width:300px;">
-        <h3 style="margin:0 0 10px 0; color:#88ffcc;">Seeds & Final Message</h3>
-        <div id="liteSeedsList" style="border:1px solid #0f0; padding:10px; border-radius:8px; max-height:220px; overflow:auto;"></div>
-
-        <div style="margin-top:18px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input id="litePickFinalMsg" type="checkbox" />
-            <span>Include final message (as <code>final-message.txt</code>)</span>
-          </label>
-        </div>
-
-        <h3 style="margin:18px 0 10px 0; color:#88ffcc;">Uploads</h3>
-        <div id="liteUploadsList" style="border:1px solid #0f0; padding:10px; border-radius:8px; max-height:280px; overflow:auto;"></div>
-      </div>
-
-      <!-- Right: summary -->
-      <div style="flex:1 1 260px; min-width:240px;">
-        <h3 style="margin:0 0 10px 0; color:#88ffcc;">Summary</h3>
-        <div style="border:1px solid #0f0; border-radius:8px; padding:12px;">
-          <div style="margin-bottom:8px;">Total selected (raw): <strong id="liteTotalBytes">0</strong> bytes</div>
-          <div style="font-size:12px; color:#b8ffd9;">Limit: 153,600 bytes (≈ 150 KB). Encryption adds overhead, but this raw cap keeps QR count reasonable.</div>
-          <hr style="border:none; border-top:1px solid #0f0; margin:12px 0;">
-          <div id="litePickerError" style="color:#ff6; min-height:18px;"></div>
-          <div style="display:flex; gap:10px; margin-top:10px;">
-            <button id="litePickerConfirm" style="background:#0f0; color:#000; border:1px solid #0f0; padding:10px 14px; border-radius:6px; cursor:pointer;">Build Paper Backup</button>
-            <button id="litePickerCancel" style="background:#111; border:1px solid #0f0; color:#0f0; padding:10px 14px; border-radius:6px; cursor:pointer;">Cancel</button>
+          <div class="modal-actions">
+            <button class="btn-primary" onclick="closePostBuildModal()">Got it</button>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
+      <!-- Lite Picker Modal -->
+      <div id="litePickerModal" class="modal-overlay hidden">
+        <div class="modal-box wide">
+          <div class="modal-header">
+            <h2>Choose what to include in your Paper Backup (≤ 150 KB)</h2>
+          </div>
 
-</div>
+          <div class="modal-body">
+            <!-- Left column -->
+            <div class="modal-left">
+              <h3>Seeds & Final Message</h3>
+              <div id="liteSeedsList" class="scroll-box"></div>
+
+              <div class="checkbox-row">
+                <label>
+                  <input id="litePickFinalMsg" type="checkbox" />
+                  <span>Include final message (as <code>final-message.txt</code>)</span>
+                </label>
+              </div>
+
+              <h3>Uploads</h3>
+              <div id="liteUploadsList" class="scroll-box"></div>
+            </div>
+
+            <!-- Right column -->
+            <div class="modal-right">
+              <h3>Summary</h3>
+              <div class="summary-box">
+                <div>Total selected (raw): <strong id="liteTotalBytes">0</strong> bytes</div>
+                <div class="summary-note">Limit: 153,600 bytes (≈ 150 KB). Encryption adds overhead, but this raw cap keeps QR count reasonable.</div>
+                <hr />
+                <div id="litePickerError" class="error-msg"></div>
+                <div class="button-row">
+                  <button id="litePickerConfirm" class="btn-primary">Build Paper Backup</button>
+                  <button id="litePickerCancel" class="btn-secondary">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div> <!-- /modal-body -->
+        </div>   <!-- /modal-box -->
+      </div>     <!-- /litePickerModal -->
+
+    </div> <!-- /pow-panel-wrapper -->
+  </div>   <!-- /powPanel -->
+</div>     <!-- /vaultContainer -->
 
 <script>
 
@@ -937,7 +581,6 @@ function openLitePicker({ seedFiles, uploads, finalMessageBytesLen }) {
 </script>
   
   <script>
-    let preserveOnBack = false;
     let vaultBuildManuallyTriggered = false;
 
    document.addEventListener("DOMContentLoaded", async () => {
@@ -1601,67 +1244,136 @@ function retryDownload() {
   window.location.reload();
 }
 
-    const canvas = document.getElementById('matrixCanvas');
-    const ctx = canvas.getContext('2d');
+    // Matrix Rain Controller for Build Vault
+const canvas = document.getElementById('matrixCanvas');
+const ctx = canvas.getContext('2d');
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-    const letters = 'モヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
-    const fontSize = 14;
-    const columns = canvas.width / fontSize;
-    const drops = Array(Math.floor(columns)).fill(1);
+const letters = 'モヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+const fontSize = 14;
+let drops = [];
+let intervalId = null;
 
-    function draw() {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = '#0F0';
-      ctx.font = fontSize + 'px monospace';
-
-      for (let i = 0; i < drops.length; i++) {
-        const text = letters[Math.floor(Math.random() * letters.length)];
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-          drops[i] = 0;
-        }
-
-        drops[i]++;
-      }
-    }
-
-    setInterval(draw, 40);
-    window.addEventListener('resize', () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    });
-
-    function preserveAndGoBack() {
-  preserveOnBack = true;
-  history.back();
+function initDrops() {
+  const columns = Math.floor(canvas.width / fontSize);
+  drops = Array(columns).fill(1);
 }
 
-window.addEventListener("beforeunload", (e) => {
+function drawMatrixFrame() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#0F0';
+  ctx.font = fontSize + 'px monospace';
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = letters[Math.floor(Math.random() * letters.length)];
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+      drops[i] = 0;
+    }
+
+    drops[i]++;
+  }
+}
+
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  initDrops();
+});
+
+// Exposed controller
+window.BuildMatrix = {
+  start() {
+    if (!intervalId) {
+      initDrops();
+      intervalId = setInterval(drawMatrixFrame, 40);
+    }
+  },
+  stop() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+};
+
+// Auto-start in cypherpunk mode
+if (document.body.getAttribute('data-theme') === 'cypherpunk') {
+  window.BuildMatrix.start();
+}
+
+window.addEventListener("beforeunload", () => {
   if (!preserveOnBack) {
-    nukeEverything();
+    // Fire-and-forget wipe on uncontrolled unloads (tab close, hard nav, etc.)
+    nukeEverything({ fireAndForget: true });
   }
 });
-      
-async function nukeEverything() {
+
+/**
+ * Wipes all app data except the theme.
+ * - Preserves THEME_KEY from both storages (reads from either, writes to both)
+ * - Deletes only known Memoro Vault IndexedDB databases
+ * - Guarded to run once per page (prevents double-wipe on redirects)
+ */
+async function nukeEverything(opts = {}) {
+  if (_nukeHasRun) return;
+  _nukeHasRun = true;
+
   try {
-    localStorage.clear();
-    sessionStorage.clear();
-    if (indexedDB.databases) {
-      const dbs = await indexedDB.databases();
-      for (const db of dbs) {
-        indexedDB.deleteDatabase(db.name);
+    // 1) Cache theme from either storage (session wins, then local)
+    const themeSession = sessionStorage.getItem(THEME_KEY);
+    const themeLocal   = localStorage.getItem(THEME_KEY);
+    const preservedTheme = themeSession ?? themeLocal ?? "cypherpunk";
+
+    // 2) Clear storages EXCEPT THEME_KEY (avoid .clear() so theme survives)
+    const safeClear = (store) => {
+      for (let i = store.length - 1; i >= 0; i--) {
+        const k = store.key(i);
+        if (k !== THEME_KEY) store.removeItem(k);
       }
+    };
+    safeClear(localStorage);
+    safeClear(sessionStorage);
+
+    // 3) Restore theme to BOTH storages so any page can read it
+    localStorage.setItem(THEME_KEY, preservedTheme);
+    sessionStorage.setItem(THEME_KEY, preservedTheme);
+
+    // 4) Delete only our app DBs
+    const deleteKnownDBs = async () => {
+      try {
+        if (indexedDB.databases) {
+          const dbs = await indexedDB.databases();
+          for (const db of dbs) {
+            const name = db?.name;
+            if (name === "memoroVaultVaultStorage" || name === "memoroVaultDB") {
+              indexedDB.deleteDatabase(name);
+            }
+          }
+        } else {
+          // Fallback for older Chromium/Electron
+          indexedDB.deleteDatabase("memoroVaultVaultStorage");
+          indexedDB.deleteDatabase("memoroVaultDB");
+        }
+      } catch (e) {
+        console.warn("Memoro Vault: DB wipe warning:", e);
+      }
+    };
+
+    if (opts.fireAndForget) {
+      // Don't block unload; kick off async DB cleanup
+      deleteKnownDBs();
     } else {
-      indexedDB.deleteDatabase("memoroVaultVaultStorage");
-      indexedDB.deleteDatabase("memoroVaultDB");
+      await deleteKnownDBs();
     }
-    console.log("Memoro Vault: Local memory wiped.");
+
+    console.log("Memoro Vault: Local data wiped (theme preserved).");
   } catch (err) {
     console.warn("Memoro Vault wipe failed:", err);
   }
@@ -1671,17 +1383,120 @@ function showPostBuildModal() {
   const modal = document.getElementById("postBuildModal");
   document.body.style.overflow = "hidden"; // Prevent body scroll behind modal
   if (modal) {
-    modal.style.display = "flex"; // Use flex to keep it centered and scrollable
+    modal.style.display = "flex"; // Keep it centered and scrollable
   }
 }
 
 function closePostBuildModal() {
   const modal = document.getElementById("postBuildModal");
   if (modal) {
-    document.body.style.overflow = ""; 
+    document.body.style.overflow = "";
     modal.style.display = "none";
-    setTimeout(() => {
-      nukeEverything(); // ✅ add this
+    preserveOnBack = true;               // ✅ prevent beforeunload from wiping again on redirect
+    setTimeout(async () => {
+      await nukeEverything();            // full, awaited wipe here
+      window.location.href = "dashboard.html";
+    }, 300);
+  }
+}
+
+// ---- Wipe helpers / guards ----
+const THEME_KEY = "theme";
+let preserveOnBack = false;
+let _nukeHasRun = false;
+
+function preserveAndGoBack() {
+  preserveOnBack = true;           // don't auto-wipe on this navigation
+  history.back();
+}
+
+window.addEventListener("beforeunload", () => {
+  if (!preserveOnBack) {
+    // Fire-and-forget wipe on uncontrolled unloads (tab close, hard nav, etc.)
+    nukeEverything({ fireAndForget: true });
+  }
+});
+
+/**
+ * Wipes all app data except the theme.
+ * - Preserves THEME_KEY from both storages (reads from either, writes to both)
+ * - Deletes only known Memoro Vault IndexedDB databases
+ * - Guarded to run once per page (prevents double-wipe on redirects)
+ */
+async function nukeEverything(opts = {}) {
+  if (_nukeHasRun) return;
+  _nukeHasRun = true;
+
+  try {
+    // 1) Cache theme from either storage (session wins, then local)
+    const themeSession = sessionStorage.getItem(THEME_KEY);
+    const themeLocal   = localStorage.getItem(THEME_KEY);
+    const preservedTheme = themeSession ?? themeLocal ?? "cypherpunk";
+
+    // 2) Clear storages EXCEPT THEME_KEY (avoid .clear() so theme survives)
+    const safeClear = (store) => {
+      for (let i = store.length - 1; i >= 0; i--) {
+        const k = store.key(i);
+        if (k !== THEME_KEY) store.removeItem(k);
+      }
+    };
+    safeClear(localStorage);
+    safeClear(sessionStorage);
+
+    // 3) Restore theme to BOTH storages so any page can read it
+    localStorage.setItem(THEME_KEY, preservedTheme);
+    sessionStorage.setItem(THEME_KEY, preservedTheme);
+
+    // 4) Delete only our app DBs
+    const deleteKnownDBs = async () => {
+      try {
+        if (indexedDB.databases) {
+          const dbs = await indexedDB.databases();
+          for (const db of dbs) {
+            const name = db?.name;
+            if (name === "memoroVaultVaultStorage" || name === "memoroVaultDB") {
+              indexedDB.deleteDatabase(name);
+            }
+          }
+        } else {
+          // Fallback for older Chromium/Electron
+          indexedDB.deleteDatabase("memoroVaultVaultStorage");
+          indexedDB.deleteDatabase("memoroVaultDB");
+        }
+      } catch (e) {
+        console.warn("Memoro Vault: DB wipe warning:", e);
+      }
+    };
+
+    if (opts.fireAndForget) {
+      // Don't block unload; kick off async DB cleanup
+      deleteKnownDBs();
+    } else {
+      await deleteKnownDBs();
+    }
+
+    console.log("Memoro Vault: Local data wiped (theme preserved).");
+  } catch (err) {
+    console.warn("Memoro Vault wipe failed:", err);
+  }
+}
+
+function showPostBuildModal() {
+  const modal = document.getElementById("postBuildModal");
+  document.body.style.overflow = "hidden"; // Prevent body scroll behind modal
+  if (modal) {
+    modal.style.display = "flex"; // Keep it centered and scrollable
+  }
+}
+
+function closePostBuildModal() {
+  const modal = document.getElementById("postBuildModal");
+  if (modal) {
+    document.body.style.overflow = "";
+    modal.style.display = "none";
+    preserveOnBack = true;               // ✅ prevent beforeunload from wiping again on redirect
+    setTimeout(async () => {
+      await nukeEverything();            // full, awaited wipe here
       window.location.href = "dashboard.html";
     }, 300);
   }

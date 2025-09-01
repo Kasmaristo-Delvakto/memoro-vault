@@ -1,0 +1,339 @@
+
+:root{
+  --bg:#000;
+  --fg:#00ff99;
+  --fg-strong:#0f0;
+  --border:#00ff99;
+  --border-dim:rgba(0,255,153,.28);
+
+  --panel:#111;
+  --radius:12px;
+  --radius-xs:8px;
+
+  --gap:clamp(12px,2.4vw,22px);
+  --pad:clamp(14px,2.6vw,26px);
+  --pad-lg:clamp(18px,3vw,30px);
+}
+
+/* ---------- Base ---------- */
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  /* safe-area aware breathing room */
+  padding-block:
+    max(env(safe-area-inset-top), clamp(18px, 5dvh, 64px))
+    max(env(safe-area-inset-bottom), clamp(18px, 6dvh, 72px));
+  padding-inline: max(16px, clamp(14px, 5vw, 28px));
+
+  background:var(--bg);
+  color:var(--fg);
+  font-family:"Fira Code", monospace;
+
+  /* Vertically center the landing content */
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  /* When there are 2+ vault cards, stop centering so the page scrolls normally */
+body:has(.vault-list .vault-item:nth-of-type(2)){
+  justify-content: flex-start;
+}
+
+/* Let the browser scroll all the way to the hero without clipping */
+html{
+  scroll-padding-top: max(20px, env(safe-area-inset-top));
+}
+}
+
+/* When there are 2+ vault cards, stop centering so the page scrolls normally */
+body:has(.vault-list .vault-item:nth-of-type(2)){
+  justify-content: flex-start;
+  min-height: auto; /* allow the page to grow taller than the viewport */
+}
+
+/* Let the browser scroll all the way to the hero without clipping */
+html{
+  scroll-padding-top: max(20px, env(safe-area-inset-top));
+}
+
+/* Canvas layers */
+canvas{ position:fixed; inset:0; z-index:-2; }
+#matrixCanvas{ position:fixed; inset:0; width:100vw; height:100vh; z-index:-3; }
+.matrix-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:-2; }
+
+/* ---------- Typography (bigger, fluid) ---------- */
+h1,h2,h3{ margin:0; line-height:1.12; }
+h1{ 
+  color: var(--fg-strong);       /* neon green, same as "Offline Mode Recommended" */
+  font-size: clamp(36px, 7vw, 64px); 
+  letter-spacing: .02em; 
+  font-weight: 700;              /* make it bold */
+}
+h2{ color:var(--fg-strong);  font-size:clamp(20px, 3vw, 30px); }
+h3{ color:var(--fg-strong);  font-size:clamp(18px, 2.6vw, 24px); }
+p { color:var(--fg); text-align:center; font-size:clamp(16px, 2.2vw, 20px); margin:0; }
+
+/* ---------- Typewriter Hero ---------- */
+.mv-hero{
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  gap:10px; margin-top:6px; margin-bottom:12px;
+}
+.typewriter-text{
+  display:inline-block; overflow:hidden; white-space:nowrap;
+  border-right:2px solid transparent; color:transparent;
+  animation:
+    revealText 0s forwards,
+    typing 2s steps(40,end) forwards .05s,
+    blink-caret .75s step-end 7 2s forwards;
+}
+@keyframes revealText{ 
+  to{ 
+    color: var(--fg-strong);           /* neon green for main header */
+    border-right-color: var(--fg-strong);
+  } 
+}
+
+@keyframes typing{ 
+  from{ width:0 } 
+  to{ width:100% } 
+}
+
+@keyframes blink-caret{ 
+  0%,100%{ border-color: transparent; } 
+  50%{ border-color: var(--fg-strong); }  /* caret blinks neon */
+}
+
+/* Buttons fade in after typing */
+.button-group{ opacity:0; transform:translateY(6px); animation:fadeInUp .5s ease-out forwards; animation-delay:3.5s; }
+@keyframes fadeInUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+
+/* ---------- Buttons (touch-friendly) ---------- */
+.button,
+.modal-buttons button,
+.unlock-button,
+.three-dots{
+  background:#111; color:var(--fg);
+  border:1px solid var(--border);
+  border-radius:var(--radius-xs);
+  padding:14px 22px;
+  font-size:clamp(15px, 1.8vw, 19px);
+  cursor:pointer;
+  transition:transform .12s, box-shadow .16s, background .18s;
+  box-shadow:0 0 6px var(--fg);
+}
+.button:hover,
+.modal-buttons button:hover,
+.unlock-button:hover{ background:#1a1a1a; transform:translateY(-1px); }
+.button:focus-visible{ outline:0; box-shadow:0 0 0 3px rgba(0,255,153,.3); }
+.button:active{ transform:translateY(0); }
+.button[disabled]{ opacity:.5; filter:grayscale(100%); cursor:not-allowed; }
+
+/* Keep real buttons from squishing; fill their grid track */
+.button,
+.modal-buttons button,
+.unlock-button{ min-width:240px; width:100%; min-height:48px; }
+
+/* ---------- CTA row ---------- */
+.button-group{
+  display:grid; gap:16px 18px;
+  justify-content:center; align-content:center;
+  margin:18px auto 0; padding:16px 18px;
+  background:rgba(0,255,153,.05);
+  border:1px solid var(--border-dim);
+  border-radius:18px;
+  width:auto; max-width:96vw;
+}
+/* 1×4 row — wide screens */
+@media (min-width:1100px){
+  .button-group{ grid-template-columns:repeat(4, minmax(240px, max-content)); }
+}
+/* 2×2 grid — medium screens */
+@media (min-width:600px) and (max-width:1099px){
+  .button-group{ grid-template-columns:repeat(2, minmax(240px, 1fr)); }
+}
+/* 1×N column — small screens */
+@media (max-width:599px){
+  .button-group{ grid-template-columns:1fr; }
+}
+
+/* ---------- Vault Grid ---------- */
+.vault-list{
+  width:min(900px,100%);
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr));
+  gap:var(--gap); margin-top:26px;
+}
+.vault-item{
+  background:var(--panel);
+  border:1px solid var(--border-dim);
+  border-radius:var(--radius);
+  padding:var(--pad-lg);
+  display:flex; flex-direction:column; gap:10px;
+  box-shadow:0 0 14px rgba(0,255,153,.12);
+}
+.vault-item h2{ font-size:clamp(20px, 2.2vw, 24px); color:#b9ffd9; }
+.vault-item p { font-size:clamp(14px, 1.9vw, 17px); color:#b9ffd9; text-align:left; }
+
+/* ---------- Modals ---------- */
+.modal-overlay{
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.78);
+  align-items:center; justify-content:center; padding:20px;
+}
+.modal{
+  background:#111; color:var(--fg);
+  width:92%; max-width:520px;
+  padding:40px 32px 28px;
+  border:1px solid var(--border); border-radius:12px;
+  box-shadow:0 0 16px rgba(0,255,153,.18);
+  max-height:calc(100vh - 80px); overflow-y:auto;
+  display:flex; flex-direction:column; gap:16px; text-align:center;
+}
+.modal h2{ font-size:clamp(22px, 3.2vw, 28px); color:var(--fg-strong); }
+.modal p { font-size:clamp(14px, 2.1vw, 18px); line-height:1.6; }
+.modal input{
+  width:100%; padding:12px 14px; min-height:46px;
+  border-radius:8px; border:1px solid var(--border);
+  background:#000; color:var(--fg);
+  font-family:"Fira Code", monospace; font-size:16px;
+}
+.modal-buttons{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+
+/* ---------- Paper Decrypt — narrow-screen ergonomics ---------- */
+#paperDecryptModal{ align-items:center; justify-content:center; padding:12px; }
+#paperDecryptModal .modal{
+  width:min(720px,100%);
+  max-height:90dvh; overflow:auto; box-sizing:border-box;
+}
+#paperProgressHost{ width:100%; }
+#paperStatus{ font-size:14px; line-height:1.35; }
+#paperCam{
+  width:100%; max-height:42dvh; object-fit:contain;
+  background:#000; border-radius:8px;
+}
+
+/* ---------- Scrollbars ---------- */
+*::-webkit-scrollbar{ width:10px; height:10px; }
+*::-webkit-scrollbar-thumb{ background:linear-gradient(#00ff99,#0b7f55); border-radius:10px; }
+*::-webkit-scrollbar-track{ background:#0d0d0d; }
+
+/* Frame container stays safe-area aware */
+.ui-frame{
+  position:fixed;
+  inset:
+    max(10px, env(safe-area-inset-top))
+    max(10px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
+  pointer-events:none;
+  z-index:5000;
+}
+@media (max-width:599px){
+  .ui-frame{
+    inset:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+}
+.ui-frame-svg{ width:100%; height:100%; display:block; }
+
+/* The animated border */
+.ui-frame-path{
+  fill:transparent;
+  stroke:var(--border);
+  stroke-width:1.6;
+  filter:url(#neonGlow);
+
+  /* trace-on */
+  stroke-dasharray:1000;
+  stroke-dashoffset:1000;
+  animation:
+    drawFrame 4s linear forwards,        /* 0→4s: outline draws in */
+    neonPulse 4s ease-in-out 4s infinite;/* 4s+: soft breathing glow */
+}
+
+/* optional soft inner/outer radiance using a pseudo ring */
+.ui-frame::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:16px;
+  box-shadow:
+    0 0 0 1px rgba(0,255,153,.22),
+    inset 0 0 18px rgba(0,255,153,.16),
+    0 0 22px rgba(0,255,153,.18);
+  pointer-events:none;
+  opacity:.0;
+  animation: frameHalo 4s linear forwards; /* fade halo in as line draws */
+}
+
+/* animations */
+@keyframes drawFrame { to { stroke-dashoffset:0; } }
+@keyframes neonPulse {
+  0%,100% { opacity:.9; stroke-width:1.6; }
+  50%     { opacity:1;  stroke-width:2.2; }
+}
+@keyframes frameHalo { to { opacity:1; } }
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .ui-frame-path{
+    animation:none;
+    stroke-dasharray:none; stroke-dashoffset:0;
+  }
+  .ui-frame::after{ animation:none; opacity:1; }
+}
+
+/* tighter on small screens */
+@media (max-width:599px){
+  .ui-frame{
+    inset:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    border-radius:14px;
+  }
+}
+
+/* Keep the last row clear of the neon frame */
+body::after{
+  content:"";
+  display:block;
+  /* room for the frame + glow + safe area */
+  height: max(36px, calc(env(safe-area-inset-bottom) + 26px));
+}
+
+/* small extra breathing room below the grid */
+.vault-list{ margin-bottom: 12px; }
+
+/* ===== Mobile tweaks ===== */
+@media (max-width:599px){
+  /* reduce side padding a touch */
+body{ padding-inline: max(14px, clamp(14px, 6vw, 22px)); }
+
+  /* larger headline on small phones for presence */
+  h1{ font-size:clamp(34px, 9vw, 60px); }
+  h2{ font-size:clamp(20px, 4.6vw, 28px); }
+  p { font-size:clamp(15px, 3.8vw, 18px); }
+
+  .button, .modal-buttons button, .unlock-button{
+    min-height:50px; border-radius:12px; font-size:16px;
+    box-shadow:0 0 0 1px rgba(0,255,153,.12), 0 6px 14px rgba(0,0,0,.45);
+  }
+
+  /* make inner “card” invisible if you still use .app-shell */
+  .app-shell{
+    background:transparent; border:none; box-shadow:none; backdrop-filter:none; padding:0;
+  }
+
+  .modal-overlay{ padding:12px; }
+  .modal{ max-height:92dvh; padding:28px 20px 22px; border-radius:14px; }
+}
+
+/* ===== Tablet scale-up ===== */
+@media (600px <= width <= 900px){
+  .app-shell{ width:min(640px,100%); border-radius:18px; }
+}

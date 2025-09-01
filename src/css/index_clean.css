@@ -1,0 +1,172 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Fira Code', monospace;
+  overflow: hidden;
+}
+
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  z-index: 0;
+}
+
+.content {
+  z-index: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem; /* Clean vertical rhythm */
+  height: 100dvh;
+  max-height: 100dvh;
+  text-align: center;
+  padding: 4vh 5vw 3vh;
+  border-radius: 1rem;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.content img {
+  max-width: 90vw;
+  max-height: 50vh;
+  height: auto;
+  margin-bottom: 0.75rem;
+}
+
+p {
+  font-size: 1.25rem;
+  margin: 0 auto 0.75rem;
+  max-width: 90vw;
+  line-height: 1.6;
+  white-space: pre-line;
+  flex: 0 1 auto;
+}
+
+button {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  min-height: 44px;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-family: 'Fira Code', monospace;
+  transition: transform 0.2s;
+  margin-top: 0.4rem;
+  flex-shrink: 0;
+}
+
+button:hover {
+  transform: translateY(-2px);
+}
+
+/* ===== Modal layout — identical across themes ===== */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;             /* small, consistent edge gutter */
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.modal-content {
+  width: auto;               /* shrink to fit */
+  min-width: 260px;
+  max-width: 90vw;           /* phone-safe */
+  max-height: 85vh;
+  padding: 1.25rem 1.5rem;   /* same in both themes */
+  border-radius: 0.75rem;
+  text-align: center;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.modal-content h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.modal-buttons button {
+  min-width: 9.5rem;         /* identical widths prevent reflow */
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  min-height: 44px;
+  border-radius: 0.5rem;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+
+  /* no layout-affecting transitions: */
+  transition: background-color .25s ease, box-shadow .25s ease, color .25s ease, border-color .25s ease;
+}
+
+/* No vertical “lift” on hover to avoid pointer slip during preview */
+.modal-buttons button:hover { transform: none; }
+
+/* Stack on narrow screens */
+@media (max-width: 480px) {
+  .modal-buttons { flex-direction: column; }
+  .modal-buttons button { width: 100%; }
+}
+
+/* Optional: larger typography on big screens */
+@media (min-width: 1280px) {
+  .modal-content h2 { font-size: 1.75rem; }
+  .modal-buttons button { font-size: 1.15rem; padding: 1rem 2rem; }
+}
+
+
+/* --- Smooth theming transitions --- */
+body, .content, .modal, .modal-content, button, canvas {
+  transition: background-color .35s ease, color .35s ease, border-color .35s ease, box-shadow .35s ease, opacity .35s ease;
+}
+
+/* Full-screen fade veil during theme swap (prevents “flash”) */
+#themeFade {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+  z-index: 9998; /* below modals (which are 9999), above content */
+  background: Canvas; /* resolves to black/white depending on theme */
+}
+#themeFade.show { opacity: 1s; }
+
+/* === Modal visuals (place at end of file) === */
+.modal { background: color-mix(in srgb, CanvasText 55%, transparent); }
+
+.modal-content {
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, CanvasText 35%, transparent);
+}
+
+#themeFade {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s linear;   /* <- updated */
+  z-index: 9998;
+  background: Canvas; /* black/white depending on theme */
+}
+#themeFade.show { opacity: 1; }

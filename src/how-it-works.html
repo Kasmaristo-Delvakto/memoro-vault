@@ -3,100 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <title>How Memoro Vault Works</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Fira Code', monospace;
-      background-color: #000;
-      color: #00ff99;
-      overflow-x: hidden;
+<link id="theme-cypherpunk" rel="stylesheet" href="css/how-it-works_cypherpunk.css">
+<link id="theme-clean" rel="stylesheet" href="css/how-it-works_clean.css" disabled>
+
+<script>
+  // Toggle "How It Works" page styles (and later, optional matrix)
+  function applyHowItWorksTheme(theme) {
+    const cy = document.getElementById('theme-cypherpunk');
+    const cl = document.getElementById('theme-clean');
+    const isCypher = (theme === 'cypherpunk');
+
+    // 1) Flip stylesheets
+    if (cy) cy.disabled = !isCypher;
+    if (cl) cl.disabled =  isCypher;
+
+    // 2) Body attribute (safe for CSS hooks)
+    const setBodyAttr = () => {
+      if (document.body) {
+        document.body.setAttribute('data-theme', isCypher ? 'cypherpunk' : 'clean');
+      }
+    };
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', setBodyAttr, { once: true });
+    } else {
+      setBodyAttr();
     }
 
-    canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: -2;
+    // 3) Matrix background control (if implemented for HowItWorksMatrix)
+    if (window.HowItWorksMatrix) {
+      if (isCypher) HowItWorksMatrix.start();
+      else HowItWorksMatrix.stop();
     }
+  }
 
-    .overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.75);
-      z-index: -1;
-    }
+  // Initialize early to avoid FOUC
+  (function initHowItWorksTheme(){
+    const saved = sessionStorage.getItem('theme') || 'cypherpunk';
+    window.__savedHowItWorksTheme = saved;
 
-    .content {
-      max-width: 900px;
-      margin: auto;
-      padding: 60px 30px;
-    }
+    const cy = document.getElementById('theme-cypherpunk');
+    const cl = document.getElementById('theme-clean');
+    const isCypher = (saved === 'cypherpunk');
+    if (cy) cy.disabled = !isCypher;
+    if (cl) cl.disabled =  isCypher;
+  })();
 
-    h1 {
-      color: #00ff99;
-      font-size: 32px;
-      text-align: center;
-      margin-bottom: 40px;
-    }
+  applyHowItWorksTheme(window.__savedHowItWorksTheme || 'cypherpunk');
 
-    h2 {
-      font-size: 24px;
-      color: #00ff99;
-      margin-top: 40px;
-      margin-bottom: 15px;
-    }
+</script>
 
-    p {
-      font-size: 16px;
-      line-height: 1.6;
-      color: #ccffcc;
-      margin-bottom: 20px;
-    }
-
-    ul {
-      list-style: none;
-      padding-left: 0;
-      margin: 20px 0 30px;
-    }
-
-    ul li {
-      position: relative;
-      padding-left: 24px;
-      margin-bottom: 10px;
-      color: #bbffcc;
-    }
-
-    ul li::before {
-      content: "\25B8";
-      position: absolute;
-      left: 0;
-      color: #00ff99;
-    }
-
-    .button-container {
-      text-align: center;
-      margin-top: 50px;
-    }
-
-    .button {
-      background-color: #002611;
-      color: #00ff99;
-      padding: 14px 30px;
-      border-radius: 10px;
-      border: 1px solid #00ff99;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background-color 0.3s, transform 0.2s;
-    }
-
-    .button:hover {
-      background-color: #004422;
-      transform: translateY(-2px);
-    }
-  </style>
 </head>
 <body>
 <canvas id="matrixCanvas"></canvas>
@@ -180,27 +135,60 @@
   const columns = Math.floor(canvas.width / fontSize);
   const drops = Array(columns).fill(0);
 
-  function drawMatrix() {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#00ff99';
-    ctx.font = `${fontSize}px monospace`;
+  (function(){
+    const canvas = document.getElementById('matrixCanvas');
+    const ctx = canvas.getContext('2d');
 
-    for (let i = 0; i < drops.length; i++) {
-      const text = letters[Math.floor(Math.random() * letters.length)];
-      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-      drops[i]++;
-      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-        drops[i] = 0;
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@$%&'.split('');
+    const fontSize = 14;
+    let columns = Math.floor(canvas.width / fontSize);
+    let drops = Array(columns).fill(0);
+    let timer = null;
+
+    function drawMatrix() {
+      // faint trail
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00ff99';
+      ctx.font = `${fontSize}px monospace`;
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        drops[i]++;
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
       }
     }
-  }
 
-  setInterval(drawMatrix, 66);
-  window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  });
+    window.HowItWorksMatrix = {
+      start() {
+        resize();
+        columns = Math.floor(canvas.width / fontSize);
+        drops = Array(columns).fill(0);
+        if (!timer) timer = setInterval(drawMatrix, 66);
+        canvas.style.visibility = 'visible';
+      },
+      stop() {
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+        // clear canvas so no ghosted frame appears
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.style.visibility = 'hidden';
+      }
+    };
+  })();
 </script>
+
 </body>
 </html>
