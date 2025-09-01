@@ -44,23 +44,6 @@ export function sha256_hash(input) {
     return v2;
 }
 
-/**
- * @param {Uint8Array} password
- * @param {Uint8Array} salt
- * @param {number} iterations
- * @returns {Uint8Array}
- */
-export function derive_key(password, salt, iterations) {
-    const ptr0 = passArray8ToWasm0(password, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passArray8ToWasm0(salt, wasm.__wbindgen_malloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.derive_key(ptr0, len0, ptr1, len1, iterations);
-    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v3;
-}
-
 function takeFromExternrefTable0(idx) {
     const value = wasm.__wbindgen_export_0.get(idx);
     wasm.__externref_table_dealloc(idx);
@@ -108,6 +91,30 @@ export function aes_gcm_decrypt(key_bytes, nonce_bytes, ciphertext) {
     var v4 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
     return v4;
+}
+
+/**
+ * Argon2id key derivation (Rust/WASM, no JS dependency)
+ * @param {Uint8Array} password
+ * @param {Uint8Array} salt
+ * @param {number} time_cost
+ * @param {number} mem_kib
+ * @param {number} parallelism
+ * @param {number} hash_len
+ * @returns {Uint8Array}
+ */
+export function argon2_derive(password, salt, time_cost, mem_kib, parallelism, hash_len) {
+    const ptr0 = passArray8ToWasm0(password, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(salt, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.argon2_derive(ptr0, len0, ptr1, len1, time_cost, mem_kib, parallelism, hash_len);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
 }
 
 async function __wbg_load(module, imports) {

@@ -280,3 +280,17 @@ body::after{
 @media (600px <= width <= 900px){
   .app-shell{ width:min(640px,100%); border-radius:18px; }
 }
+
+/* ---------- Vault Item Outline ---------- */
+.vault-item {
+  border-radius: var(--radius);
+  padding: var(--pad-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  /* new outline for visibility */
+  border: 1px solid color-mix(in srgb, CanvasText 28%, transparent);
+  background: Canvas;
+  box-shadow: 0 2px 6px color-mix(in srgb, CanvasText 18%, transparent);
+}

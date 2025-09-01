@@ -75,12 +75,14 @@ function chunkString(str, maxLen) {
   for (let i = 0; i < str.length; i += maxLen) out.push(str.slice(i, i + maxLen));
   return out;
 }
+
+// --- REPLACE: AES for Lite ZIP → use Rust AES-GCM now ---
 async function aesGcmEncryptBytes(keyBytes, plaintextU8) {
-  const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
-  const iv  = crypto.getRandomValues(new Uint8Array(12));
-  const ct  = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintextU8));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await window.aesEncryptRust(keyBytes, iv, plaintextU8); // Uint8Array
   return { iv: Array.from(iv), ct: Array.from(ct) };
 }
+
 
 /**
  * Render a QR payload to a canvas sized for sharp printing.
@@ -628,41 +630,51 @@ function blankRedHerring(answers, trapIndex) {
   }
   return answers;
 }
-    // deriveKey.js
-async function deriveKey(password, saltHex, settingsOverride) {
 
-  const encoder = new TextEncoder();
-  const passwordBytes = encoder.encode(password);
+// --- NEW: derive raw key bytes via Rust Argon2id (for Rust AES) ---
+async function deriveRawKeyBytes(password, saltHex, settingsOverride) {
+  const enc = new TextEncoder();
+  const pwdBytes = enc.encode(password);
+
   const salt = saltHex
-    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
-    : new Uint8Array(await crypto.subtle.digest('SHA-256', passwordBytes));
-  const settings = settingsOverride || {
-      time: 3,
-      mem: 16384,
-      parallelism: 1,
-      type: "Argon2id",
-      hashLen: 32
-  };
-  const argonResult = await argon2.hash({
-    pass: password,
-    salt,
-    time: settings.time,
-    mem: settings.mem,
-    parallelism: settings.parallelism,
-    type: argon2.ArgonType[settings.type] || argon2.ArgonType.Argon2id,
-    hashLen: settings.hashLen || 32
-  });
-  const keyBytes = new Uint8Array(
-    argonResult.hashHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
-  );
-  return crypto.subtle.importKey(
-    'raw',
-    keyBytes,
-    { name: 'AES-GCM' },
-    true,
-    ['encrypt', 'decrypt']
-  );
+    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(h => parseInt(h, 16)))
+    : new Uint8Array(await crypto.subtle.digest("SHA-256", pwdBytes));
+
+  const s = settingsOverride || { time: 3, mem: 16384, parallelism: 1, hashLen: 32 };
+  return window.argon2DeriveRust(pwdBytes, salt, s.time, s.mem, s.parallelism, s.hashLen);
 }
+
+// (Optional) keep this if any leftover code still expects a CryptoKey:
+async function deriveAesCryptoKey(password, saltHex, settingsOverride) {
+  const raw = await deriveRawKeyBytes(password, saltHex, settingsOverride);
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, true, ["encrypt","decrypt"]);
+}
+
+ // deriveKey.js (Rust Argon2id)
+async function deriveKey(password, saltHex, settingsOverride) {
+  const enc = new TextEncoder();
+  const pwdBytes = enc.encode(password);
+
+  const salt = saltHex
+    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(h => parseInt(h, 16)))
+    : new Uint8Array(await crypto.subtle.digest("SHA-256", pwdBytes));
+
+  const s = settingsOverride || { time: 3, mem: 16384, parallelism: 1, hashLen: 32 };
+
+  // Raw derived bytes from Rust Argon2id:
+  const raw = window.argon2DeriveRust(
+    pwdBytes,
+    salt,
+    s.time,
+    s.mem,
+    s.parallelism,
+    s.hashLen
+  );
+
+  // Use as AES-GCM key
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, true, ["encrypt","decrypt"]);
+}
+
 
     // Add generatePermutations function from recover.html
     function generatePermutations(array) {
@@ -691,14 +703,14 @@ async function encryptVaultPayload(
   gateIndices,
   remainingL2Indices,
   liteMode = false,
-  opts = {} // { fixedLayer1Salt?: string, fixedPermutation?: string[], liteSelection?: { includeFinalMessage:boolean, seedNames:string[], uploadIds:string[] } }
+  opts = {} // { fixedLayer1Salt?: string, fixedPermutation?: string[], liteSelection?: {...} }
 ) {
   const encoder = new TextEncoder();
 
   // ── Layer 1 key (gate answers) ───────────────────────────────────────────────
   const layer1Salt = opts.fixedLayer1Salt || generateRandomHex(32);
-  const layer1Key = await deriveKey(unlockConcat, layer1Salt, {
-    time: 3, mem: 16384, parallelism: 1, type: "Argon2id", hashLen: 32
+  const layer1KeyRaw = await deriveRawKeyBytes(unlockConcat, layer1Salt, {
+    time: 3, mem: 16384, parallelism: 1, hashLen: 32
   });
 
   // Build questionList (unchanged)
@@ -734,15 +746,15 @@ async function encryptVaultPayload(
     };
   });
 
-  // Encrypt L1 question metadata
+  // Encrypt L1 question metadata with Rust AES
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
   const encQuestions = encoder.encode(JSON.stringify({
     questionList, selectedL2Indices, remainingL2Indices, gateIndices
   }));
-  const encData = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, layer1Key, encQuestions);
-  const vaultEncrypted = { ciphertext: Array.from(new Uint8Array(encData)), iv: Array.from(iv1) };
+  const encData = await window.aesEncryptRust(layer1KeyRaw, iv1, encQuestions);
+  const vaultEncrypted = { ciphertext: Array.from(encData), iv: Array.from(iv1) };
 
-  // ── Permutation & fullKey derivation (shared across Full/Lite) ──────────────
+  // ── Permutation & fullKey derivation ────────────────────────────────────────
   let finalPermutationUsed = opts.fixedPermutation;
   if (!finalPermutationUsed) {
     const perms = generatePermutations(selectedL2Indices.map(i => userData.normalizedAnswers[i]));
@@ -758,8 +770,8 @@ async function encryptVaultPayload(
   ];
   const permutedConcat = permutedAnswers.join('');
 
-  const fullKey = await deriveKey(permutedConcat, fullSalt, {
-    time: 3, mem: 16384, parallelism: 1, type: "Argon2id", hashLen: 32
+  const fullKeyRaw = await deriveRawKeyBytes(permutedConcat, fullSalt, {
+    time: 3, mem: 16384, parallelism: 1, hashLen: 32
   });
 
   // vaultHash binds order + answers
@@ -772,23 +784,29 @@ async function encryptVaultPayload(
   let finalMessageInfo = null; // { internal, iv }
 
   async function encryptAndPushFile(buffer, name, mime) {
-    const fileId = crypto.randomUUID().replace(/-/g, '');
+    const enc = new TextEncoder();
+    const fileId = crypto.randomUUID().replace(/-/g, "");
     const internalFilename = fileId + ".vaultdoc";
-    const fileSalt = new Uint8Array(await sha256Hash(new TextEncoder().encode(permutedConcat + fileId)));
 
-    const argonResult = await argon2.hash({
-      pass: permutedConcat + fileId,
-      salt: fileSalt,
-      time: 3, mem: 16384, parallelism: 1,
-      type: argon2.ArgonType.Argon2id, hashLen: 32
-    });
+    // fileSalt = SHA256(permutedConcat + fileId)
+    const fileSalt = new Uint8Array(
+      await window.sha256Hash(enc.encode(permutedConcat + fileId))
+    );
 
-    const rawKey = argonResult.hash; // Uint8Array (argon2-browser)
-    const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt"]);
+    // Derive per-file key with Rust Argon2id
+    const rawKey = window.argon2DeriveRust(
+      enc.encode(permutedConcat + fileId),
+      fileSalt,
+      3, 16384, 1, 32
+    );
+
+    // Encrypt with Rust AES-GCM
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, buffer);
+    const encryptedBuffer = await window.aesEncryptRust(rawKey, iv, buffer);
 
-    const sha256Hex = Array.from(await sha256Hash(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    // SHA-256 of plaintext for integrity metadata
+    const shaBuf = await window.sha256Hash(buffer);
+    const sha256Hex = Array.from(shaBuf).map(b => b.toString(16).padStart(2, "0")).join("");
 
     fileMeta.push({
       id: fileId,
@@ -815,18 +833,11 @@ async function encryptVaultPayload(
 
   if (liteMode && opts.liteSelection) {
     const sel = opts.liteSelection;
-
-    // Filter seeds by name
     seedsToInclude = namedSeedFiles.filter(s => sel.seedNames.includes(s.name));
-
-    // Filter uploads by id
     const idSet = new Set(sel.uploadIds.map(String));
     uploadsToInclude = files.filter(f => idSet.has(String(f.id)));
-
-    // Final message toggle
     includeFinal = !!sel.includeFinalMessage;
 
-    // Safety cap (raw)
     let total = 0;
     for (const s of seedsToInclude) total += new TextEncoder().encode(s.content || '').length;
     for (const u of uploadsToInclude) total += (u?.raw?.byteLength || 0);
@@ -837,36 +848,24 @@ async function encryptVaultPayload(
   }
 
   // ---------- Encrypt the chosen content ----------
-  // Uploads: all files in FULL; in LITE only chosen ones
-  if (!liteMode) {
-    for (const f of uploadsToInclude) {
-      await encryptAndPushFile(new Uint8Array(f.raw), f.name, f.type);
-    }
-  } else {
-    // liteMode: include only the selected uploads (if any)
-    for (const f of uploadsToInclude) {
-      await encryptAndPushFile(new Uint8Array(f.raw), f.name, f.type);
-    }
+  for (const f of uploadsToInclude) {
+    await encryptAndPushFile(new Uint8Array(f.raw), f.name, f.type);
   }
-
-  // Seeds
   for (const seed of seedsToInclude) {
     await encryptAndPushFile(new TextEncoder().encode(seed.content), seed.name, "text/plain");
   }
-
-  // Final message
   if (includeFinal) {
     await encryptAndPushFile(new TextEncoder().encode(userData.finalMessage.trim()), "final-message.txt", "text/plain");
   }
 
-  // Encrypt vault.meta with fullKey
+  // Encrypt vault.meta with fullKey (Rust AES)
   const iv3 = crypto.getRandomValues(new Uint8Array(12));
   const metaEnc = new TextEncoder().encode(JSON.stringify({
     files: fileMeta,
     seedFiles: seedsToInclude,
     vaultHash
   }));
-  const metaData = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv3 }, fullKey, metaEnc);
+  const metaData = await window.aesEncryptRust(fullKeyRaw, iv3, metaEnc);
   const fileMetaEncrypted = { data: new Uint8Array(metaData), iv: Array.from(iv3) };
 
   return {
@@ -876,7 +875,7 @@ async function encryptVaultPayload(
     layer1Salt,
     vaultHash,
     selectedPermutation: finalPermutationUsed,
-    finalMessageInfo // { internal, iv } or null
+    finalMessageInfo
   };
 }
 

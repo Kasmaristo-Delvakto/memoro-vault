@@ -4,21 +4,28 @@
   <meta charset="UTF-8">
   <title>Building Your Vault - Memoro Vault</title>
   <script src="libs/zip.min.js"></script>
-  <script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
   <script src="libs/secrets.min.js"></script>
   <script src="libs/jspdf.umd.min.js"></script>
   <script src="libs/qrcode.min.js"></script>
   <script type="module">
-import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './wasm/memoro_crypto.js';
-window.initCryptoWasm = async () => {
-  await init();
-  window.sha256Hash = sha256_hash;
-  window.deriveKeyRust = derive_key;
-  window.aesEncryptRust = aes_gcm_encrypt;
-  window.aesDecryptRust = aes_gcm_decrypt;
-};
-window.initCryptoWasm();
-  </script>
+  import init, {
+    sha256_hash,
+    aes_gcm_encrypt,
+    aes_gcm_decrypt,
+    argon2_derive
+  } from './wasm/memoro_crypto.js';
+
+  // Expose Promise-friendly wrappers
+  window.initCryptoWasm = async () => {
+    await init();
+    window.sha256Hash       = (u8) => Promise.resolve(sha256_hash(u8));
+    window.aesEncryptRust   = (k,n,p) => Promise.resolve(aes_gcm_encrypt(k,n,p));
+    window.aesDecryptRust   = (k,n,c) => Promise.resolve(aes_gcm_decrypt(k,n,c));
+    window.argon2DeriveRust = (pwdBytes, saltBytes, t, m, p, len) =>
+      argon2_derive(pwdBytes, saltBytes, t, m, p, len);
+  };
+</script>
+
 
 <!-- Theme styles for Build Vault -->
 <link id="theme-cypherpunk" rel="stylesheet" href="css/build-vault_cypherpunk.css">

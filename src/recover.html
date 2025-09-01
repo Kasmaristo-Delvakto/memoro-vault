@@ -4,11 +4,28 @@
   <meta charset="UTF-8" />
   <title>Recover Your Vault - Memoro Vault</title>
   <script src="libs/zip.min.js"></script>
-  <script src="libs/argon2-browser.min.js"></script>
+  <script type="module">
+  import init, {
+    sha256_hash,
+    aes_gcm_encrypt,
+    aes_gcm_decrypt,
+    argon2_derive
+  } from "./wasm/memoro_crypto.js";
 
-  <!-- in <head> -->
-<link id="theme-cypherpunk" rel="stylesheet" href="css/recover_cypherpunk.css">
-<link id="theme-clean"       rel="stylesheet" href="css/recover_clean.css" disabled>
+  window.initCryptoWasm = async () => {
+    await init();
+    window.sha256Hash       = (u8) => Promise.resolve(sha256_hash(u8));
+    window.aesEncryptRust   = (k,n,p) => Promise.resolve(aes_gcm_encrypt(k,n,p));
+    window.aesDecryptRust   = (k,n,c) => Promise.resolve(aes_gcm_decrypt(k,n,c));
+    window.argon2DeriveRust = (pwdBytes, saltBytes, t, m, p, len) =>
+      argon2_derive(pwdBytes, saltBytes, t, m, p, len);
+  };
+
+  window.initCryptoWasm();
+</script>
+
+  <link id="theme-cypherpunk" rel="stylesheet" href="css/recover_cypherpunk.css">
+  <link id="theme-clean"       rel="stylesheet" href="css/recover_clean.css" disabled>
 
 <script>
   // Theme switcher for recover page
@@ -172,7 +189,6 @@ const saved =
 
   <script type="module">
   // Initialize WebAssembly crypto module
-  import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './memoro_crypto.js';
 
   // Set up global crypto functions
   window.initCryptoWasm = async () => {
@@ -187,8 +203,6 @@ const saved =
   </script>
 
 <script type="module">
-  // Initialize WebAssembly crypto module
-  import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './memoro_crypto.js';
 
   // Set up global crypto functions
   window.initCryptoWasm = async () => {
@@ -544,8 +558,7 @@ async function submitRecovery() {
     const encBytes = new Uint8Array(encData.ciphertext);
     const encIv = new Uint8Array(encData.iv);
 
-    const layer1Key = await deriveKey(window.baseKey, layer1Salt, argonSettings);
-    const rawLayer1Key = new Uint8Array(await crypto.subtle.exportKey("raw", layer1Key));
+    const rawLayer1Key = await deriveRawKeyBytes(window.baseKey, layer1Salt, argonSettings);
     const decrypted = await window.aesDecryptRust(rawLayer1Key, encIv, encBytes);
     const parsed = JSON.parse(new TextDecoder().decode(decrypted));
     const { selectedL2Indices, remainingL2Indices, gateIndices, questionList } = parsed;
@@ -602,8 +615,7 @@ async function submitRecovery() {
         ...selectedL2Indices.map(idx => permutedAnswers[idx])
       ].join('');
 
-      const fullKey = await deriveKey(fullConcat, fullSalt, argonSettings);
-      const rawFullKey = new Uint8Array(await crypto.subtle.exportKey("raw", fullKey));
+      const rawFullKey = await deriveRawKeyBytes(fullConcat, fullSalt, argonSettings);
 
       const hashBytes = await sha256Hash(new TextEncoder().encode(fullConcat));
       const hashHex = bufferToHex(hashBytes);
@@ -779,115 +791,73 @@ hintDiv.innerHTML = `
       return JSON.parse(decoded).remainingOrder;
     }
 
-    // Decrypt final message (per-file key derivation identical to builder)
+// Decrypt final-message.txt (per-file key must match builder’s Rust Argon2id)
 async function decryptFinalMessage(fullKeyBytes, filesMeta, fullConcat) {
   const finalMeta = filesMeta.find(f => f.originalName === "final-message.txt");
-  if (!finalMeta) {
-    await printLineFast("[*] No final message to decrypt.");
-    return "";
-  }
+  if (!finalMeta) { await printLineFast("[*] No final message to decrypt."); return ""; }
 
   const blob = fileMap[finalMeta.filename];
   if (!blob) throw new Error("Missing final message file");
 
-  await printLineFast(`[+] Found final message file: ${finalMeta.filename}`);
   const encrypted = await safeUint8ArrayFromBlob(blob);
+  if (encrypted.length < 17) return "";
 
-  if (encrypted.length < 17) {
-    console.warn(`⚠️ Skipping final message: too short (${encrypted.length} bytes)`);
-    return "";
-  }
+  const enc = new TextEncoder();
+  const fileId   = finalMeta.filename.replace(".vaultdoc", "");
+  const password = fullConcat + fileId;
+  const fileSalt = new Uint8Array(await window.sha256Hash(enc.encode(password)));
 
-  // === Per-file key derivation MUST match builder ===
-  const fileId = finalMeta.filename.replace(".vaultdoc", "");
-  const password = fullConcat + fileId;                                // permutedConcat + fileId
-  const salt = new Uint8Array(await sha256Hash(new TextEncoder().encode(password))); // SHA-256(bytes)
+  const rawKey = window.argon2DeriveRust(
+    enc.encode(password),  // permutedConcat + fileId
+    fileSalt,              // SHA-256(permutedConcat + fileId)
+    3, 16384, 1, 32
+  );
 
-  const argonResult = await argon2.hash({
-    pass: password,
-    salt,
-    time: 3,
-    mem: 16384,
-    parallelism: 1,
-    type: argon2.ArgonType.Argon2id,   // ⚠️ use enum, not string
-    hashLen: 32
-  });
-
-  const rawKey = argonResult.hash; // Uint8Array
-  const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["decrypt"]);
   const iv = new Uint8Array(finalMeta.iv);
-
   try {
-    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encrypted);
-    return new TextDecoder().decode(decrypted).trim();
-  } catch (err) {
-    console.error("❌ Final message decryption failed", err);
-    await printLineFast(`[!] Final message decryption failed: ${err.message || err}`);
-    throw new Error("Final message could not be decrypted (wrong answers or corrupted file).");
+    const decU8 = await window.aesDecryptRust(rawKey, iv, encrypted);
+    return new TextDecoder().decode(decU8).trim();
+  } catch (e) {
+    await printLineFast(`[!] Final message decryption failed: ${e.message || e}`);
+    throw new Error("Final message could not be decrypted.");
   }
 }
 
-    // Decrypt all vault documents (per-file key derivation identical to builder)
+// Decrypt all .vaultdoc files using Rust Argon2id per-file keys
 async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
   const recoveredFiles = [];
+  const enc = new TextEncoder();
 
   for (let i = 0; i < vaultMetaFiles.length; i++) {
     const meta = vaultMetaFiles[i];
     try {
-      await printLineFast(`[~] Decrypting ${i + 1}/${vaultMetaFiles.length}: ${meta.originalName}...`);
-      await new Promise(r => setTimeout(r, 0)); // yield UI
+      const blob = fileMap[meta.filename];
+      if (!blob) { await printLineFast(`[!] Missing ${meta.filename}, skipping.`); continue; }
 
-      const blob = window.fileMap[meta.filename];
-      if (!blob) {
-        console.warn(`⚠️ Missing file: ${meta.filename}`);
-        await printLineFast(`[!] Skipped "${meta.originalName}" (missing file).`);
-        continue;
-      }
+      const encrypted = await safeUint8ArrayFromBlob(blob);
+      if (encrypted.length < 17) { await printLineFast(`[!] ${meta.filename} too short, skipping.`); continue; }
 
-      const encryptedBuffer = new Uint8Array(await blob.arrayBuffer());
-      if (encryptedBuffer.length < 17) {
-        console.warn(`⚠️ Skipping "${meta.originalName}": too short (${encryptedBuffer.length} bytes)`);
-        await printLineFast(`[!] Skipped "${meta.originalName}" (too short).`);
-        continue;
-      }
-
-      // === Per-file key derivation MUST match builder ===
-      const fileId = meta.filename.replace(".vaultdoc", "");
+      const fileId   = meta.filename.replace(".vaultdoc", "");
       const password = fullConcat + fileId;
-      const salt = new Uint8Array(await sha256Hash(new TextEncoder().encode(password)));
+      const fileSalt = new Uint8Array(await window.sha256Hash(enc.encode(password)));
 
-      const argonResult = await argon2.hash({
-        pass: password,
-        salt,
-        time: 3,
-        mem: 16384,
-        parallelism: 1,
-        type: argon2.ArgonType.Argon2id, // ⚠️ enum
-        hashLen: 32
-      });
-
-      const rawKey = argonResult.hash;
-      const aesKey = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["decrypt"]);
+      const rawKey = window.argon2DeriveRust(enc.encode(password), fileSalt, 3, 16384, 1, 32);
       const iv = new Uint8Array(meta.iv);
+      const decU8 = await window.aesDecryptRust(rawKey, iv, encrypted);
 
-      const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encryptedBuffer);
-
-      // Optional integrity check (matches builder’s stored SHA-256)
-      const sha256 = Array.from(await sha256Hash(new Uint8Array(decrypted)))
-        .map(b => b.toString(16).padStart(2, '0')).join('');
-      if (sha256 !== meta.sha256) {
-        console.warn(`⚠️ SHA-256 mismatch for "${meta.originalName}"`);
-        await printLineFast(`[!] SHA-256 mismatch for "${meta.originalName}"`);
-      }
+      const outBlob = new Blob([new Uint8Array(decU8)], {
+        type: meta.mimeType || "application/octet-stream"
+      });
 
       recoveredFiles.push({
-        name: meta.originalName,
-        blob: new Blob([decrypted], { type: meta.mimeType })
+        name: meta.originalName || meta.filename,
+        mime: meta.mimeType || "application/octet-stream",
+        blob: outBlob
       });
 
-    } catch (err) {
-      console.warn(`⚠️ Failed to decrypt "${meta.originalName}": ${err.message}`);
-      await printLineFast(`[!] Failed to decrypt "${meta.originalName}": ${err.message}`);
+      await printLineFast(`[+] Decrypted ${meta.filename}`);
+    } catch (e) {
+      await printLineFast(`[!] Failed to decrypt ${meta.filename}: ${e.message || e}`);
     }
   }
 
@@ -953,43 +923,15 @@ async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
       return JSON.parse(decoded).remainingOrder;
     }
 
-    async function deriveKey(password, saltHex, settingsOverride, extractable = true) {
-  const encoder = new TextEncoder();
-  const passwordBytes = encoder.encode(password);
-
+    // Rust Argon2id → raw bytes
+async function deriveRawKeyBytes(password, saltHex, argonSettings) {
+  const enc = new TextEncoder();
+  const pwdBytes = enc.encode(password);
   const salt = saltHex
-    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
-    : new Uint8Array(await crypto.subtle.digest('SHA-256', passwordBytes));
-
-  const settings = settingsOverride || {
-      time: 3,
-      mem: 16384,
-      parallelism: 1,
-      type: "Argon2id",
-      hashLen: 32
-  };
-
-  const argonResult = await argon2.hash({
-    pass: password,
-    salt,
-    time: settings.time,
-    mem: settings.mem,
-    parallelism: settings.parallelism,
-    type: argon2.ArgonType[settings.type] || argon2.ArgonType.Argon2id,
-    hashLen: settings.hashLen || 32
-  });
-
-  const keyBytes = new Uint8Array(
-    argonResult.hashHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
-  );
-
-  return crypto.subtle.importKey(
-    'raw',
-    keyBytes,
-    { name: 'AES-GCM' },
-    extractable,
-    ['encrypt', 'decrypt']
-  );
+    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(h => parseInt(h, 16)))
+    : new Uint8Array(await crypto.subtle.digest("SHA-256", pwdBytes));
+  const s = argonSettings || { time: 3, mem: 16384, parallelism: 1, hashLen: 32 };
+  return window.argon2DeriveRust(pwdBytes, salt, s.time, s.mem, s.parallelism, s.hashLen);
 }
 
     // Preview decrypted file
@@ -1023,27 +965,7 @@ async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
       document.getElementById("previewModal").style.display = "none";
     }
 
-    // AES decryption with validation
-    async function decryptAES(ciphertextArray, ivArray, key) {
-      const iv = new Uint8Array(ivArray);
-      const ciphertext = new Uint8Array(ciphertextArray);
-
-      const decryptedBuffer = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        key,
-        ciphertext
-      );
-
-      const decoded = new TextDecoder().decode(decryptedBuffer);
-
-      if (!decoded.startsWith('{') || !decoded.endsWith('}')) {
-        throw new Error("Decryption returned invalid JSON.");
-      }
-
-      return decoded;
-    }
-
-    window.onload = async () => {
+     window.onload = async () => {
   try {
     const vaultId = localStorage.getItem("lastVaultId");
     const transferKey = vaultId ? vaultId + "-transfer" : "memoroTransfer";
@@ -1128,24 +1050,24 @@ async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
       hashLen: 32
 };
 
-    const derivedKey = await deriveKey(window.baseKey, layer1Salt, argonSettings);
+    // L1: decrypt vault.enc with Rust AES using key derived from baseKey + layer1Salt
+const l1KeyRaw = await deriveRawKeyBytes(window.baseKey, layer1Salt, argonSettings);
+let encData;
+try {
+  const decU8 = await window.aesDecryptRust(l1KeyRaw, vaultEncIv, vaultEncBytes);
+  encData = JSON.parse(new TextDecoder().decode(decU8));
+  window.savedQuestions     = encData.questionList || [];
+  window.selectedL2Indices  = encData.selectedL2Indices || [];
+  window.remainingL2Indices = encData.remainingL2Indices || [];
+  window.gateIndices        = encData.gateIndices || [];
+} catch (e) {
+  console.error("Failed to decrypt vault.enc:", e);
+  window.savedQuestions = [];
+  window.selectedL2Indices = [];
+  window.remainingL2Indices = [];
+  window.gateIndices = [];
+}
 
-    let encData;
-    try {
-      const decryptedText = await decryptAES(vaultEncBytes, vaultEncIv, derivedKey);
-      encData = JSON.parse(decryptedText);
-      window.savedQuestions = encData.questionList || [];
-      window.selectedL2Indices = encData.selectedL2Indices || [];
-      window.remainingL2Indices = encData.remainingL2Indices || [];
-      window.gateIndices = encData.gateIndices || [];
-      console.log("Decrypted questionList:", encData.questionList);
-    } catch (e) {
-      console.error("Failed to decrypt vault.enc with baseKey:", e);
-      window.savedQuestions = [];
-      window.selectedL2Indices = [];
-      window.remainingL2Indices = [];
-      window.gateIndices = [];
-    }
 
     console.log("Loaded vaultData:", window.vaultData);
     console.log("Populated savedQuestions before loadQuestions:", window.savedQuestions);

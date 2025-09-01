@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Memoro Vault - Dashboard</title>
 <script src="libs/zip.min.js"></script>
-<script src="libs/argon2-browser.min.js"></script> <!-- Argon2 lib -->
 <script src="libs/secrets.min.js"></script>
 <!-- ZXing first (some polyfills will use it internally) -->
 <script src="libs/zxing.min.js"></script>
@@ -27,6 +26,26 @@
 
 <!-- QR decoder -->
 <script src="libs/jsqr.min.js"></script>
+
+<script type="module">
+  import init, {
+    sha256_hash,
+    aes_gcm_encrypt,
+    aes_gcm_decrypt,
+    argon2_derive
+  } from "./wasm/memoro_crypto.js";
+
+  window.initCryptoWasm = async () => {
+    await init();
+    window.sha256Hash       = (u8) => Promise.resolve(sha256_hash(u8));
+    window.aesEncryptRust   = (k,n,p) => Promise.resolve(aes_gcm_encrypt(k,n,p));
+    window.aesDecryptRust   = (k,n,c) => Promise.resolve(aes_gcm_decrypt(k,n,c));
+    window.argon2DeriveRust = (pwdBytes, saltBytes, t, m, p, len) =>
+      argon2_derive(pwdBytes, saltBytes, t, m, p, len);
+  };
+  window.initCryptoWasm();
+</script>
+
 
   <link id="theme-cypherpunk" rel="stylesheet" href="css/dashboard_cypherpunk.css">
   <link id="theme-clean" rel="stylesheet" href="css/dashboard_clean.css" disabled>
@@ -571,67 +590,32 @@ async function handleVaultZip(event) {
 
 
 <script>
-async function deriveKey(password, saltHex = null, vaultData = null) {
-  const encoder = new TextEncoder();
-  const passwordBytes = encoder.encode(password);
-  const salt = saltHex 
-    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)))
-    : new Uint8Array(await crypto.subtle.digest("SHA-256", passwordBytes));
-
-  const settings = vaultData?.argonSettings || {
-    time: 10,
-    mem: 65536,
-    parallelism: 4,
-    type: "Argon2id",
-    hashLen: 32
-  };
-
-  const argonResult = await argon2.hash({
-    pass: password,
-    salt,
-    time: settings.time,
-    mem: settings.mem,
-    parallelism: settings.parallelism,
-    type: argon2.ArgonType[settings.type] || argon2.ArgonType.Argon2id,
-    hashLen: settings.hashLen || 32
-  });
-
-  const keyBytes = new Uint8Array(argonResult.hash);
-  return crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"]
-  );
+// Derive raw key bytes via Rust Argon2id (used with Rust AES-GCM)
+async function deriveRawKeyBytes(password, saltHex, settings) {
+  const enc = new TextEncoder();
+  const pwdBytes = enc.encode(password);
+  const salt = saltHex
+    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(h => parseInt(h, 16)))
+    : new Uint8Array(await crypto.subtle.digest("SHA-256", pwdBytes));
+  const s = settings || { time: 3, mem: 16384, parallelism: 1, hashLen: 32 };
+  return window.argon2DeriveRust(pwdBytes, salt, s.time, s.mem, s.parallelism, s.hashLen);
 }
 
 async function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function decryptAES(ciphertextArray, ivArray, key) {
+async function decryptAES(ciphertextArray, ivArray, rawKeyBytes) {
   try {
-    const iv = new Uint8Array(ivArray);
-    const ciphertext = new Uint8Array(ciphertextArray);
-
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      ciphertext
-    );
-
-    const decoded = new TextDecoder().decode(decryptedBuffer);
-
-    // ✅ Ensure full JSON was returned for large payloads
+    const decU8 = await window.aesDecryptRust(rawKeyBytes, new Uint8Array(ivArray), new Uint8Array(ciphertextArray));
+    const decoded = new TextDecoder().decode(decU8);
     if (!decoded.startsWith('{') || !decoded.endsWith('}')) {
       throw new Error("Decryption returned incomplete JSON. Data may be too large or corrupted.");
     }
-
     return decoded;
   } catch (err) {
     console.error("❌ Decryption failed:", err);
-    throw new Error("Decryption failed: Incorrect key or corrupted vault.enc.");
+    throw new Error("Decryption failed: Incorrect key or corrupted data.");
   }
 }
 
@@ -672,14 +656,9 @@ async function submitUnlock() {
     const vaultEncJson = JSON.parse(vaultEncText);
     const { ciphertext, iv } = vaultEncJson;
 
-    const aesKey = await deriveKey(answer1 + answer2, layer1Salt, vaultData);
-
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: new Uint8Array(iv) },
-      aesKey,
-      new Uint8Array(ciphertext)
-    );
-    const decrypted = new TextDecoder().decode(decryptedBuffer);
+    const l1KeyRaw = await deriveRawKeyBytes(answer1 + answer2, layer1Salt, vaultData.argonSettings);
+    const decU8 = await window.aesDecryptRust(l1KeyRaw, new Uint8Array(iv), new Uint8Array(ciphertext));
+    const decrypted = new TextDecoder().decode(decU8);
     const fullVaultData = JSON.parse(decrypted);
 
     // Inject metadata
@@ -1684,11 +1663,8 @@ async function rebuildLiteFromPaper() {
 
     // 3) Decrypt
     const keyU8 = new Uint8Array(keyHex.match(/.{1,2}/g).map(h => parseInt(h, 16)));
-    const aesKey = await crypto.subtle.importKey("raw", keyU8, "AES-GCM", false, ["decrypt"]);
     const ivU8  = new Uint8Array(header.iv);
-    const zipBytes = new Uint8Array(
-      await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivU8 }, aesKey, ctBytes)
-    );
+    const zipBytes = await window.aesDecryptRust(keyU8, ivU8, ctBytes);
 
     // 4) Verify
     if (zipBytes.length !== header.size) {

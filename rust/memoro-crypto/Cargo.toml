@@ -1,6 +1,6 @@
 [package]
 name = "memoro-crypto"
-version = "1.0.5"
+version = "1.0.6"
 authors = ["Kasmaristo Delvakto <printandpray@proton.me>"]
 edition = "2021"
 
@@ -18,6 +18,11 @@ sha2 = "0.10"
 aes-gcm = "0.10"
 getrandom = { version = "0.2", features = ["js"] }
 console_error_panic_hook = { version = "0.1.7", optional = true }
+
+# NEW for Argon2
+argon2 = { version = "0.5", default-features = false, features = ["std"] }
+password-hash = "0.5"
+base64 = "0.21"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.34"
