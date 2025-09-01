@@ -5,7 +5,6 @@
   <title>Recover Your Vault - Memoro Vault</title>
   <script src="libs/zip.min.js"></script>
   <script src="libs/argon2-browser.min.js"></script>
-  <script src="libs/zip.min.js"></script>
 
   <!-- in <head> -->
 <link id="theme-cypherpunk" rel="stylesheet" href="css/recover_cypherpunk.css">
@@ -172,6 +171,22 @@ const saved =
 
 
   <script type="module">
+  // Initialize WebAssembly crypto module
+  import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './memoro_crypto.js';
+
+  // Set up global crypto functions
+  window.initCryptoWasm = async () => {
+    await init();
+    window.sha256Hash = sha256_hash;
+    window.deriveKeyRust = derive_key;
+    window.aesEncryptRust = aes_gcm_encrypt;
+    window.aesDecryptRust = aes_gcm_decrypt;
+  };
+
+  window.initCryptoWasm();
+  </script>
+
+<script type="module">
   // Initialize WebAssembly crypto module
   import init, { sha256_hash, derive_key, aes_gcm_encrypt, aes_gcm_decrypt } from './memoro_crypto.js';
 
@@ -1008,47 +1023,6 @@ async function decryptVaultDocs(fullKeyRaw, vaultMetaFiles, fullConcat) {
       document.getElementById("previewModal").style.display = "none";
     }
 
-   async function secureExit() {
-  try {
-    const THEME_KEY = "theme";
-    // preserve current theme from either store
-    const preserved =
-      localStorage.getItem(THEME_KEY) ??
-      sessionStorage.getItem(THEME_KEY) ?? null;
-
-    // clear everything except THEME_KEY
-    const safeClear = (store) => {
-      const keep = new Set([THEME_KEY]);
-      for (let i = store.length - 1; i >= 0; i--) {
-        const k = store.key(i);
-        if (!keep.has(k)) store.removeItem(k);
-      }
-    };
-    safeClear(localStorage);
-    safeClear(sessionStorage);
-
-    // restore theme for both pages to see it
-    if (preserved !== null) {
-      localStorage.setItem(THEME_KEY, preserved);
-      sessionStorage.setItem(THEME_KEY, preserved);
-    }
-
-    // wipe IndexedDBs
-    if (indexedDB.databases) {
-      const dbs = await indexedDB.databases();
-      for (const db of dbs) if (db.name) indexedDB.deleteDatabase(db.name);
-    } else {
-      indexedDB.deleteDatabase("memoroVaultVaultStorage");
-      indexedDB.deleteDatabase("memoroVaultDB");
-    }
-
-  } catch (e) {
-    console.warn("Secure exit cleanup issue:", e);
-  } finally {
-    window.location.href = "dashboard.html";
-  }
-}
-
     // AES decryption with validation
     async function decryptAES(ciphertextArray, ivArray, key) {
       const iv = new Uint8Array(ivArray);
@@ -1394,43 +1368,88 @@ function blankRedHerring(answers, trapIndex) {
       burstMatrixEffect();
     }
 
-    // Wipe all local data EXCEPT the theme selection ("theme")
-async function nukeEverything() {
+// --- recover.html: replace your existing secureExit() with this ---
+async function secureExit() {
   try {
     const THEME_KEY = "theme";
-    // preserve current theme (prefer localStorage)
-    const preservedTheme =
-      localStorage.getItem(THEME_KEY) ??
+
+    // Prefer sessionStorage first, then localStorage
+    const preserved =
       sessionStorage.getItem(THEME_KEY) ??
+      localStorage.getItem(THEME_KEY) ??
       null;
 
-    // helper: remove all keys except THEME_KEY
-    const safeClear = (store) => {
+    // Clear everything except THEME_KEY
+    function safeClear(store) {
       const keep = new Set([THEME_KEY]);
-      // iterate backwards so index doesn't shift as we remove
       for (let i = store.length - 1; i >= 0; i--) {
         const k = store.key(i);
         if (!keep.has(k)) store.removeItem(k);
       }
-    };
+    }
 
     safeClear(localStorage);
     safeClear(sessionStorage);
 
-    // restore theme to both stores so either page can read it
-    if (preservedTheme !== null) {
-      localStorage.setItem(THEME_KEY, preservedTheme);
-      sessionStorage.setItem(THEME_KEY, preservedTheme);
+    // Restore preserved theme into BOTH storages so either page can read it
+    if (preserved !== null) {
+      localStorage.setItem(THEME_KEY, preserved);
+      sessionStorage.setItem(THEME_KEY, preserved);
     }
 
-    // delete all IndexedDB databases
+    // Wipe IndexedDBs
     if (indexedDB.databases) {
       const dbs = await indexedDB.databases();
       for (const db of dbs) {
-        if (db.name) indexedDB.deleteDatabase(db.name);
+        if (db?.name) indexedDB.deleteDatabase(db.name);
       }
     } else {
-      // legacy fallback: delete known DBs
+      indexedDB.deleteDatabase("memoroVaultVaultStorage");
+      indexedDB.deleteDatabase("memoroVaultDB");
+    }
+  } catch (e) {
+    console.warn("Secure exit cleanup issue:", e);
+  } finally {
+    window.location.href = "dashboard.html";
+  }
+}
+
+// --- recover.html: replace your existing nukeEverything() with this ---
+async function nukeEverything() {
+  try {
+    const THEME_KEY = "theme";
+
+    // Prefer sessionStorage first, then localStorage
+    const preserved =
+      sessionStorage.getItem(THEME_KEY) ??
+      localStorage.getItem(THEME_KEY) ??
+      null;
+
+    // Clear everything except THEME_KEY
+    function safeClear(store) {
+      const keep = new Set([THEME_KEY]);
+      for (let i = store.length - 1; i >= 0; i--) {
+        const k = store.key(i);
+        if (!keep.has(k)) store.removeItem(k);
+      }
+    }
+
+    safeClear(localStorage);
+    safeClear(sessionStorage);
+
+    // Restore preserved theme into BOTH storages so either page can read it
+    if (preserved !== null) {
+      localStorage.setItem(THEME_KEY, preserved);
+      sessionStorage.setItem(THEME_KEY, preserved);
+    }
+
+    // Delete all IndexedDB databases
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        if (db?.name) indexedDB.deleteDatabase(db.name);
+      }
+    } else {
       indexedDB.deleteDatabase("memoroVaultVaultStorage");
       indexedDB.deleteDatabase("memoroVaultDB");
     }
@@ -1438,6 +1457,9 @@ async function nukeEverything() {
     console.log("Memoro Vault: Local memory wiped (theme preserved).");
   } catch (err) {
     console.warn("Memoro Vault wipe failed:", err);
+  } finally {
+    // Send the user back to dashboard after wipe
+    window.location.href = "dashboard.html";
   }
 }
 </script>

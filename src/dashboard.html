@@ -928,8 +928,8 @@ async function nukeEverything() {
     sessionStorage.clear();
 
     // Restore theme to both
-    localStorage.setItem("theme", preservedTheme);
     sessionStorage.setItem("theme", preservedTheme);
+    localStorage.setItem("theme", preservedTheme);
 
     // Delete only Memoro Vault DBs
     if (indexedDB.databases) {
