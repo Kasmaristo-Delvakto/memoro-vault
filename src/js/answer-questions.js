@@ -490,19 +490,22 @@ function getSelectedTrapIndex() {
   return idx;
 }
 
-// Ensure Red Herring's showLength flag is forced ON in memory
+// Ensure Red Herring's showLength is ON unless the question is MCQ
 function enforceRedHerringShowLength() {
   const trapIndex = getSelectedTrapIndex();
   if (trapIndex >= 0) {
     if (!customHints[trapIndex]) {
-      customHints[trapIndex] = { letters: [], custom: "", showLength: true };
-    } else {
+      customHints[trapIndex] = { letters: [], custom: "", showLength: true, mcqEnabled: false };
+    }
+    if (!customHints[trapIndex].mcqEnabled) {
       customHints[trapIndex].showLength = true;
+    } else {
+      customHints[trapIndex].showLength = false; // MCQ red herring: no length shown
     }
   }
 }
 
-  function openHintModal(index) {
+ function openHintModal(index) {
   activeHintIndex = index;
   document.getElementById('hintModal').style.display = 'flex';
 
@@ -510,17 +513,15 @@ function enforceRedHerringShowLength() {
   const showLengthEl = document.getElementById('showLength');
   const saved = customHints[index];
 
-  // Default from saved or TRUE
-  showLengthEl.checked = (saved && typeof saved.showLength === 'boolean')
-    ? saved.showLength
-    : true;
+  // Default from saved or TRUE (unless later overridden by MCQ)
+  showLengthEl.checked = (saved && typeof saved.showLength === 'boolean') ? saved.showLength : true;
 
-  // If this question is the Red Herring, force ON + disable
-  if (index === trapIndex) {
+  // If this question is the Red Herring and it's NOT MCQ, force ON + disable
+  if (index === trapIndex && !saved?.mcqEnabled) {
     showLengthEl.checked = true;
     showLengthEl.disabled = true;
   } else {
-    showLengthEl.disabled = false;
+    showLengthEl.disabled = false; // may get disabled again by MCQ
   }
 
   // Pre-size number of letters dropdown
@@ -530,30 +531,155 @@ function enforceRedHerringShowLength() {
   }
 
   buildLetterSelectors();
-
-  // Disable/enable letter hint controls based on showLength
   toggleLetterHintAvailability(showLengthEl.checked);
 
-  // Ensure it updates live when checkbox toggles
   showLengthEl.addEventListener("change", () => {
     toggleLetterHintAvailability(showLengthEl.checked);
-  });
+  }, { once: true });
+
+  // ----- MCQ wiring -----
+  hydrateMcqFromSaved(saved || {});
+
+  const mcqEnabledEl = document.getElementById('mcqEnabled');
+  const mcqCountEl = document.getElementById('mcqCount');
+
+  mcqEnabledEl.onchange = (e) => {
+    syncMcqUiEnabledState(e.target.checked);
+  };
+
+  mcqCountEl.onchange = (e) => {
+    const n = parseInt(e.target.value, 10) || 6;
+    // Keep whatever the user already typed in decoys
+    const currentDecoys = Array.from(document.querySelectorAll('.mcq-decoy'))
+      .map(inp => inp.value);
+    const resizedDecoys = currentDecoys.slice(0, Math.max(0, n - 1));
+    while (resizedDecoys.length < n - 1) resizedDecoys.push('');
+    renderMcqDecoyInputs(Math.max(5, n - 1), resizedDecoys);
+  };
 }
 
-  function toggleLetterHintAvailability(enabled) {
+  function toggleLetterHintAvailability(show) {
   const numLettersEl = document.getElementById('numLetters');
-  const container = document.getElementById('letterSelectors');
+  const letterBox = document.getElementById('letterSelectors');
   const saveBtn = document.getElementById('hintSaveBtn');
 
-  if (!enabled) {
-    if (numLettersEl) numLettersEl.disabled = true;
-    if (container) container.querySelectorAll('select').forEach(sel => sel.disabled = true);
-    if (saveBtn) saveBtn.disabled = true;  // block saving letter hints
-  } else {
-    if (numLettersEl) numLettersEl.disabled = false;
-    if (container) container.querySelectorAll('select').forEach(sel => sel.disabled = false);
-    if (saveBtn) saveBtn.disabled = false;
+  // If MCQ is enabled for the active question, letters UI should be disabled,
+  // but the Save button must remain enabled.
+  const mcqOn = !!document.getElementById('mcqEnabled')?.checked
+             || !!customHints[activeHintIndex]?.mcqEnabled;
+
+  // Letters controls are usable only when: NOT MCQ and showLength == true
+  const lettersDisabled = mcqOn || !show;
+
+  if (numLettersEl) numLettersEl.disabled = lettersDisabled;
+  if (letterBox) {
+    letterBox.querySelectorAll('select').forEach(s => s.disabled = lettersDisabled);
   }
+
+  // IMPORTANT: Never disable Save here. Validation happens in saveCustomHint().
+  if (saveBtn) saveBtn.disabled = false;
+}
+
+
+function syncMcqUiEnabledState(isEnabled) {
+  const showLengthEl = document.getElementById('showLength');
+  const numLettersEl = document.getElementById('numLetters');
+  const letterBox = document.getElementById('letterSelectors');
+  const mcqConfig = document.getElementById('mcqConfig');
+
+  if (isEnabled) {
+    if (showLengthEl) { showLengthEl.checked = false; showLengthEl.disabled = true; }
+    if (numLettersEl) numLettersEl.disabled = true;
+    if (letterBox) letterBox.querySelectorAll('select').forEach(s => s.disabled = true);
+    if (mcqConfig) mcqConfig.style.display = '';
+  } else {
+    const trapIndex = getSelectedTrapIndex();
+    const isTrap = (activeHintIndex === trapIndex);
+    if (showLengthEl) showLengthEl.disabled = isTrap;
+    if (!isTrap && showLengthEl?.checked) {
+      if (numLettersEl) numLettersEl.disabled = false;
+      if (letterBox) letterBox.querySelectorAll('select').forEach(s => s.disabled = false);
+    }
+    if (mcqConfig) mcqConfig.style.display = 'none';
+  }
+    // Always allow saving while editing MCQ
+  const saveBtn = document.getElementById('hintSaveBtn');
+  if (saveBtn) saveBtn.disabled = false;
+
+}
+
+function buildMcqCountDropdown() {
+  const sel = document.getElementById('mcqCount');
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (let n = 6; n <= 12; n++) {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = `${n} options`;
+    sel.appendChild(opt);
+  }
+}
+
+function renderMcqDecoyInputs(countMinusOne, savedDecoys = []) {
+  const holder = document.getElementById('mcqOptions');
+  if (!holder) return;
+  holder.innerHTML = '';
+  for (let i = 0; i < countMinusOne; i++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'input-group';
+    wrap.innerHTML = `
+      <label>Decoy ${i+1}</label>
+      <input type="text" class="mcq-decoy" data-decoy-index="${i}"
+             placeholder="convincing but wrong"
+             value="${(savedDecoys[i]||'').replace(/"/g,'&quot;')}" />
+    `;
+    holder.appendChild(wrap);
+  }
+}
+
+function hydrateMcqFromSaved(saved) {
+  const enabled = !!(saved && saved.mcqEnabled);
+  const mcqEnabledEl = document.getElementById('mcqEnabled');
+  if (mcqEnabledEl) mcqEnabledEl.checked = enabled;
+
+  // Build count choices
+  buildMcqCountDropdown();
+  const sel = document.getElementById('mcqCount');
+
+  // Pull saved options; index 0 is the correct one
+  const savedOptions = Array.isArray(saved?.mcqOptions) ? saved.mcqOptions.slice() : [];
+
+  // Prefill correct option:
+  const mcqCorrectEl = document.getElementById('mcqCorrect');
+  if (mcqCorrectEl) {
+    // Prefer saved correct option; else default to whatever is already typed for this question on the page
+    const existingTyped = document.getElementById(`answer-${activeHintIndex}`)?.value || '';
+    mcqCorrectEl.value = savedOptions[0] || existingTyped || '';
+  }
+
+  // Prefill decoys:
+  const decoys = savedOptions.length > 0 ? savedOptions.slice(1) : [];
+  const n = Math.max(6, Math.min(12, (decoys.length + 1) || 6));
+  if (sel) sel.value = String(n);
+
+  renderMcqDecoyInputs(n - 1, decoys);
+  syncMcqUiEnabledState(enabled);
+}
+
+function hydrateMcqFromSaved(saved) {
+  const enabled = !!(saved && saved.mcqEnabled);
+  const mcqEnabledEl = document.getElementById('mcqEnabled');
+  mcqEnabledEl.checked = enabled;
+  buildMcqCountDropdown();
+  const sel = document.getElementById('mcqCount');
+  const decoys = Array.isArray(saved?.mcqOptions) ? saved.mcqOptions.slice(1) : []; // skip correct
+  const n = Math.max(6, Math.min(12, (decoys.length + 1) || 6));
+  sel.value = String(n);
+  renderMcqDecoyInputs(n - 1);
+  // prefill decoys
+  const inputs = document.querySelectorAll('.mcq-decoy');
+  inputs.forEach((inp, i) => inp.value = decoys[i] || '');
+  syncMcqUiEnabledState(enabled);
 }
 
   function closeHintModal() {
@@ -615,26 +741,78 @@ function enforceRedHerringShowLength() {
   }
 }
 
-  function saveCustomHint() {
+function saveCustomHint() {
   if (activeHintIndex === null) return;
 
   const trapIndex = getSelectedTrapIndex();
   const requestedShowLength = document.getElementById('showLength').checked;
-  const effectiveShowLength = (activeHintIndex === trapIndex) ? true : requestedShowLength;
 
-  // If showLength is off → block letter hints, only save custom text
-  if (!effectiveShowLength) {
+  const mcqEnabled = !!document.getElementById('mcqEnabled')?.checked;
+  const customText = document.getElementById('customHintText').value.trim();
+
+  if (mcqEnabled) {
+    const countSel = document.getElementById('mcqCount');
+    const n = Math.max(6, Math.min(12, parseInt(countSel?.value || '6', 10)));
+
+    const correctEl = document.getElementById('mcqCorrect');
+    const correct = (correctEl?.value || '').trim();
+    if (!correct) {
+      showMessageModal('Missing correct option', 'Please enter the correct option for this question.');
+      return;
+    }
+
+    const decoys = Array.from(document.querySelectorAll('.mcq-decoy'))
+      .map(i => (i.value || '').trim())
+      .filter(Boolean);
+
+    if (decoys.length !== (n - 1)) {
+      showMessageModal('MCQ needs more options', `Provide ${n - 1} decoy option${n-1>1?'s':''}.`);
+      return;
+    }
+
+    // Optional: dedupe options (light guard)
+    const all = [correct, ...decoys];
+    const uniq = new Set(all.map(s => s.toLowerCase()));
+    if (uniq.size !== all.length) {
+      showMessageModal('Duplicate options', 'Please ensure all options are unique.');
+      return;
+    }
+
+    // Persist MCQ (length OFF, letters ignored)
     customHints[activeHintIndex] = {
       letters: [],
-      custom: document.getElementById('customHintText').value.trim(),
-      showLength: false
+      custom: customText,
+      showLength: false,
+      mcqEnabled: true,
+      mcqOptions: all
     };
+
+    // (Optional) sync the main answer input to the correct option, so export flows match expectations
+    const mainAnswer = document.getElementById(`answer-${activeHintIndex}`);
+    if (mainAnswer) mainAnswer.value = correct;
+
+    updateHintPreview(activeHintIndex);
     updateEntropy(activeHintIndex);
     closeHintModal();
     return;
   }
 
-  // Otherwise allow letter hints
+  // ----- Non-MCQ path (original behavior) -----
+  const effectiveShowLength = (activeHintIndex === trapIndex) ? true : requestedShowLength;
+
+  if (!effectiveShowLength) {
+    customHints[activeHintIndex] = {
+      letters: [],
+      custom: customText,
+      showLength: false,
+      mcqEnabled: false
+    };
+    updateHintPreview(activeHintIndex);
+    updateEntropy(activeHintIndex);
+    closeHintModal();
+    return;
+  }
+
   const num = parseInt(document.getElementById('numLetters').value);
   const indexes = [];
   const seen = new Set();
@@ -644,14 +822,10 @@ function enforceRedHerringShowLength() {
     const el = document.getElementById(`letter-select-${i}`);
     if (!el) continue;
     const value = parseInt(el.value);
-    if (seen.has(value)) {
-      duplicateFound = true;
-      break;
-    }
+    if (seen.has(value)) { duplicateFound = true; break; }
     seen.add(value);
     indexes.push(value);
   }
-
   if (duplicateFound) {
     showMessageModal('Duplicate Letter Chosen', 'Please choose different letters for your hints.');
     return;
@@ -659,10 +833,12 @@ function enforceRedHerringShowLength() {
 
   customHints[activeHintIndex] = {
     letters: indexes.sort((a, b) => a - b),
-    custom: document.getElementById('customHintText').value.trim(),
-    showLength: effectiveShowLength
+    custom: customText,
+    showLength: effectiveShowLength,
+    mcqEnabled: false
   };
 
+  updateHintPreview(activeHintIndex);
   updateEntropy(activeHintIndex);
   closeHintModal();
 }
@@ -851,6 +1027,75 @@ async function nukeEverything() {
   }
 }
 
+function syncMcqUiEnabledState(isEnabled) {
+  // If MCQ is enabled: hide/disable the length+letters UI
+  const showLengthEl = document.getElementById('showLength');
+  const numLettersEl = document.getElementById('numLetters');
+  const letterBox = document.getElementById('letterSelectors');
+  const mcqConfig = document.getElementById('mcqConfig');
+
+  if (isEnabled) {
+    if (showLengthEl) { showLengthEl.checked = false; showLengthEl.disabled = true; }
+    if (numLettersEl) numLettersEl.disabled = true;
+    if (letterBox) letterBox.querySelectorAll('select').forEach(s => s.disabled = true);
+    if (mcqConfig) mcqConfig.style.display = '';
+  } else {
+    // Re-enable length + letter UI unless trap is selected (trap still disables)
+    const trapIndex = getSelectedTrapIndex();
+    const isTrap = (activeHintIndex === trapIndex);
+    if (showLengthEl) showLengthEl.disabled = isTrap;
+    if (!isTrap && showLengthEl?.checked) {
+      if (numLettersEl) numLettersEl.disabled = false;
+      if (letterBox) letterBox.querySelectorAll('select').forEach(s => s.disabled = false);
+    }
+    if (mcqConfig) mcqConfig.style.display = 'none';
+  }
+}
+
+function buildMcqCountDropdown() {
+  const sel = document.getElementById('mcqCount');
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (let n = 6; n <= 12; n++) {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = `${n} options`;
+    sel.appendChild(opt);
+  }
+}
+
+function renderMcqDecoyInputs(countMinusOne, savedDecoys = []) {
+  const holder = document.getElementById('mcqOptions');
+  if (!holder) return;
+  holder.innerHTML = '';
+  for (let i = 0; i < countMinusOne; i++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'input-group';
+    wrap.innerHTML = `
+      <label>Decoy ${i+1}</label>
+      <input type="text" class="mcq-decoy" data-decoy-index="${i}" placeholder="convincing but wrong" value="${(savedDecoys[i]||'').replace(/"/g,'&quot;')}" />
+    `;
+    holder.appendChild(wrap);
+  }
+}
+
+function hydrateMcqFromSaved(saved) {
+  const enabled = !!(saved && saved.mcqEnabled);
+  const mcqEnabledEl = document.getElementById('mcqEnabled');
+  if (mcqEnabledEl) mcqEnabledEl.checked = enabled;
+
+  buildMcqCountDropdown();
+  const sel = document.getElementById('mcqCount');
+
+  // saved.mcqOptions is [correct, ...decoys] if it exists
+  const decoys = Array.isArray(saved?.mcqOptions) ? saved.mcqOptions.slice(1) : [];
+  const n = Math.max(6, Math.min(12, (decoys.length + 1) || 6));
+  if (sel) sel.value = String(n);
+
+  renderMcqDecoyInputs(n - 1, decoys);
+  syncMcqUiEnabledState(enabled);
+}
+
 function updateEntropy(index) {
   const input = document.getElementById(`answer-${index}`);
   const entropyDisplay = document.getElementById(`entropy-${index}`);
@@ -861,6 +1106,20 @@ function updateEntropy(index) {
 
   const answer = input.value.trim().toLowerCase();
   const hintObj = customHints[index] || { letters: [], showLength: true };
+
+  // MCQ answers reduce to "one of N options"
+if (hintObj.mcqEnabled) {
+  const n = Math.max(2, Math.min(12, Array.isArray(hintObj.mcqOptions) ? hintObj.mcqOptions.length : 0));
+  const baseEntropy = Math.log2(n);
+  const effectiveEntropy = Math.max(0, baseEntropy); // no penalties; length/letters unused
+  let color = '#ff3333';
+  if (effectiveEntropy >= 40) color = '#00ff99';
+  else if (effectiveEntropy >= 20) color = '#ffff00';
+  entropyDisplay.textContent = `Entropy: ${effectiveEntropy.toFixed(1)} bits`;
+  entropyDisplay.style.color = color;
+  calculateTotalEntropy();
+  return;
+}
 
   // Base entropy from zxcvbn (or 1 bit for yes/no/true/false)
   const binaryAnswers = ['t', 'f', 'y', 'n', 'true', 'false', 'yes', 'no'];
@@ -1001,6 +1260,16 @@ function updateHintPreview(index) {
   const show = (customHints[index]?.showLength ?? true);
   const letters = Array.isArray(customHints[index]?.letters) ? customHints[index].letters : [];
   const customText = (customHints[index]?.custom || "").trim();
+// MCQ: show a simple preview line
+if (customHints[index]?.mcqEnabled) {
+  const howMany = (customHints[index].mcqOptions || []).length || '—';
+  const customText = (customHints[index]?.custom || '').trim();
+  target.innerHTML =
+    `<div class="hint-custom-only">Multiple choice (${howMany} options)${
+      customText ? ` — Hint: ${escapeHtml(customText)}` : ''
+    }</div>`;
+  return;
+}
 
   // If length preview is OFF, match recover behavior: no map, only optional custom hint
   if (!show) {

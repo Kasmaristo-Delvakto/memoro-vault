@@ -5,56 +5,54 @@
   <title>Answer Your Questions - Memoro Vault</title>
   <script src="libs/zxcvbn.js"></script>
 
-<link id="theme-cypherpunk" rel="stylesheet" href="css/answer-questions_cypherpunk.css">
-<link id="theme-clean" rel="stylesheet" href="css/answer-questions_clean.css" disabled>
-
+  <link id="theme-cypherpunk" rel="stylesheet" href="css/answer-questions_cypherpunk.css">
+  <link id="theme-clean" rel="stylesheet" href="css/answer-questions_clean.css" disabled>
 </head>
 
 <body>
+  <canvas id="matrixCanvas"></canvas>
+  <div class="matrix-overlay"></div>
 
-<canvas id="matrixCanvas"></canvas>
-<div class="matrix-overlay"></div>
+  <h1>Answer Your Questions and Upload Files</h1>
+  <div id="countdown"></div>
 
-<h1>Answer Your Questions and Upload Files</h1>
-<div id="countdown"></div>
+  <form class="question-form" id="answerForm"></form>
 
-<form class="question-form" id="answerForm"></form>
+  <div id="extraSeedsSection" class="section section-wide">
+    <!-- Extra seed inputs will go here if needed -->
+  </div>
 
-<div id="extraSeedsSection" class="section section-wide">
-  <!-- Extra seed inputs will go here if needed -->
-</div>
+  <div id="totalEntropyContainer" class="total-entropy">
+    <p class="entropy-summary">
+      Estimated Vault Strength:
+      <span id="totalEntropyBits" class="metric-strong">0.0</span> bits —
+      <span id="entropyAssessment" class="metric-bad">Very Weak</span>
+      <br>
+      <span class="muted-1 small">
+        Total Combinations: <span id="totalCombinations" class="metric-strong">0</span>
+      </span>
+      <span class="muted-2 xsmall">
+        Estimated Crack Time:
+        <span id="estimatedCrackTime" class="metric-warn">Instantly crackable</span><br>
+        <em class="muted-3">(assuming 1 trillion guesses/sec — botnet-level offline attack)</em>
+      </span>
+      <br>
+      <span id="crackabilityTier" class="tier-line"></span>
+      <span class="muted-4 xsmall block">
+        This estimation does not factor in the potential for phishing, coercion, or social engineering — never share personal details.
+      </span>
+    </p>
+  </div>
 
-<div id="totalEntropyContainer" class="total-entropy">
-  <p class="entropy-summary">
-    Estimated Vault Strength:
-    <span id="totalEntropyBits" class="metric-strong">0.0</span> bits —
-    <span id="entropyAssessment" class="metric-bad">Very Weak</span>
-    <br>
-    <span class="muted-1 small">
-      Total Combinations: <span id="totalCombinations" class="metric-strong">0</span>
-    </span>
-    <span class="muted-2 xsmall">
-      Estimated Crack Time:
-      <span id="estimatedCrackTime" class="metric-warn">Instantly crackable</span><br>
-      <em class="muted-3">(assuming 1 trillion guesses/sec — botnet-level offline attack)</em>
-    </span>
-    <br>
-    <span id="crackabilityTier" class="tier-line"></span>
-    <span class="muted-4 xsmall block">
-      This estimation does not factor in the potential for phishing, coercion, or social engineering — never share personal details.
-    </span>
-  </p>
-</div>
+  <details class="entropy-details">
+    <summary class="entropy-summary-toggle">What is entropy and how is my vault protected?</summary>
+    <div class="entropy-body">
+      <p><strong>Entropy</strong> is a measure of unpredictability — how many guesses an attacker would need to crack your answers. Memoro Vault uses <code>zxcvbn</code>, a password strength estimator from Dropbox, to evaluate the entropy of each response. We calculate this conservatively — assuming only 26 lowercase letters and no symbols — to ensure you're not overestimating security.</p>
 
-<details class="entropy-details">
-  <summary class="entropy-summary-toggle">What is entropy and how is my vault protected?</summary>
-  <div class="entropy-body">
-    <p><strong>Entropy</strong> is a measure of unpredictability — how many guesses an attacker would need to crack your answers. Memoro Vault uses <code>zxcvbn</code>, a password strength estimator from Dropbox, to evaluate the entropy of each response. We calculate this conservatively — assuming only 26 lowercase letters and no symbols — to ensure you're not overestimating security.</p>
+      <p>We assume <strong>the worst-case scenario</strong>: global adversaries with the fastest hardware on Earth.</p>
 
-    <p>We assume <strong>the worst-case scenario</strong>: global adversaries with the fastest hardware on Earth.</p>
-
-    <div class="ascii-table-wrapper">
-      <pre class="ascii-table">
+      <div class="ascii-table-wrapper">
+        <pre class="ascii-table">
 ╔═════════════════════════════════════════════════════════════════════════╗
 ║  ASSUMED ATTACKER HARDWARE         |   GUESSES/SEC   |   TIME TO CRACK     ║
 ╠═════════════════════════════════════════════════════════════════════════╣
@@ -64,172 +62,212 @@
 ╟─────────────────────────────────────────────────────────────────────────╢
 ║  Enterprise Cluster (A100s)        |   1T/sec        |   40-bit: ~1.1 sec  ║
 ║                                    |                 |   80-bit: ~38K yrs  ║
-║                                    |                 |   120-bit: 10²¹ yrs ║
+║                                    |                 |   120-bit: 10¹¹ yrs ║
 ╟─────────────────────────────────────────────────────────────────────────╢
 ║  Nation-State Supercluster         |  100T/sec       |   40-bit: ~0.01 sec ║
 ║                                    |                 |   80-bit: ~384 yrs  ║
 ║                                    |                 |   120-bit: 10¹⁹ yrs ║
 ║                                    |                 |   180-bit: 10⁴⁰ yrs ║
 ╚═════════════════════════════════════════════════════════════════════════╝
-      </pre>
+        </pre>
+      </div>
+
+      <p>Memoro Vault uses this to classify your vault strength:</p>
+
+      <ul>
+        <li><strong class="metric-bad">Very Weak</strong>: under 40 bits — crackable in seconds to minutes</li>
+        <li><strong class="metric-warn">Weak</strong>: 40–79 bits — crackable in minutes to months</li>
+        <li><strong class="metric-mid">Moderate</strong>: 80–119 bits — could take decades to millions of years</li>
+        <li><strong class="metric-strong">Strong</strong>: 120–179 bits — would take longer than the age of the universe using today’s best hardware</li>
+        <li><strong class="metric-very">Very Strong</strong>: 180+ bits — beyond the reach of any current or foreseeable brute-force attack</li>
+      </ul>
+
+      <p>Even one weak answer can collapse your vault. To strengthen it:</p>
+      <ul>
+        <li>Use answers that only trusted people would know — not Google, Facebook, or public records</li>
+        <li>Avoid names, birthplaces, and dates — these can often be socially engineered</li>
+        <li>Use symbolic, metaphorical, or abstract memories, not surface facts</li>
+        <li>Mix short and long structures and avoid patterns (like “john2024”)</li>
+      </ul>
+
+      <p>Memoro Vault provides no hints, no partial credit, and no feedback on incorrect input. To unlock the vault, users must enter the exact correct answers for all questions, and for six of them, they must also provide the correct order. This creates a layered security model: the decryption key is only derived if every answer is 100% accurate, and the six ordered answers match the precise sequence used during vault creation. With no indication of which part is wrong, attackers must blindly guess both content and order across hundreds of possibilities—making brute-force attempts impractical and expensive.</p>
     </div>
+  </details>
 
-    <p>Memoro Vault uses this to classify your vault strength:</p>
-
-    <ul>
-      <li><strong class="metric-bad">Very Weak</strong>: under 40 bits — crackable in seconds to minutes</li>
-      <li><strong class="metric-warn">Weak</strong>: 40–79 bits — crackable in minutes to months</li>
-      <li><strong class="metric-mid">Moderate</strong>: 80–119 bits — could take decades to millions of years</li>
-      <li><strong class="metric-strong">Strong</strong>: 120–179 bits — would take longer than the age of the universe using today’s best hardware</li>
-      <li><strong class="metric-very">Very Strong</strong>: 180+ bits — beyond the reach of any current or foreseeable brute-force attack</li>
-    </ul>
-
-    <p>Even one weak answer can collapse your vault. To strengthen it:</p>
-    <ul>
-      <li>Use answers that only trusted people would know — not Google, Facebook, or public records</li>
-      <li>Avoid names, birthplaces, and dates — these can often be socially engineered</li>
-      <li>Use symbolic, metaphorical, or abstract memories, not surface facts</li>
-      <li>Mix short and long structures and avoid patterns (like “john2024”)</li>
-    </ul>
-
-    <p>Memoro Vault provides no hints, no partial credit, and no feedback on incorrect input. To unlock the vault, users must enter the exact correct answers for all questions, and for six of them, they must also provide the correct order. This creates a layered security model: the decryption key is only derived if every answer is 100% accurate, and the six ordered answers match the precise sequence used during vault creation. With no indication of which part is wrong, attackers must blindly guess both content and order across hundreds of possibilities—making brute-force attempts impractical and expensive.</p>
-  </div>
-</details>
-
-<!-- Multi-seed input section -->
-<div id="multiSeedSection" class="section section-wide">
-  <h2 class="section-title">Saved Seed or Password Files</h2>
-  <div class="input-group">
-    <label for="newSeedName">Seed File/Password Name:</label>
-    <input type="text" id="newSeedName" placeholder="e.g. Primary Wallet" />
-  </div>
-  <div class="input-group mt-10">
-    <label for="newSeedContent">Seed Phrase or Password:</label>
-    <textarea id="newSeedContent" rows="3" placeholder="type or paste seed phrase or private passphrase here"></textarea>
-  </div>
-  <button class="button" type="button" onclick="saveNamedSeed()">Save Password/Seed File</button>
-  <div id="namedSeedsList" class="mt-20"></div>
-</div>
-
-<div class="input-group section section-wide">
-  <label for="fileUpload" class="field-label-lg">Optional: Upload Documents to Include in Your Vault</label>
-  <div class="upload-row">
-    <input type="file" id="fileUpload" multiple hidden />
-    <label for="fileUpload" id="fileUploadLabel">Choose Files</label>
-    <span id="fileUploadStatus" class="upload-status">No files uploaded</span>
-  </div>
-  <p class="note">You can upload files like text notes, images, videos, or scanned documents.</p>
-</div>
-
-<div id="uploadedFileList" class="section section-wide mt-20"></div>
-
-<div class="input-group section section-wide">
-  <label for="finalMessage" class="field-label-lg">Optional: Final Message for Yourself or Your Family</label>
-  <textarea id="finalMessage" rows="4" placeholder="Example: 'Looks like someone was ACTUALLY listening to all those rants I gave at family dinner. Congratulations!'"></textarea>
-  <p class="note">This message will be stored securely with your vault.</p>
-</div>
-
-<div class="button-container">
-  <button class="button" type="button" onclick="goBack()">← Back</button>
-  <button class="button" type="button" onclick="submitAnswers()">Create Vault</button>
-  <button class="button" type="button" onclick="startSecurityTimer()">Reset Timer</button>
-</div>
-
-<!-- Modals -->
-<div id="messageModal" class="modal">
-  <div class="modal-content">
-    <h2 id="messageModalTitle">Notice</h2>
-    <p id="messageModalText">Message here</p>
-    <div class="modal-buttons">
-      <button onclick="closeMessageModal()">OK</button>
-    </div>
-  </div>
-</div>
-
-<div id="hintModal" class="modal">
-  <div class="modal-content">
-    <h2>Hint Options</h2>
-
-    <!-- Show length toggle -->
-    <div class="input-group mb-14">
-      <label>
-        <input type="checkbox" id="showLength" checked>
-        Show answer length during unlock
-      </label>
-    </div>
-
-    <!-- Existing letter/position hint controls -->
+  <!-- Multi-seed input section -->
+  <div id="multiSeedSection" class="section section-wide">
+    <h2 class="section-title">Saved Seed or Password Files</h2>
     <div class="input-group">
-      <label>Reveal specific letters from the answer</label>
-      <select id="numLetters" onchange="buildLetterSelectors()"></select>
+      <label for="newSeedName">Seed File/Password Name:</label>
+      <input type="text" id="newSeedName" placeholder="e.g. Primary Wallet" />
     </div>
-    <div id="letterSelectors" class="input-group mt-15"></div>
-
-    <div class="input-group mt-20">
-      <label>Optional: Custom Hint Text</label>
-      <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
+    <div class="input-group mt-10">
+      <label for="newSeedContent">Seed Phrase or Password:</label>
+      <textarea id="newSeedContent" rows="3" placeholder="type or paste seed phrase or private passphrase here"></textarea>
     </div>
+    <button class="button" type="button" onclick="saveNamedSeed()">Save Password/Seed File</button>
+    <div id="namedSeedsList" class="mt-20"></div>
+  </div>
 
-    <div class="modal-buttons">
-      <button onclick="saveCustomHint()">Save</button>
-      <button onclick="closeHintModal()">Cancel</button>
+  <div class="input-group section section-wide">
+    <label for="fileUpload" class="field-label-lg">Optional: Upload Documents to Include in Your Vault</label>
+    <div class="upload-row">
+      <input type="file" id="fileUpload" multiple hidden />
+      <label for="fileUpload" id="fileUploadLabel">Choose Files</label>
+      <span id="fileUploadStatus" class="upload-status">No files uploaded</span>
+    </div>
+    <p class="note">You can upload files like text notes, images, videos, or scanned documents.</p>
+  </div>
+
+  <div id="uploadedFileList" class="section section-wide mt-20"></div>
+
+  <div class="input-group section section-wide">
+    <label for="finalMessage" class="field-label-lg">Optional: Final Message for Yourself or Your Family</label>
+    <textarea id="finalMessage" rows="4" placeholder="Example: 'Looks like someone was ACTUALLY listening to all those rants I gave at family dinner. Congratulations!'"></textarea>
+    <p class="note">This message will be stored securely with your vault.</p>
+  </div>
+
+  <div class="button-container">
+    <button class="button" type="button" onclick="goBack()">← Back</button>
+    <button class="button" type="button" onclick="submitAnswers()">Create Vault</button>
+    <button class="button" type="button" onclick="startSecurityTimer()">Reset Timer</button>
+  </div>
+
+  <!-- Message Modal -->
+  <div id="messageModal" class="modal">
+    <div class="modal-content">
+      <h2 id="messageModalTitle">Notice</h2>
+      <p id="messageModalText">Message here</p>
+      <div class="modal-buttons">
+        <button onclick="closeMessageModal()">OK</button>
+      </div>
     </div>
   </div>
-</div>
-<div id="trapModal" class="modal">
-  <div class="modal-content">
-    <h2>What is a Red Herring?</h2>
-    <div class="trap-text">
-      <p>
-        A <strong>Red Herring</strong> is a decoy question: it appears like the others, but you answer it <strong>incorrectly on purpose</strong>. During recovery, the correct action is to leave it <strong>blank</strong>.
-      </p>
 
-      <p>
-        <strong>Purpose:</strong><br>
-        Red Herrings add a powerful layer of protection against brute force attacks and social engineering. An attacker has no way to know which question is fake, and any attempt to answer it results in failure.
-      </p>
+  <!-- Hint Modal -->
+  <div id="hintModal" class="modal">
+    <div class="modal-content">
+      <h2>Hint Options</h2>
 
-      <p>
-        <strong>How to use it:</strong><br>
-        • Choose a <strong>real-looking question</strong> that only close friends or family would recognize.<br>
-        • Enter a <strong>wrong answer</strong> that subtly signals it’s not genuine.<br>
-        • Make sure the fake answer is at least <strong>two characters longer or shorter</strong> than the real one.
-      </p>
+      <!-- Show length toggle -->
+      <div class="input-group mb-14">
+        <label>
+          <input type="checkbox" id="showLength" checked>
+          Show answer length during unlock
+        </label>
+      </div>
 
-      <p>
-        <strong>Why length matters:</strong><br>
-        During recovery, Memoro Vault displays the expected number of characters for each answer by default.
-        This lets trusted contacts recognize mismatches and know to leave the Red Herring blank.
-      </p>
+      <!-- Letter/position hint controls -->
+      <div class="input-group">
+        <label>Reveal specific letters from the answer</label>
+        <select id="numLetters" onchange="buildLetterSelectors()"></select>
+      </div>
+      <div id="letterSelectors" class="input-group mt-15"></div>
 
-      <p>
-        <strong>Example:</strong><br>
-        <em>Question:</em> “What was my childhood nickname?”<br>
-        <em>Real Answer:</em> <code>Squirt</code> (6 characters)<br>
-        <em>Red Herring Answer:</em> <code>Tuf</code> (3 characters)<br>
-        If someone sees the vault is expecting a 3-character answer but knows the real answer has 6 characters, they'll know to leave it blank. Vault builders can also choose to give away letter/s to help those in their inner circle recognize the Red Herring.
-      </p>
+      <hr class="hint-hr" />
 
-      <p>
-        <strong>Psychological Advantage:</strong><br>
-        The beauty of the Red Herring is this: even if you choose not to use one, the attacker doesn’t know that.<br>
-        They’re forced to ask themselves: <em>"Do I leave one blank? If so, which one?"</em><br>
-        This uncertainty makes brute-force and social engineering attacks much more difficult, whether or not a Red Herring was actually used.
-      </p>
+      <!-- Multiple-Choice controls -->
+      <div class="input-group" id="mcqSection">
+        <label style="display:flex;gap:8px;align-items:center;">
+          <input type="checkbox" id="mcqEnabled" />
+          Make this a multiple-choice question
+        </label>
 
-      <p>
-        <strong>Guidelines:</strong><br>
-        • Do not use questions that can be profiled, guessed, or searched online.<br>
-        • Only one Red Herring is allowed.<br>
-        • Using one is optional — but even the possibility dramatically increases your security.
-      </p>
-    </div>
+        <div id="mcqConfig" class="mt-10" style="display:none">
+          <!-- Side-by-side row: correct option + count -->
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div style="flex:1 1 320px;min-width:260px;">
+              <label for="mcqCorrect">Correct option (your real answer)</label>
+              <input type="text" id="mcqCorrect" placeholder="Type the one true answer" />
+            </div>
 
-    <div class="modal-buttons">
-      <button onclick="document.getElementById('trapModal').style.display='none'">Got it</button>
+            <div style="flex:0 0 180px;min-width:160px;">
+              <label for="mcqCount">(6–12)</label>
+              <select id="mcqCount"></select>
+            </div>
+          </div>
+
+          <!-- Decoy inputs -->
+          <div id="mcqOptions" class="mt-10">
+            <!-- Decoy inputs render here -->
+          </div>
+
+          <p class="xsmall muted-3 mt-6">
+            MCQ hides length and letters. Enter 5–11 convincing decoys; the correct option is your real answer.
+          </p>
+        </div>
+      </div>
+
+      <hr class="hint-hr" />
+
+      <div class="input-group mt-20">
+        <label>Optional: Custom Hint Text</label>
+        <textarea id="customHintText" rows="2" placeholder="Example: 'At the park'..."></textarea>
+      </div>
+
+      <div class="modal-buttons">
+        <button id="hintSaveBtn" onclick="saveCustomHint()">Save</button>
+        <button onclick="closeHintModal()">Cancel</button>
+      </div>
     </div>
   </div>
-</div>
-<script src="js/answer-questions.js"></script>
+
+  <!-- Red Herring Help Modal -->
+  <div id="trapModal" class="modal">
+    <div class="modal-content">
+      <h2>What is a Red Herring?</h2>
+      <div class="trap-text">
+        <p>
+          A <strong>Red Herring</strong> is a decoy question: it appears like the others, but you answer it <strong>incorrectly on purpose</strong>. During recovery, the correct action is to leave it <strong>blank</strong>.
+        </p>
+
+        <p>
+          <strong>Purpose:</strong><br>
+          Red Herrings add a powerful layer of protection against brute force attacks and social engineering. An attacker has no way to know which question is fake, and any attempt to answer it results in failure.
+        </p>
+
+        <p>
+          <strong>How to use it:</strong><br>
+          • Choose a <strong>real-looking question</strong> that only close friends or family would recognize.<br>
+          • Enter a <strong>wrong answer</strong> that subtly signals it’s not genuine.<br>
+          • Make sure the fake answer is at least <strong>two characters longer or shorter</strong> than the real one.
+        </p>
+
+        <p>
+          <strong>Why length matters:</strong><br>
+          During recovery, Memoro Vault displays the expected number of characters for each answer by default.
+          This lets trusted contacts recognize mismatches and know to leave the Red Herring blank.
+        </p>
+
+        <p>
+          <strong>Example:</strong><br>
+          <em>Question:</em> “What was my childhood nickname?”<br>
+          <em>Real Answer:</em> <code>Squirt</code> (6 characters)<br>
+          <em>Red Herring Answer:</em> <code>Tuf</code> (3 characters)<br>
+          If someone sees the vault is expecting a 3-character answer but knows the real answer has 6 characters, they'll know to leave it blank. Vault builders can also choose to give away letter/s to help those in their inner circle recognize the Red Herring.
+        </p>
+
+        <p>
+          <strong>Psychological Advantage:</strong><br>
+          The beauty of the Red Herring is this: even if you choose not to use one, the attacker doesn’t know that.<br>
+          They’re forced to ask themselves: <em>"Do I leave one blank? If so, which one?"</em><br>
+          This uncertainty makes brute-force and social engineering attacks much more difficult, whether or not a Red Herring was actually used.
+        </p>
+
+        <p>
+          <strong>Guidelines:</strong><br>
+          • Do not use questions that can be profiled, guessed, or searched online.<br>
+          • Only one Red Herring is allowed.<br>
+          • Using one is optional — but even the possibility dramatically increases your security.
+        </p>
+      </div>
+
+      <div class="modal-buttons">
+        <button onclick="document.getElementById('trapModal').style.display='none'">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/answer-questions.js"></script>
 </body>
 </html>

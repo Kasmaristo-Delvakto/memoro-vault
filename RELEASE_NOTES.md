@@ -1,4 +1,4 @@
-﻿Memoro Vault v1.0.6 — QR Paper Backup
+﻿Memoro Vault v1.0.7 — QR Paper Backup
 
 Summary
 -------
@@ -29,7 +29,7 @@ Quality and Guidance
 
 Known Limitation
 ----------------
-- This release retains Math.random() for Layer 2 index selection and permutation choice. This is acceptable for v1.0.6 as published but will be reviewed in a future version for stronger unpredictability guarantees.
+- This release retains Math.random() for Layer 2 index selection and permutation choice. This is acceptable for v1.0.7 as published but will be reviewed in a future version for stronger unpredictability guarantees.
 
 Notes
 -----

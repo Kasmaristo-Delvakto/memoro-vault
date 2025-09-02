@@ -1,6 +1,6 @@
 [package]
 name = "memoro-crypto"
-version = "1.0.6"
+version = "1.0.7"
 authors = ["Kasmaristo Delvakto <printandpray@proton.me>"]
 edition = "2021"
 

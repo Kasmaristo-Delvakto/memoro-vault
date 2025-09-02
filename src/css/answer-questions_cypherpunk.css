@@ -687,3 +687,4 @@ body {
 /* prevent horizontal scrolling just in case */
 body, .question-form { overflow-x: hidden; }
 
+.hint-hr { border: 0; height: 1px; background: currentColor; opacity:.2; margin: 12px 0; }

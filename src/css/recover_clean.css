@@ -451,3 +451,10 @@ body[data-theme="clean"] .hint-custom-text {
   }
 }
 
+.mcq-options { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 4px; }
+.mcq-btn { padding:6px 10px; border:1px solid var(--border-2,#444);
+  background:var(--bg-2,#171717); color:var(--fg-1,#ddd);
+  border-radius:8px; cursor:pointer; }
+.mcq-btn:hover { filter:brightness(1.15); }
+.mcq-btn.selected { outline:2px solid #66ccff; }
+.mcq-btn.mcq-clear { opacity:.8; }

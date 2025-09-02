@@ -186,36 +186,6 @@ const saved =
 <div class="spacer5"></div><div class="spacer6"></div><div class="spacer7"></div><div class="spacer8"></div>
 <div class="spacer9"></div><div class="spacer10"></div>
 
-
-  <script type="module">
-  // Initialize WebAssembly crypto module
-
-  // Set up global crypto functions
-  window.initCryptoWasm = async () => {
-    await init();
-    window.sha256Hash = sha256_hash;
-    window.deriveKeyRust = derive_key;
-    window.aesEncryptRust = aes_gcm_encrypt;
-    window.aesDecryptRust = aes_gcm_decrypt;
-  };
-
-  window.initCryptoWasm();
-  </script>
-
-<script type="module">
-
-  // Set up global crypto functions
-  window.initCryptoWasm = async () => {
-    await init();
-    window.sha256Hash = sha256_hash;
-    window.deriveKeyRust = derive_key;
-    window.aesEncryptRust = aes_gcm_encrypt;
-    window.aesDecryptRust = aes_gcm_decrypt;
-  };
-
-  window.initCryptoWasm();
-  </script>
-
 <script>
 /**
  * BOOTSTRAP (recovery):
@@ -464,38 +434,73 @@ const saved =
 
       throw new Error("❌ Failed to find valid permutation that matches vaultHash.");
     }
-
-    
-    // Load questions into the recovery form
+ 
 function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2Indices) {
-  const orderedIndices = [
-    ...gateIndices,
-    ...remainingL2Indices,
-    ...selectedL2Indices
-  ];
+  // Keep your original order (gates, remaining, selected)
+  const orderedIndices = [...gateIndices, ...remainingL2Indices, ...selectedL2Indices];
 
   const form = document.getElementById("recoveryForm");
   form.innerHTML = "";
 
   orderedIndices.forEach((originalIdx, renderIdx) => {
     const q = questionList[originalIdx];
+
     const block = document.createElement("div");
     block.className = "question-block";
-    block.innerHTML = `
-      <label for="answer-${renderIdx}"><b>${renderIdx + 1}.</b> ${q.question}</label>
-      <input type="text" id="answer-${renderIdx}" class="l2-answer answer-input" data-index="${originalIdx}" required />
-      <div class="hint-display" id="hint-${renderIdx}"></div>
-    `;
-    form.appendChild(block);
-    // ✅ Use render index for the DOM element, and pass both
-    setTimeout(() => updateHint(renderIdx, originalIdx), 0);
-  });
 
-  // Force lowercase typing
-  document.querySelectorAll('input.answer-input').forEach(input => {
-    input.addEventListener('input', () => {
-      input.value = input.value.toLowerCase();
-    });
+    const label = document.createElement("label");
+    label.setAttribute("for", `answer-${renderIdx}`);
+    label.innerHTML = `<b>${renderIdx + 1}.</b> ${q.question}`;
+    block.appendChild(label);
+
+    // The standard answer input (we still submit strings)
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = `answer-${renderIdx}`;
+    input.className = "l2-answer answer-input";
+    input.setAttribute("data-index", String(originalIdx));
+    input.required = true;
+    input.addEventListener("input", () => { input.value = input.value.toLowerCase(); });
+    block.appendChild(input);
+
+    // MCQ choices (if enabled): clicking a button puts its text into the input
+    if (q.mcqEnabled && Array.isArray(q.mcqOptions) && q.mcqOptions.length >= 2) {
+      const mcqWrap = document.createElement("div");
+      mcqWrap.className = "mcq-options";
+      q.mcqOptions.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "mcq-btn";
+        btn.textContent = opt;
+        btn.addEventListener("click", () => {
+          input.value = String(opt).toLowerCase();
+          input.dispatchEvent(new Event("input"));
+          mcqWrap.querySelectorAll(".mcq-btn").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+        });
+        mcqWrap.appendChild(btn);
+      });
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "mcq-btn mcq-clear";
+      clearBtn.textContent = "Clear";
+      clearBtn.addEventListener("click", () => {
+        input.value = "";
+        mcqWrap.querySelectorAll(".mcq-btn").forEach(b => b.classList.remove("selected"));
+      });
+      mcqWrap.appendChild(clearBtn);
+      block.appendChild(mcqWrap);
+    }
+
+    // Hint area
+    const hintDiv = document.createElement("div");
+    hintDiv.className = "hint-display";
+    hintDiv.id = `hint-${renderIdx}`;
+    block.appendChild(hintDiv);
+
+    form.appendChild(block);
+
+    setTimeout(() => updateHint(renderIdx, originalIdx), 0);
   });
 }
 
@@ -684,48 +689,61 @@ await showRecoveryModal(finalMessage, decryptedFiles);
   }
 }
 
-    // Update hint display for a question
-    function updateHint(renderIdx, originalIdx) {
-  const question = savedQuestions[originalIdx];
+   // Safe HTML escaper (define once globally)
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Update hint display for a question
+function updateHint(renderIdx, originalIdx) {
+  const q = window.savedQuestions?.[originalIdx];
   const hintDiv = document.getElementById(`hint-${renderIdx}`);
-  if (!question || !hintDiv) return;
+  if (!q || !hintDiv) return;
 
-  const expectedLength = question.expectedLength || 0;
-  const spaceIndexes = Array.isArray(question.spaceIndexes) ? question.spaceIndexes : [];
-  const hintLetters = Array.isArray(question.hintLetters) ? question.hintLetters : [];
-  const hintValues = Array.isArray(question.hintValues) ? question.hintValues : [];
+  // MCQ: compact line, no length/letters
+  if (q.mcqEnabled && Array.isArray(q.mcqOptions)) {
+    const custom = (q.custom || "").trim();
+    hintDiv.innerHTML =
+      `<div class="hint-custom-only">Multiple choice (${q.mcqOptions.length} options)` +
+      (custom ? ` — Hint: ${escapeHtml(custom)}` : "") +
+      `</div>`;
+    return;
+  }
 
-  let renderedHint = '';
+  // Normal hint (underscore/letters/spacing)
+  const expectedLength = q.expectedLength || 0;
+  const spaceIndexes = Array.isArray(q.spaceIndexes) ? q.spaceIndexes : [];
+  const hintLetters = Array.isArray(q.hintLetters) ? q.hintLetters : [];
+  const hintValues = Array.isArray(q.hintValues) ? q.hintValues : [];
+
+  let renderedHint = "";
   let letterPos = 1;
   let valueIndex = 0;
 
   for (let j = 0; j < expectedLength; j++) {
     if (spaceIndexes.includes(j)) {
-      renderedHint += ' ';
+      renderedHint += " ";
     } else if (hintLetters.includes(letterPos)) {
       const val = hintValues[valueIndex++];
-      renderedHint += val === undefined ? '_' : val;
+      renderedHint += val === undefined ? "_" : val;
     } else {
-      renderedHint += '_';
+      renderedHint += "_";
     }
     letterPos++;
   }
 
-  const spacedHint = renderedHint.split('').join(' ');
-// (optional) tiny sanitizer to avoid injecting raw HTML from question.custom
-const escapeHtml = (s) => String(s)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#039;");
-
-hintDiv.innerHTML = `
-  <div class="hint-row">
-    <code class="hint-code">${spacedHint}</code>
-    ${question.custom ? `<div class="hint-custom-text">Hint: ${escapeHtml(question.custom)}</div>` : ""}
-  </div>
-`;
+  const spacedHint = renderedHint.split("").join(" ");
+  hintDiv.innerHTML = `
+    <div class="hint-row">
+      <code class="hint-code">${spacedHint}</code>
+      ${q.custom ? `<div class="hint-custom-text">Hint: ${escapeHtml(q.custom)}</div>` : ""}
+    </div>
+  `;
 }
 
     // Get nth permutation of an array

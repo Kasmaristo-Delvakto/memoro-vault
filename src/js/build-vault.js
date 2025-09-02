@@ -198,7 +198,7 @@ async function buildPaperPdfFromLiteZip(liteZipBlob) {
 
     const title = "Memoro Vault - Paper Backup";
     const now   = new Date();
-    const built = `Built: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} | Version: 1.0.6 | Format: mv-lite-v1 | ZIP bytes: ${liteBytes.length}`;
+    const built = `Built: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} | Version: 1.0.7 | Format: mv-lite-v1 | ZIP bytes: ${liteBytes.length}`;
     const shaLine  = `SHA-256 (ZIP): ${shaHex}`;
     const pageLine = `Page ${pageNum} | Scan KEY and HEADER on page 1, then all CT tiles`;
 
@@ -713,38 +713,68 @@ async function encryptVaultPayload(
     time: 3, mem: 16384, parallelism: 1, hashLen: 32
   });
 
-  // Build questionList (unchanged)
-  const questionList = userData.answers.map((ans, i) => {
-    const trimmed = (ans || "").trim();
-    const spaceIndexes = userData.spaceIndexes?.[i] || [];
-    const hintEntry = userData.hints?.[i] || {};
-    const showLength = typeof hintEntry.showLength === "boolean" ? hintEntry.showLength : true;
+  // Build questionList (now MCQ-aware, with per-question option shuffle)
+const questionList = userData.answers.map((ans, i) => {
+  const trimmed = (ans || "").trim();
+  const spaceIndexes = userData.spaceIndexes?.[i] || [];
+  const hintEntry = userData.hints?.[i] || {};
 
-    let hintValuesLocal = Array.isArray(hintEntry.values)
-      ? [...hintEntry.values]
-      : Array.isArray(hintEntry.letters)
-        ? hintEntry.letters.map(pos => {
-            const char = trimmed[pos - 1];
-            return char !== undefined ? char : "_";
-          })
-        : [];
+  const showLength =
+    typeof hintEntry.showLength === "boolean" ? hintEntry.showLength : true;
 
-    return {
-      question: userData.questions[i] || `Question ${i + 1}`,
-      expectedLength: showLength ? trimmed.length : null,
-      hintLetters: [...(hintEntry.letters || [])],
-      hintValues: hintValuesLocal,
-      spaceIndexes: [...spaceIndexes],
-      custom: typeof hintEntry.custom === "string"
-        ? hintEntry.custom
-        : Array.isArray(hintEntry.custom)
-          ? hintEntry.custom.join(", ")
-          : typeof hintEntry.custom === "object" && hintEntry.custom !== null
-            ? JSON.stringify(hintEntry.custom)
-            : "",
-      showLength
-    };
-  });
+  // Back-compat for any legacy "values/letters" forms
+  let hintValuesLocal = Array.isArray(hintEntry.values)
+    ? [...hintEntry.values]
+    : Array.isArray(hintEntry.letters)
+      ? hintEntry.letters.map(pos => {
+          const ch = trimmed[pos - 1];
+          return ch !== undefined ? ch : "_";
+        })
+      : [];
+
+  // ---- MCQ (options 6–12, include the real answer, then shuffle) ----
+  const mcqEnabled = !!hintEntry.mcqEnabled;
+  let mcqOptions = null;
+
+  if (mcqEnabled) {
+    // Collect options; ensure real answer is present
+    const entered = String(trimmed);
+    const raw = Array.isArray(hintEntry.mcqOptions)
+      ? hintEntry.mcqOptions.map(s => String(s || "").trim()).filter(Boolean)
+      : [];
+    if (!raw.some(x => x.toLowerCase() === entered.toLowerCase())) raw.unshift(entered);
+
+    // Clamp 6–12 and shuffle
+    const targetCount = Math.min(12, Math.max(6, raw.length));
+    const limited = raw.slice(0, targetCount);
+    mcqOptions = limited
+      .map(v => [Math.random(), v])
+      .sort((a, b) => a[0] - b[0])
+      .map(p => p[1]);
+
+    // For MCQ, length/letters aren’t shown in UI
+    hintValuesLocal = [];
+  }
+
+  return {
+    question: userData.questions[i] || `Question ${i + 1}`,
+    expectedLength: mcqEnabled ? null : (showLength ? trimmed.length : null),
+    hintLetters: mcqEnabled ? [] : [...(hintEntry.letters || [])],
+    hintValues: hintValuesLocal,
+    spaceIndexes: [...spaceIndexes],
+    custom: typeof hintEntry.custom === "string"
+      ? hintEntry.custom
+      : Array.isArray(hintEntry.custom)
+        ? hintEntry.custom.join(", ")
+        : (typeof hintEntry.custom === "object" && hintEntry.custom !== null)
+          ? JSON.stringify(hintEntry.custom)
+          : "",
+    showLength,
+    // NEW: MCQ
+    mcqEnabled,
+    mcqOptions
+  };
+});
 
   // Encrypt L1 question metadata with Rust AES
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
@@ -886,7 +916,7 @@ async function encryptVaultPayload(
 
   // DO NOT include selected answers or permutation in plaintext
   await addJSON("vault.json", {
-    version: "1.0.6",
+    version: "1.0.7",
     created: new Date().toISOString(),
     instructions: "Use recover.html to unlock this archive using your answers.",
     fullSalt,
@@ -979,7 +1009,7 @@ Libereco ne estas donaco. Ĝi estas devo.
 
   // Identical contract as FULL. No selected answers or permutations in plaintext.
   await addJSON("vault.json", {
-    version: "1.0.6",
+    version: "1.0.7",
     created: new Date().toISOString(),
     instructions: "Use recover.html to unlock this archive using your answers.",
     fullSalt,
