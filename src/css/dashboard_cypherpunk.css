@@ -106,7 +106,7 @@ p { color:var(--fg); text-align:center; font-size:clamp(16px, 2.2vw, 20px); marg
 }
 
 /* Buttons fade in after typing */
-.button-group{ opacity:0; transform:translateY(6px); animation:fadeInUp .5s ease-out forwards; animation-delay:3.5s; }
+.button-group{ opacity:0; transform:translateY(6px); animation:fadeInUp 2.5s ease-out forwards; animation-delay:.1s; }
 @keyframes fadeInUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
 
 /* ---------- Buttons (touch-friendly) ---------- */
@@ -337,3 +337,69 @@ body{ padding-inline: max(14px, clamp(14px, 6vw, 22px)); }
 @media (600px <= width <= 900px){
   .app-shell{ width:min(640px,100%); border-radius:18px; }
 }
+
+/* Paper backup description (Cypherpunk theme) */
+.paper-cam-desc {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #ccc; /* matches your current inline color */
+}
+
+/* ===== Paper backup modal — CYPHERPUNK ===== */
+
+/* camera box outline (neon) */
+.paper-cam-box {
+  width: 100%;
+  border: 1px solid #0f0; /* neon green */
+  border-radius: 8px;
+  padding: 10px;
+  margin: 8px 0;
+}
+
+/* status log block under the progress UI */
+.paper-status {
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  color: #ccc;            /* light gray text */
+}
+
+/* the one-line “Status — Header …” + “waiting for uploads…” */
+.paper-progress-text {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #ccc;            /* matches prior inline */
+  text-align: left;
+}
+
+/* progress track + bar */
+.paper-progress-track {
+  height: 12px;
+  border: 1px solid #0f0; /* neon outline */
+  border-radius: 6px;
+  background: #222;       /* dark track */
+  overflow: hidden;
+}
+
+.paper-progress-bar {
+  height: 12px;
+  background: #00ff99;    /* neon fill */
+  width: 0%;
+  transition: width 160ms linear;
+}
+
+/* Matrix should never capture input or hide the cursor */
+#matrixCanvas {
+  pointer-events: none;    /* don't intercept clicks/hover */
+  cursor: auto;            /* never hide cursor on canvas */
+}
+.matrix-overlay {
+  pointer-events: none;
+  cursor: auto;
+}
+
+/* safety lever you can toggle from JS during downloads */
+.force-cursor, .force-cursor * {
+  cursor: auto !important;
+}
+

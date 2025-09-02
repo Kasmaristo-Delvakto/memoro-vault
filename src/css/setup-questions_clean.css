@@ -10,6 +10,7 @@ body {
 h1 {
   font-size: 32px;
   margin-bottom: 20px;
+  text-align: center;
 }
 
 p.instruction {
@@ -67,14 +68,43 @@ p.instruction {
   transform: translateY(-1px);
 }
 
+/* Mobile: keep question full-width; center controls beneath it */
+@media (max-width: 560px) {
+  .question-item {
+    display: grid;
+    /* gutters (1fr) + two centered controls (auto, auto) + gutters (1fr) */
+    grid-template-columns: 1fr max-content max-content 1fr;
+    row-gap: 12px;
+    column-gap: 40px;
+    align-items: center;
+  }
+
+  .question-text {
+    grid-column: 1 / -1;   /* full width */
+    margin-right: 0;
+    text-align: left;
+  }
+
+  .edit-button {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .unlock-checkbox {
+    grid-column: 3;
+    justify-self: start;
+    margin-left: 0;
+  }
+}
+
 .unlock-checkbox {
   margin-left: 20px;
-  transform: scale(1.5);
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 32px;              /* explicit square size */
+  height: 32px;
+  aspect-ratio: 1 / 1;      /* force square ratio */
   border: 2px solid;
-  border-radius: 4px;
+  border-radius: 4px;       /* keep slight rounded corners; use 0px if you want perfect squares */
   position: relative;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -255,4 +285,62 @@ canvas {
   margin-top: 15px;
   margin-bottom: 20px;
   color: #000; /* black for clean theme */
+}
+
+/* Toggle class so JS never sets inline style */
+.modal.show { display: flex; }
+
+/* Help link — Clean theme */
+.help-link {
+  color: var(--mv-primary, #2563eb);   /* brand primary (blue) */
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 15px;
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font-size: 14px;
+  text-decoration: none;
+  opacity: 0.85;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.help-link:hover {
+  background-color: rgba(37, 99, 235, 0.1); /* faint blue */
+  opacity: 1;
+  text-decoration: underline;
+}
+
+
+/* === Fix checkbox squish on narrow screens === */
+.question-item {
+  gap: 12px;              /* add spacing between text, edit button, and checkbox */
+  flex-wrap: nowrap;      /* keep them on one line until mobile breakpoint */
+}
+
+.unlock-checkbox {
+  flex: 0 0 30px;         /* don’t let it shrink, reserve ~30px width */
+  min-width: 30px;        /* ensures room for 1.5x scaled size */
+  transform-origin: center;
+}
+
+.question-text {
+  min-width: 0;           /* allow the text to shrink/wrap instead of pushing checkbox */
+}
+
+@media (max-width: 520px) {
+  .question-item {
+    flex-wrap: wrap;      /* on very small screens, let items wrap */
+  }
+}
+
+/* Clean theme disclaimer text */
+.disclaimer-copy {
+  font-size: 16px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  color: var(--mv-muted, #5e6b85); /* muted text, consistent with theme */
+  line-height: 1.6;
 }

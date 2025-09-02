@@ -211,21 +211,23 @@ const saved =
     <input id="paperFiles" type="file" accept=".pdf,image/*" multiple
            style="width:100%; margin-bottom:12px;">
 
-    <!-- Optional: simple camera for key shares -->
-    <div style="width:100%; border:1px solid #0f0; padding:10px; border-radius:8px; margin:8px 0;">
-      <h3 style="margin:0 0 8px 0;">Scan Key Shares (Optional)</h3>
-      <p style="margin:0 0 8px 0; font-size:14px; color:#ccc;">
-        If you prefer, aim the camera at an MVKEY QR (one at a time). We still recommend uploading a page/PDF for the tiles.
-      </p>
-      <video id="paperCam" playsinline style="width:100%; max-height:240px; background:#000; display:none;"></video>
-      <div class="modal-buttons" style="gap:8px;">
-        <button onclick="startKeyCam()">Start Camera</button>
-        <button onclick="stopKeyCam()">Stop Camera</button>
-        <button onclick="scanFromVideoOnce()">Scan Key</button>
-      </div>
-    </div>
+<div class="paper-cam-box">
+  <h3 class="paper-cam-title">Scan Key Shares (Optional)</h3>
+  <p class="paper-cam-desc">
+    If you prefer, aim the camera at an MVKEY QR (one at a time). We still recommend uploading a page/PDF for the tiles.
+  </p>
 
-    <div id="paperStatus" style="width:100%; text-align:left; font-size:14px; color:#ccc;"></div>
+  <!-- the video target the camera attaches to -->
+  <video id="paperCam" playsinline class="paper-cam" style="display:none;"></video>
+
+  <div class="modal-buttons paper-cam-actions">
+    <button onclick="startKeyCam()">Start Camera</button>
+    <button onclick="stopKeyCam()">Stop Camera</button>
+    <button onclick="scanFromVideoOnce()">Scan Key</button>
+  </div>
+</div>
+
+<div id="paperStatus" class="paper-status"></div>
 
     <div class="modal-buttons" style="margin-top:10px;">
       <button onclick="closePaperDecrypt()">Close</button>
@@ -960,11 +962,11 @@ async function scanPdfFile(file) {
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
 
   // Paper generator constants (letter @ ~300dpi)
-  const COLS      = 4;
-  const MARGIN_PT = 6;     // pt
-  const GAP_PT    = 6;     // pt
-  const LABEL_PT  = 6;     // pt
-  const BANNER_PT = 60;    // pt
+  const COLS      = 3
+  const MARGIN_PT = 24    // pt
+  const GAP_PT    = 12    // pt
+  const LABEL_PT  = 14    // pt
+  const BANNER_PT = 72   // pt
 
   const hasNativeBD = 'BarcodeDetector' in window && String(BarcodeDetector).indexOf('Polyfill') === -1;
   const BD_NATIVE   = hasNativeBD ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
@@ -1577,41 +1579,59 @@ function ingestQR(raw, src = "QR") {
   updatePaperProgress();
 }
 
-
-
-// ==============================
-// Open/Close modal + wiring (updated)
-// ==============================
 function openPaperDecrypt() {
-  // Insert progress UI once
+  // Insert progress UI once (class-based)
   if (!paperEls.barHost()) {
     const host = document.createElement('div');
     host.id = 'paperProgressHost';
-    host.style.cssText = 'width:100%;text-align:left;margin:6px 0;';
-    host.innerHTML = `
-      <div id="paperProgressText" style="font-size:14px;color:#ccc;margin-bottom:6px;">
-        Status — waiting for uploads…
-      </div>
-      <div style="background:#222;border:1px solid #0f0;border-radius:6px;overflow:hidden;height:12px;">
-        <div id="paperProgressBar" style="height:12px;width:0%;background:#00ff99;"></div>
-      </div>`;
+    host.className = 'paper-progress';
+
+    const text = document.createElement('div');
+    text.id = 'paperProgressText';
+    text.className = 'paper-progress-text';
+    text.textContent = 'Status — waiting for uploads…';
+
+    const track = document.createElement('div');
+    track.className = 'paper-progress-track';
+
+    const bar = document.createElement('div');
+    bar.id = 'paperProgressBar';
+    bar.className = 'paper-progress-bar';
+    bar.style.width = '0%'; // width is dynamic; style stays here
+
+    track.appendChild(bar);
+    host.appendChild(text);
+    host.appendChild(track);
+
     const modal = paperEls.modal();
     const status = paperEls.status();
-    modal.querySelector('.modal')?.insertBefore(host, status) || modal.insertBefore(host, status);
+    // place progress just above the status log
+    (modal.querySelector('.modal') || modal).insertBefore(host, status);
   }
 
   // Reset capture state
-  Object.assign(paperState, { header:null, keyHex:null, tiles:{}, totalTiles:null, seenPayloads:new Set() });
-  const statusEl = paperEls.status();
-  if (statusEl) statusEl.innerHTML = "Waiting for uploads...";
+  Object.assign(paperState, {
+    header: null,
+    keyHex: null,
+    tiles: {},
+    totalTiles: null,
+    seenPayloads: new Set()
+  });
 
-  // Reset button look
+  // Reset status area
+  const statusEl = paperEls.status();
+  if (statusEl) {
+    statusEl.innerHTML = 'Waiting for uploads…';
+    statusEl.scrollTop = 0;
+  }
+
+  // Reset button look (visual state only)
   const btn = paperEls.rebuildBtn();
-  if (btn) { 
-    btn.disabled = true; 
-    btn.style.opacity = '.4'; 
-    btn.style.filter = 'grayscale(100%)'; 
-    btn.style.pointerEvents = 'none'; 
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '.4';
+    btn.style.filter = 'grayscale(100%)';
+    btn.style.pointerEvents = 'none';
   }
 
   // Bind file input
@@ -1621,9 +1641,6 @@ function openPaperDecrypt() {
   // Show modal
   const m = paperEls.modal();
   if (m) m.style.display = 'flex';
-
-  // ❌ Removed auto-start of camera here.
-  // ✅ Camera will now only start when the user clicks "Start Camera" (startKeyCam → startPaperCamera).
 
   // Reset auto-rebuild latch
   window.__mvAutoRebuildDone = false;

@@ -600,10 +600,34 @@
   z-index: 10000;
 }
 
-/* File list */
-.file-entry { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+/* File list area */
+.recovery-file-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;    /* center entire section */
+  margin-top: 20px;
+  width: 100%;
+}
 
-/* Make sure browser :link/:visited can’t flip to blue */
+.decrypted-files-title {
+  color: #00ff99;
+  text-shadow: 0 0 8px #00ff99;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+/* Individual file row */
+.file-entry {
+  display: flex;
+  flex-wrap: wrap;        /* allow wrapping */
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+/* Ensure neon link color */
 .recovery-file-links a.file-link,
 .recovery-file-links a.file-link:link,
 .recovery-file-links a.file-link:visited,
@@ -614,8 +638,17 @@
   text-underline-offset: 3px;
 }
 
-.preview-btn { padding: 4px 8px; }
-.btn-row { display:flex; justify-content:center; gap:10px; margin-top:20px; }
+.preview-btn {
+  padding: 4px 8px;
+}
+
+/* On very narrow screens, stack vertically */
+@media (max-width: 520px) {
+  .file-entry {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
 
 /* Hints — Cypherpunk theme */
 body[data-theme="cypherpunk"] .hint-row {

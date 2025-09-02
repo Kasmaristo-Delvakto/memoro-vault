@@ -53,20 +53,19 @@ p { text-align:center; font-size:clamp(16px,2.2vw,20px); margin:0; }
   display:flex; flex-direction:column; align-items:center; text-align:center;
   gap:10px; margin-top:6px; margin-bottom:12px;
 }
-.typewriter-text{
-  display:inline-block; overflow:hidden; white-space:nowrap;
-  border-right:2px solid transparent;
-  animation:
-    revealText 0s forwards,
-    typing 2s steps(40,end) forwards .05s,
-    blink-caret .75s step-end 7 2s forwards;
+.typewriter-text {
+  display: inline-block;
+  opacity: 0;
+  animation: fadeInText .5s ease-out forwards;
 }
-@keyframes revealText{ to{ } }
-@keyframes typing{ from{width:0} to{width:100%} }
-@keyframes blink-caret{ 0%,100%{border-color:transparent;} 50%{ } }
+
+@keyframes fadeInText {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 
 /* Buttons fade in after typing */
-.button-group{ opacity:0; transform:translateY(6px); animation:fadeInUp .5s ease-out forwards; animation-delay:3.5s; }
+.button-group{ opacity:0; transform:translateY(6px); animation:fadeInUp 2.5s ease-out forwards; animation-delay:.1s; }
 @keyframes fadeInUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
 
 /* ---------- Buttons ---------- */
@@ -294,3 +293,69 @@ body::after{
   background: Canvas;
   box-shadow: 0 2px 6px color-mix(in srgb, CanvasText 18%, transparent);
 }
+
+/* Paper backup description (Clean theme) */
+.paper-cam-desc {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--mv-muted); /* already defined muted gray in clean theme */
+}
+
+/* ===== Paper backup modal — CLEAN ===== */
+
+/* camera box outline */
+.paper-cam-box {
+  width: 100%;
+  border: 1px solid #000;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 8px 0;
+}
+
+/* status log block under the progress UI */
+.paper-status {
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  color: #000;            /* text = black */
+}
+
+/* the one-line “Status — Header …” + “waiting for uploads…” */
+.paper-progress-text {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #000;            /* text = black */
+  text-align: left;
+}
+
+/* progress track + bar */
+.paper-progress-track {
+  height: 12px;
+  border: 1px solid #000; /* outline = black */
+  border-radius: 6px;
+  background: #e5e7eb;    /* light neutral track */
+  overflow: hidden;
+}
+
+.paper-progress-bar {
+  height: 12px;
+  background: #000;       /* bar = black */
+  width: 0%;
+  transition: width 160ms linear;
+}
+
+/* Matrix should never capture input or hide the cursor */
+#matrixCanvas {
+  pointer-events: none;    /* don't intercept clicks/hover */
+  cursor: auto;            /* never hide cursor on canvas */
+}
+.matrix-overlay {
+  pointer-events: none;
+  cursor: auto;
+}
+
+/* safety lever you can toggle from JS during downloads */
+.force-cursor, .force-cursor * {
+  cursor: auto !important;
+}
+

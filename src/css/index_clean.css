@@ -37,6 +37,13 @@ canvas {
   max-height: 50vh;
   height: auto;
   margin-bottom: 0.75rem;
+
+  /* --- add these --- */
+  padding: 1rem;
+  border: 2px solid color-mix(in srgb, CanvasText 35%, transparent);
+  border-radius: 0.75rem;
+  background: Canvas;
+  box-shadow: 0 4px 12px color-mix(in srgb, CanvasText 20%, transparent);
 }
 
 p {
@@ -170,3 +177,33 @@ body, .content, .modal, .modal-content, button, canvas {
   background: Canvas; /* black/white depending on theme */
 }
 #themeFade.show { opacity: 1; }
+
+/* Make the confirm state obvious on first tap */
+.modal-buttons button.confirming{
+  outline: 2px solid currentColor;
+  box-shadow: 0 0 0 4px rgba(0,0,0,.05);
+  animation: themeConfirmPulse 1s ease-in-out infinite;
+}
+@keyframes themeConfirmPulse{
+  0%,100% { transform: none; }
+  50%     { transform: scale(1.02); }
+}
+
+.modal-tips {
+  margin: 0.5rem 0 1rem;
+  text-align: left;            /* align neatly */
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.modal-tips div {
+  margin-bottom: 0.4rem;
+  padding-left: 1.2rem;
+  position: relative;
+}
+
+.modal-tips div::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+}

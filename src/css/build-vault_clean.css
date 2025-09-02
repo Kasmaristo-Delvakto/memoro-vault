@@ -420,3 +420,21 @@ body {
   margin-top: 10px;
 }
 
+/* Clean theme: minimal, system-colored progress bar */
+.progress-bar-container {
+  background: color-mix(in srgb, CanvasText 10%, transparent);
+  border: 1px solid ButtonBorder;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-block {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+  border: 1px solid ButtonBorder;
+}
+
+.progress-block.filled {
+  /* use readable system text color for filled cells */
+  background: CanvasText;
+}
+

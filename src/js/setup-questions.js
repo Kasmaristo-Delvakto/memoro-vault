@@ -520,3 +520,44 @@ window.onload = loadQuestions;
   }
 }
 
+/* ---------- Modal helpers (shared) ---------- */
+function showModal(id) {
+  const m = document.getElementById(id);
+  if (!m) return;
+  m.classList.add('show');
+  m.setAttribute('aria-hidden', 'false');
+}
+function hideModal(id) {
+  const m = document.getElementById(id);
+  if (!m) return;
+  m.classList.remove('show');
+  m.setAttribute('aria-hidden', 'true');
+}
+
+/* ---------- Help modal open/close ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  // Open via header/link button
+  const helpBtn = document.getElementById('helpBtn');
+  helpBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showModal('helpModal');
+  });
+
+  // Close button inside the modal
+  document.getElementById('helpCloseBtn')
+    ?.addEventListener('click', () => hideModal('helpModal'));
+
+  // Click outside (overlay) to close
+  document.getElementById('helpModal')
+    ?.addEventListener('click', (e) => {
+      if (e.target.id === 'helpModal') hideModal('helpModal');
+    });
+
+  // Esc to close any open modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal.show')
+        .forEach(m => m.classList.remove('show'));
+    }
+  });
+});

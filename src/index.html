@@ -11,6 +11,8 @@
 </head>
 <body>
   <canvas id="matrix" style="display:none;"></canvas>
+  <canvas id="hashMist" style="display:none;"></canvas>
+  <div id="themeFade"></div>
   <div id="themeFade"></div>
 
   <div class="content">
@@ -25,9 +27,9 @@
   <div id="themeModal" class="modal">
     <div class="modal-content">
       <h2>Select Your Theme</h2>
-       <div class="modal-buttons">
-  <button onclick="handleThemeClick('cypherpunk')">Cypherpunk</button>
-  <button onclick="handleThemeClick('clean')">Clean</button>
+<div class="modal-buttons">
+  <button data-theme="cypherpunk" onclick="handleThemeClick('cypherpunk')">Cypherpunk</button>
+  <button data-theme="clean"       onclick="handleThemeClick('clean')">Clean</button>
 </div>
    </div>
   </div>
@@ -37,12 +39,13 @@
     <div class="modal-content">
       <h2>Before You Begin</h2>
       <ul>
-        <li>Use a clean, trusted computer.</li>
-        <li>Disconnect from WiFi or turn off internet access.</li>
-        <li>Close unnecessary apps and browsers.</li>
-        <li>Do not use public or shared computers.</li>
-        <li>Ensure no suspicious browser extensions are installed.</li>
-      </ul>
+<div class="modal-tips">
+  <div>Use a clean, trusted computer.</div>
+  <div>Disconnect from WiFi or turn off internet access.</div>
+  <div>Close unnecessary apps and browsers.</div>
+  <div>Do not use public or shared computers.</div>
+  <div>Ensure no suspicious browser extensions are installed.</div>
+</div>
       <div class="modal-buttons">
         <button onclick="acceptSafety()">I Understand</button>
       </div>

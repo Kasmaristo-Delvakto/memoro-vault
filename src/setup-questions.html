@@ -17,6 +17,8 @@
 <p class="instruction">
   You can use the default questions or edit them.<br>
   Select exactly <b>two</b> questions to act as your first line of defense.
+  <br>
+  <a id="helpBtn" class="help-link" href="#">How does unlocking work?</a>
 </p>
 
 <div class="question-list" id="questionList"></div>
@@ -24,6 +26,34 @@
 <div class="button-container">
   <button class="button" onclick="goBack()">Back</button>
   <button class="button" onclick="showDisclaimer()">Continue</button>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="modal" aria-hidden="true">
+  <div class="modal-content">
+    <h2>How Unlocking Works</h2>
+   <div class="hint-text">
+  <p><strong>Memoro Vault protects your files with two unlock layers.</strong></p>
+
+  <p><u>Layer 1 – Quick Check:</u>  
+  You choose exactly <strong>two questions</strong> from your list.  
+  These act like your “front door.” If someone guesses wrong, the vault slows them down with increasing wait times after each failed try.</p>
+
+  <p><u>Layer 2 – Full Unlock:</u>  
+  After passing Layer 1, you must answer <strong>all of your remaining questions</strong> correctly, in the right order.  
+  Only then is the vault able to build the secret key to open your files.</p>
+
+  <p><u>Why two layers?</u>  
+  Layer 1 blocks casual attempts.  
+  Layer 2 uses advanced cryptography (Argon2 + AES-GCM) to guarantee that even powerful attackers can’t brute-force their way in.</p>
+
+  <p><em>Tip:</em> Make your answers personal but memorable, and mix in a red herring if you want more protection.</p>
+</div>
+
+    <div class="modal-buttons">
+      <button id="helpCloseBtn">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- Edit Question Modal (Upgraded) -->
@@ -59,25 +89,6 @@
   </div>
 </div>
 
-<!-- Disclaimer Modal -->
-<div id="disclaimerModal" class="modal">
-  <div class="modal-content">
-    <h2>Before You Continue</h2>
-
-    <div class="hint-text">
-      <p>Your seed and memory answers will be handled only on this device.</p>
-      <p>Nothing is uploaded, transmitted, or stored externally.</p>
-      <p>Sensitive data is automatically erased after 30 minutes or after building your vault.</p>
-      <p>Please use a secure device and environment.</p>
-      <p>For security purposes, avoid using your full name in the questions. Use only initials.</p>
-    </div>
-
-    <div class="modal-buttons">
-      <button onclick="proceedToAnswers()">I Understand — Continue</button>
-    </div>
-  </div>
-</div>
-
 <!-- Message Modal -->
 <div id="messageModal" class="modal">
   <div class="modal-content">
@@ -93,7 +104,7 @@
 <div id="disclaimerModal" class="modal">
   <div class="modal-content">
     <h2>Before You Continue</h2>
-    <p style="font-size:16px; color:#ccc; margin-top: 15px; margin-bottom: 20px;">
+    <p class="disclaimer-copy">
       Your seed and memory answers will be handled only on this device.<br><br>
       Nothing is uploaded, transmitted, or stored externally.<br><br>
       Sensitive data is automatically erased after 30 minutes or after building your vault.<br><br>
@@ -105,16 +116,6 @@
   </div>
 </div>
 
-<!-- Message Modal -->
-<div id="messageModal" class="modal">
-  <div class="modal-content">
-    <h2 id="messageModalTitle">Notice</h2>
-    <p id="messageModalText">Message</p>
-    <div class="modal-buttons">
-      <button onclick="closeMessageModal()">OK</button>
-    </div>
-  </div>
-</div>
 <script src="js/setup-questions.js"></script>
 </body>
 </html>

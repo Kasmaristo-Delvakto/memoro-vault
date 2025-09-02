@@ -365,9 +365,44 @@ body[data-theme="clean"] .file-link {
   text-underline-offset: 3px;
 }
 
-body[data-theme="clean"] .preview-btn { padding: 4px 8px; }
+/* Neutralize neon in clean theme sections */
+body[data-theme="clean"] .pow-section {
+  color: var(--mv-fg) !important;
+  text-shadow: none !important;
+}
 
-/* Bottom action row */
+/* File list area */
+body[data-theme="clean"] .recovery-file-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;    /* center the whole section */
+  margin-top: 20px;
+  width: 100%;
+}
+
+body[data-theme="clean"] .file-entry {
+  display: flex;
+  flex-wrap: wrap;        /* allow wrapping */
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+/* File link styling */
+body[data-theme="clean"] .recovery-file-links .file-link {
+  color: #2563eb !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Preview button */
+body[data-theme="clean"] .preview-btn {
+  padding: 4px 8px;
+}
+
+/* Bottom action row (Download All / Securely Wipe) */
 body[data-theme="clean"] .btn-row {
   display: flex;
   flex-wrap: wrap;
@@ -376,22 +411,14 @@ body[data-theme="clean"] .btn-row {
   margin-top: 20px;
 }
 
-/* Neutralize neon in sections (you likely already added this) */
-body[data-theme="clean"] .pow-section { color: var(--mv-fg) !important; text-shadow:none !important; }
-
-/* File list */
-body[data-theme="clean"] .file-entry { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
-
-/* The link: turn it blue and override any inherited green */
-body[data-theme="clean"] .recovery-file-links .file-link {
-  color:#2563eb !important;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+/* On narrow screens, stack file rows + buttons vertically */
+@media (max-width: 520px) {
+  body[data-theme="clean"] .file-entry,
+  body[data-theme="clean"] .btn-row {
+    flex-direction: column;
+    gap: 6px;
+  }
 }
-
-/* Buttons + row layout */
-body[data-theme="clean"] .preview-btn { padding:4px 8px; }
-body[data-theme="clean"] .btn-row { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:20px; }
 
 /* Hints — Clean theme */
 body[data-theme="clean"] .hint-row {

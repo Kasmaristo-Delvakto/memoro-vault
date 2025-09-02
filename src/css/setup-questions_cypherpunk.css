@@ -1,6 +1,6 @@
 
     body { background-color: #111; color: #eee; font-family: 'Fira Code', monospace; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-    h1 { font-size: 32px; margin-bottom: 20px; }
+    h1 { font-size: 32px; margin-bottom: 20px; text-align: center; }
 p.instruction {
   font-size: 17px;
   color: #00ff99;
@@ -85,8 +85,34 @@ p.instruction {
   line-height: 1;
 }
 
+/* Mobile: keep question full-width; center controls beneath it */
+@media (max-width: 560px) {
+  .question-item {
+    display: grid;
+    /* gutters (1fr) + two centered controls (auto, auto) + gutters (1fr) */
+    grid-template-columns: 1fr max-content max-content 1fr;
+    row-gap: 12px;
+    column-gap: 40px;
+    align-items: center;
+  }
 
+  .question-text {
+    grid-column: 1 / -1;   /* full width */
+    margin-right: 0;
+    text-align: left;
+  }
 
+  .edit-button {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .unlock-checkbox {
+    grid-column: 3;
+    justify-self: start;
+    margin-left: 0;
+  }
+}
 
     .button-container { display: flex; justify-content: space-between; width: 100%; max-width: 400px; margin-top: 30px; }
 .button {
@@ -227,3 +253,49 @@ body {
   font-family: 'Fira Code', monospace;
   color: #00ff99; /* neon green for cypherpunk */
 }
+
+.hint-text {
+  font-size: 16px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  color: #ccc; /* cypherpunk grey */
+}
+
+/* Toggle class so JS never sets inline style */
+.modal.show { display: flex; }
+
+/* Help link — non-underlined like the old version */
+.help-link {
+  color: #00ff99;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 15px;
+}
+.help-link:hover { text-decoration: underline; }
+
+.help-link {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font-size: 14px;
+  text-decoration: none;
+  opacity: 0.85;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.help-link:hover {
+  background-color: rgba(0,255,153,0.1); /* cypherpunk */
+  opacity: 1;
+}
+
+/* Cypherpunk disclaimer text */
+.disclaimer-copy {
+  font-size: 16px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  color: #00ff99;  /* neon green to match theme */
+  line-height: 1.6;
+}
+
