@@ -436,11 +436,23 @@ const saved =
     }
  
 function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2Indices) {
-  // Keep your original order (gates, remaining, selected)
+  // Preserve your intended order: gates → remaining L2 → selected L2
   const orderedIndices = [...gateIndices, ...remainingL2Indices, ...selectedL2Indices];
 
   const form = document.getElementById("recoveryForm");
   form.innerHTML = "";
+
+  // Tiny helper for unbiased shuffle using crypto
+  function shuffleInPlace(arr) {
+    // Fisher–Yates with crypto.getRandomValues
+    for (let i = arr.length - 1; i > 0; i--) {
+      const r32 = new Uint32Array(1);
+      crypto.getRandomValues(r32);
+      const j = r32[0] % (i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
 
   orderedIndices.forEach((originalIdx, renderIdx) => {
     const q = questionList[originalIdx];
@@ -448,38 +460,62 @@ function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2
     const block = document.createElement("div");
     block.className = "question-block";
 
+    // Label
     const label = document.createElement("label");
     label.setAttribute("for", `answer-${renderIdx}`);
     label.innerHTML = `<b>${renderIdx + 1}.</b> ${q.question}`;
     block.appendChild(label);
 
-    // The standard answer input (we still submit strings)
+    // Text input (answers are still submitted as strings)
     const input = document.createElement("input");
     input.type = "text";
     input.id = `answer-${renderIdx}`;
     input.className = "l2-answer answer-input";
     input.setAttribute("data-index", String(originalIdx));
     input.required = true;
-    input.addEventListener("input", () => { input.value = input.value.toLowerCase(); });
+
+    // Keep lowercase, and keep MCQ visual state in sync if user types
+    input.addEventListener("input", () => {
+      input.value = input.value.toLowerCase();
+      const wrap = block.querySelector(".mcq-options");
+      if (wrap) {
+        const val = input.value.trim();
+        wrap.querySelectorAll(".mcq-btn").forEach(btn => {
+          btn.classList.toggle("selected", btn.textContent.toLowerCase() === val && val.length > 0);
+        });
+      }
+    });
+
     block.appendChild(input);
 
-    // MCQ choices (if enabled): clicking a button puts its text into the input
+    // MCQ (if enabled) → buttons that fill the input; shuffle display order every render
     if (q.mcqEnabled && Array.isArray(q.mcqOptions) && q.mcqOptions.length >= 2) {
       const mcqWrap = document.createElement("div");
       mcqWrap.className = "mcq-options";
-      q.mcqOptions.forEach((opt) => {
+
+      // Sanitize + uniq + shuffle for display
+      const displayOpts = Array.from(
+        new Set(q.mcqOptions.map(o => String(o ?? "").trim()).filter(Boolean))
+      );
+      shuffleInPlace(displayOpts);
+
+      displayOpts.forEach((opt) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "mcq-btn";
         btn.textContent = opt;
         btn.addEventListener("click", () => {
           input.value = String(opt).toLowerCase();
-          input.dispatchEvent(new Event("input"));
+          // reflect selection
           mcqWrap.querySelectorAll(".mcq-btn").forEach(b => b.classList.remove("selected"));
           btn.classList.add("selected");
+          // fire input for any downstream listeners
+          input.dispatchEvent(new Event("input", { bubbles: true }));
         });
         mcqWrap.appendChild(btn);
       });
+
+      // Clear selection / input
       const clearBtn = document.createElement("button");
       clearBtn.type = "button";
       clearBtn.className = "mcq-btn mcq-clear";
@@ -487,8 +523,10 @@ function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2
       clearBtn.addEventListener("click", () => {
         input.value = "";
         mcqWrap.querySelectorAll(".mcq-btn").forEach(b => b.classList.remove("selected"));
+        input.dispatchEvent(new Event("input", { bubbles: true }));
       });
       mcqWrap.appendChild(clearBtn);
+
       block.appendChild(mcqWrap);
     }
 
@@ -498,8 +536,10 @@ function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2
     hintDiv.id = `hint-${renderIdx}`;
     block.appendChild(hintDiv);
 
+    // Mount the block
     form.appendChild(block);
 
+    // Kick hint rendering to next tick (matches your original behavior)
     setTimeout(() => updateHint(renderIdx, originalIdx), 0);
   });
 }

@@ -255,20 +255,46 @@ body {
     color: #000;
   }
 
- .modal {
-  display: none;               /* <-- keep it hidden by default */
+/* Base modal: full-viewport layer */
+.modal {
   position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.75);
+  inset: 0;               /* top/right/bottom/left: 0 */
+  display: none;          /* toggled to flex in JS */
   align-items: center;
   justify-content: center;
-  padding: 5px;
-  box-sizing: border-box;
+  z-index: 1000;          /* baseline (hint modal uses this) */
 }
+
+/* Backdrop for all modals */
+.modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
+}
+
+/* Modal content scrolls inside its own box, not the page */
+.modal .modal-content {
+  position: relative;
+  max-width: min(860px, 92vw);
+  max-height: min(84vh, 860px);
+  overflow: auto;          /* internal scroll, not page */
+  z-index: 1;
+}
+
+/* Hint stays below warning */
+#hintModal { z-index: 1000; }
+
+/* MCQ guidance goes above hint */
+#mcqWarningModal { z-index: 1100; }
+
+/* When a top modal is up, dim + block the hint modal underneath */
+.modal.is-dimmed { filter: brightness(0.75); pointer-events: none; }
+
+/* Lock page scroll when any top-most modal is open */
+body.modal-open { overflow: hidden; }
+
 
 .modal-content {
   background-color: #111;
@@ -688,3 +714,24 @@ body {
 body, .question-form { overflow-x: hidden; }
 
 .hint-hr { border: 0; height: 1px; background: currentColor; opacity:.2; margin: 12px 0; }
+
+/* Improve modal readability in cypherpunk theme */
+body[data-theme="cypherpunk"] .modal-content {
+  background-color: #000;            /* solid black for contrast */
+  color: #00ff99;                    /* neon green text */
+  border: 1px solid #00ff99;         /* neon frame */
+  box-shadow: 0 0 16px rgba(0,255,153,0.4); /* glowing effect */
+  text-align: left;                  /* keep docs readable */
+  line-height: 1.6;
+}
+
+body[data-theme="cypherpunk"] .modal-content h1,
+body[data-theme="cypherpunk"] .modal-content h2,
+body[data-theme="cypherpunk"] .modal-content h3 {
+  color: #00ff99;                    /* strong neon headers */
+}
+
+body[data-theme="cypherpunk"] .modal-content p,
+body[data-theme="cypherpunk"] .modal-content li {
+  color: #ccc;                       /* softer body text for readability */
+}

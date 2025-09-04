@@ -344,3 +344,11 @@ canvas {
   color: var(--mv-muted, #5e6b85); /* muted text, consistent with theme */
   line-height: 1.6;
 }
+
+/* Ensure Clean theme modals use a solid white background */
+body[data-theme="clean"] .modal-content {
+  background-color: #fff;
+  color: #000;
+  border: 1px solid #000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}

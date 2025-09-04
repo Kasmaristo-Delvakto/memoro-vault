@@ -505,56 +505,92 @@ function enforceRedHerringShowLength() {
   }
 }
 
- function openHintModal(index) {
+function openHintModal(index) {
   activeHintIndex = index;
-  document.getElementById('hintModal').style.display = 'flex';
+
+  // Show Hint modal + lock page scroll (centralized)
+  const hintModal = document.getElementById('hintModal');
+  if (hintModal) {
+    hintModal.style.display = 'flex';
+  }
+  syncScrollLockWithModals(); // <-- lock now
 
   const trapIndex = getSelectedTrapIndex();
+  const saved = customHints[index] || {};
+
+  // ----- Length toggle -----
   const showLengthEl = document.getElementById('showLength');
-  const saved = customHints[index];
+  showLengthEl.checked = (typeof saved.showLength === 'boolean') ? saved.showLength : true;
 
-  // Default from saved or TRUE (unless later overridden by MCQ)
-  showLengthEl.checked = (saved && typeof saved.showLength === 'boolean') ? saved.showLength : true;
-
-  // If this question is the Red Herring and it's NOT MCQ, force ON + disable
-  if (index === trapIndex && !saved?.mcqEnabled) {
+  // If this is the Red Herring and NOT MCQ, force length ON + disable
+  if (index === trapIndex && !saved.mcqEnabled) {
     showLengthEl.checked = true;
     showLengthEl.disabled = true;
   } else {
-    showLengthEl.disabled = false; // may get disabled again by MCQ
+    showLengthEl.disabled = false;
   }
 
-  // Pre-size number of letters dropdown
+  // ----- Letters UI -----
   const numLettersEl = document.getElementById('numLetters');
-  if (saved?.letters?.length >= 0) {
+  if (Array.isArray(saved.letters)) {
     numLettersEl.value = String(saved.letters.length || 0);
   }
-
   buildLetterSelectors();
   toggleLetterHintAvailability(showLengthEl.checked);
-
-  showLengthEl.addEventListener("change", () => {
-    toggleLetterHintAvailability(showLengthEl.checked);
-  }, { once: true });
+  showLengthEl.onchange = () => toggleLetterHintAvailability(showLengthEl.checked);
 
   // ----- MCQ wiring -----
-  hydrateMcqFromSaved(saved || {});
+  hydrateMcqFromSaved(saved); // keep only ONE definition of this function in the file
 
   const mcqEnabledEl = document.getElementById('mcqEnabled');
-  const mcqCountEl = document.getElementById('mcqCount');
+  const mcqConfigEl  = document.getElementById('mcqConfig');
+  const mcqCountEl   = document.getElementById('mcqCount');
 
+  // Single handler: allow toggle, but block + warn on L1 (unlock) questions
   mcqEnabledEl.onchange = (e) => {
-    syncMcqUiEnabledState(e.target.checked);
+    const tryingToEnable = !!e.target.checked;
+
+    if (tryingToEnable && isGateIndex(index)) {
+      // Revert and warn
+      e.target.checked = false;
+      if (mcqConfigEl) mcqConfigEl.style.display = 'none';
+      if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(false);
+      showMessageModal('MCQ not allowed',
+        'Multiple-choice is disabled for Layer-1 unlock questions. Use length/letters or a free-text hint instead.');
+      return;
+    }
+
+    // Non-L1 normal flow
+    if (mcqConfigEl) mcqConfigEl.style.display = tryingToEnable ? 'block' : 'none';
+    if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(tryingToEnable);
+    if (tryingToEnable && typeof showMcqWarningOnce === 'function') showMcqWarningOnce();
   };
 
+  // If MCQ was saved ON previously:
+  if (mcqEnabledEl.checked) {
+    if (isGateIndex(index)) {
+      mcqEnabledEl.checked = false;
+      if (mcqConfigEl) mcqConfigEl.style.display = 'none';
+      if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(false);
+      showMessageModal('MCQ not allowed',
+        'Multiple-choice is disabled for Layer-1 unlock questions. Use length/letters or a free-text hint instead.');
+    } else {
+      if (mcqConfigEl) mcqConfigEl.style.display = 'block';
+      if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(true);
+      if (typeof showMcqWarningOnce === 'function') showMcqWarningOnce();
+    }
+  } else {
+    if (mcqConfigEl) mcqConfigEl.style.display = 'none';
+    if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(false);
+  }
+
+  // Keep existing decoy-resize behavior
   mcqCountEl.onchange = (e) => {
     const n = parseInt(e.target.value, 10) || 6;
-    // Keep whatever the user already typed in decoys
-    const currentDecoys = Array.from(document.querySelectorAll('.mcq-decoy'))
-      .map(inp => inp.value);
-    const resizedDecoys = currentDecoys.slice(0, Math.max(0, n - 1));
-    while (resizedDecoys.length < n - 1) resizedDecoys.push('');
-    renderMcqDecoyInputs(Math.max(5, n - 1), resizedDecoys);
+    const current = Array.from(document.querySelectorAll('.mcq-decoy')).map(inp => inp.value);
+    const resized = current.slice(0, Math.max(0, n - 1));
+    while (resized.length < n - 1) resized.push('');
+    renderMcqDecoyInputs(Math.max(5, n - 1), resized);
   };
 }
 
@@ -638,59 +674,56 @@ function renderMcqDecoyInputs(countMinusOne, savedDecoys = []) {
 }
 
 function hydrateMcqFromSaved(saved) {
+  const idx = (typeof activeHintIndex === 'number') ? activeHintIndex : -1;
+
+  // If this is L1 (unlock), never hydrate MCQ as ON (but do NOT hide the UI)
+  if (isGateIndex(idx)) {
+    saved = { ...(saved || {}), mcqEnabled: false, mcqOptions: [] };
+  }
+
   const enabled = !!(saved && saved.mcqEnabled);
   const mcqEnabledEl = document.getElementById('mcqEnabled');
   if (mcqEnabledEl) mcqEnabledEl.checked = enabled;
 
-  // Build count choices
   buildMcqCountDropdown();
   const sel = document.getElementById('mcqCount');
 
-  // Pull saved options; index 0 is the correct one
+  // saved.mcqOptions: [correct, ...decoys] if present
   const savedOptions = Array.isArray(saved?.mcqOptions) ? saved.mcqOptions.slice() : [];
 
-  // Prefill correct option:
+  // Prefill the correct option (prefer saved; else use the typed answer)
   const mcqCorrectEl = document.getElementById('mcqCorrect');
   if (mcqCorrectEl) {
-    // Prefer saved correct option; else default to whatever is already typed for this question on the page
-    const existingTyped = document.getElementById(`answer-${activeHintIndex}`)?.value || '';
-    mcqCorrectEl.value = savedOptions[0] || existingTyped || '';
+    const typed = document.getElementById(`answer-${idx}`)?.value || '';
+    mcqCorrectEl.value = savedOptions[0] || typed || '';
   }
 
-  // Prefill decoys:
   const decoys = savedOptions.length > 0 ? savedOptions.slice(1) : [];
   const n = Math.max(6, Math.min(12, (decoys.length + 1) || 6));
   if (sel) sel.value = String(n);
-
   renderMcqDecoyInputs(n - 1, decoys);
-  syncMcqUiEnabledState(enabled);
+
+  if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(enabled);
 }
 
-function hydrateMcqFromSaved(saved) {
-  const enabled = !!(saved && saved.mcqEnabled);
-  const mcqEnabledEl = document.getElementById('mcqEnabled');
-  mcqEnabledEl.checked = enabled;
-  buildMcqCountDropdown();
-  const sel = document.getElementById('mcqCount');
-  const decoys = Array.isArray(saved?.mcqOptions) ? saved.mcqOptions.slice(1) : []; // skip correct
-  const n = Math.max(6, Math.min(12, (decoys.length + 1) || 6));
-  sel.value = String(n);
-  renderMcqDecoyInputs(n - 1);
-  // prefill decoys
-  const inputs = document.querySelectorAll('.mcq-decoy');
-  inputs.forEach((inp, i) => inp.value = decoys[i] || '');
-  syncMcqUiEnabledState(enabled);
-}
 
-  function closeHintModal() {
+function closeHintModal() {
   activeHintIndex = null;
-  document.getElementById('hintModal').style.display = 'none';
-  document.getElementById('letterSelectors').innerHTML = '';
-  document.getElementById('customHintText').value = '';
+
+  const hint = document.getElementById('hintModal');
+  if (hint) hint.style.display = 'none';
+
+  // existing cleanup
+  const letterBox = document.getElementById('letterSelectors');
+  if (letterBox) letterBox.innerHTML = '';
+  const custom = document.getElementById('customHintText');
+  if (custom) custom.value = '';
   const numSel = document.getElementById('numLetters');
   if (numSel) numSel.value = '0';
   const sl = document.getElementById('showLength');
   if (sl) sl.checked = true;
+
+  syncScrollLockWithModals(); // <-- release if no other modals are open
 }
 
   function buildLetterSelectors() {
@@ -750,6 +783,21 @@ function saveCustomHint() {
   const mcqEnabled = !!document.getElementById('mcqEnabled')?.checked;
   const customText = document.getElementById('customHintText').value.trim();
 
+  // 🚫 Block saving MCQ on L1 with a warning (UI stays visible)
+  if (mcqEnabled && isGateIndex(activeHintIndex)) {
+    // snap the UI back off so the preview & state match the rule
+    const mcqEnabledEl = document.getElementById('mcqEnabled');
+    if (mcqEnabledEl) mcqEnabledEl.checked = false;
+    const mcqConfigEl  = document.getElementById('mcqConfig');
+    if (mcqConfigEl) mcqConfigEl.style.display = 'none';
+    if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(false);
+
+    showMessageModal('MCQ not allowed',
+      'Multiple-choice is disabled for Layer-1 unlock questions. Please use letter/length hints or a free-text hint instead.');
+    return;
+  }
+
+  // ----- MCQ path (non-L1) -----
   if (mcqEnabled) {
     const countSel = document.getElementById('mcqCount');
     const n = Math.max(6, Math.min(12, parseInt(countSel?.value || '6', 10)));
@@ -770,7 +818,6 @@ function saveCustomHint() {
       return;
     }
 
-    // Optional: dedupe options (light guard)
     const all = [correct, ...decoys];
     const uniq = new Set(all.map(s => s.toLowerCase()));
     if (uniq.size !== all.length) {
@@ -778,7 +825,6 @@ function saveCustomHint() {
       return;
     }
 
-    // Persist MCQ (length OFF, letters ignored)
     customHints[activeHintIndex] = {
       letters: [],
       custom: customText,
@@ -787,7 +833,7 @@ function saveCustomHint() {
       mcqOptions: all
     };
 
-    // (Optional) sync the main answer input to the correct option, so export flows match expectations
+    // Optionally mirror the main answer to the correct option
     const mainAnswer = document.getElementById(`answer-${activeHintIndex}`);
     if (mainAnswer) mainAnswer.value = correct;
 
@@ -797,7 +843,7 @@ function saveCustomHint() {
     return;
   }
 
-  // ----- Non-MCQ path (original behavior) -----
+  // ----- Non-MCQ path (unchanged) -----
   const effectiveShowLength = (activeHintIndex === trapIndex) ? true : requestedShowLength;
 
   if (!effectiveShowLength) {
@@ -813,7 +859,7 @@ function saveCustomHint() {
     return;
   }
 
-  const num = parseInt(document.getElementById('numLetters').value);
+  const num = parseInt(document.getElementById('numLetters').value, 10);
   const indexes = [];
   const seen = new Set();
   let duplicateFound = false;
@@ -821,7 +867,7 @@ function saveCustomHint() {
   for (let i = 0; i < num; i++) {
     const el = document.getElementById(`letter-select-${i}`);
     if (!el) continue;
-    const value = parseInt(el.value);
+    const value = parseInt(el.value, 10);
     if (seen.has(value)) { duplicateFound = true; break; }
     seen.add(value);
     indexes.push(value);
@@ -843,31 +889,68 @@ function saveCustomHint() {
   closeHintModal();
 }
 
-  function refreshHintModal() {
-    if (document.getElementById('hintModal').style.display === 'flex') {
-      buildLetterSelectors();
+function refreshHintModal() {
+  const modal = document.getElementById('hintModal');
+  if (!(modal && modal.style.display === 'flex')) return;
+
+  if (typeof buildLetterSelectors === 'function') buildLetterSelectors();
+
+  const mcqEnabledEl = document.getElementById('mcqEnabled');
+  const mcqConfigEl  = document.getElementById('mcqConfig');
+  if (!mcqEnabledEl || !mcqConfigEl) return;
+
+  // reflect current UI
+  mcqConfigEl.style.display = mcqEnabledEl.checked ? 'block' : 'none';
+  if (typeof syncMcqUiEnabledState === 'function') {
+    syncMcqUiEnabledState(mcqEnabledEl.checked);
+  }
+
+  // one stable handler: warn + revert on L1; otherwise normal flow + guidance modal
+  mcqEnabledEl.onchange = (e) => {
+    const on = !!e.target.checked;
+
+    if (on && isGateIndex(activeHintIndex)) {
+      e.target.checked = false;
+      mcqConfigEl.style.display = 'none';
+      if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(false);
+      showMessageModal('MCQ not allowed',
+        'Multiple-choice is disabled for Layer-1 unlock questions. Use length/letters or a free-text hint instead.');
+      return;
     }
+
+    mcqConfigEl.style.display = on ? 'block' : 'none';
+    if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(on);
+    if (on && typeof showMcqWarningOnce === 'function') showMcqWarningOnce();
+  };
+
+  // If it’s already ON and not L1, show the guidance once per session
+  if (mcqEnabledEl.checked && !isGateIndex(activeHintIndex) && typeof showMcqWarningOnce === 'function') {
+    showMcqWarningOnce();
   }
+}
   
-  function showMessageModal(title, message, autoCloseMs) {
-    const modal = document.getElementById('messageModal');
-    modal.classList.remove('fade-out');
-    document.getElementById('messageModalTitle').innerText = title;
-    document.getElementById('messageModalText').innerText = message;
-    modal.style.display = 'flex';
-    if (autoCloseMs) {
-      setTimeout(() => {
-        modal.classList.add('fade-out');
-        setTimeout(closeMessageModal, 500);
-      }, autoCloseMs);
-    }
+function showMessageModal(title, message, autoCloseMs) {
+  const modal = document.getElementById('messageModal');
+  modal.classList.remove('fade-out');
+  document.getElementById('messageModalTitle').innerText = title;
+  document.getElementById('messageModalText').innerText = message;
+  modal.style.display = 'flex';
+  syncScrollLockWithModals(); // lock while message modal is open
+
+  if (autoCloseMs) {
+    setTimeout(() => {
+      modal.classList.add('fade-out');
+      setTimeout(closeMessageModal, 500);
+    }, autoCloseMs);
   }
-  
-  function closeMessageModal() {
-    const modal = document.getElementById('messageModal');
-    modal.style.display = 'none';
-    modal.classList.remove('fade-out');
-  }
+}
+
+function closeMessageModal() {
+  const modal = document.getElementById('messageModal');
+  modal.style.display = 'none';
+  modal.classList.remove('fade-out');
+  syncScrollLockWithModals(); // release if this was the last open modal
+}
   
   function securelyClearSensitiveData() {
   localStorage.removeItem('userAnswers');
@@ -1077,23 +1160,6 @@ function renderMcqDecoyInputs(countMinusOne, savedDecoys = []) {
     `;
     holder.appendChild(wrap);
   }
-}
-
-function hydrateMcqFromSaved(saved) {
-  const enabled = !!(saved && saved.mcqEnabled);
-  const mcqEnabledEl = document.getElementById('mcqEnabled');
-  if (mcqEnabledEl) mcqEnabledEl.checked = enabled;
-
-  buildMcqCountDropdown();
-  const sel = document.getElementById('mcqCount');
-
-  // saved.mcqOptions is [correct, ...decoys] if it exists
-  const decoys = Array.isArray(saved?.mcqOptions) ? saved.mcqOptions.slice(1) : [];
-  const n = Math.max(6, Math.min(12, (decoys.length + 1) || 6));
-  if (sel) sel.value = String(n);
-
-  renderMcqDecoyInputs(n - 1, decoys);
-  syncMcqUiEnabledState(enabled);
 }
 
 function updateEntropy(index) {
@@ -1346,3 +1412,33 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function isGateIndex(idx) {
+  const unlock = JSON.parse(localStorage.getItem('unlockQuestions') || '[0,1]');
+  return unlock.includes(idx);
+}
+
+// Allow MCQ on gates: do NOT disable, only show the warning when toggled on.
+function lockMcqIfGate() {
+  const idx = typeof activeHintIndex === 'number' ? activeHintIndex : -1;
+  const mcqEnabledEl = document.getElementById('mcqEnabled');
+  const mcqConfigEl  = document.getElementById('mcqConfig');
+  if (!mcqEnabledEl || !mcqConfigEl) return;
+
+  // Always keep it enabled. If this is a gate, we simply rely on the warning modal.
+  mcqEnabledEl.disabled = false;
+
+  mcqEnabledEl.onchange = (e) => {
+    const on = e.target.checked;
+    mcqConfigEl.style.display = on ? 'block' : 'none';
+    if (on) showMcqWarningOnce();
+    // keep other UI in sync
+    if (typeof syncMcqUiEnabledState === 'function') syncMcqUiEnabledState(on);
+  };
+}
+
+function syncScrollLockWithModals() {
+  // Consider any element with class="modal" as a lock trigger when visible
+  const anyOpen = Array.from(document.querySelectorAll('.modal'))
+    .some(m => getComputedStyle(m).display !== 'none');
+  document.body.classList.toggle('modal-open', anyOpen);
+}
