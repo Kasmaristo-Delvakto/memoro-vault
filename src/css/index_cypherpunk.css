@@ -212,3 +212,18 @@ body, .content, .modal, .modal-content, button, canvas {
   position: absolute;
   left: 0;
 }
+
+.hidden { display: none; }
+
+.logo { max-width: 300px; height: auto; margin-bottom: 20px; }
+
+#matrix, #hashMist { display: none; } /* mirrors the previous inline styles */
+
+/* Optional: if you need to fade the theme overlay, keep it in CSS, not inline */
+#themeFade { /* example placeholder; customize as you like */
+  position: fixed; inset: 0; pointer-events: none;
+}
+
+/* Ensure modals start hidden by class (no inline style) */
+.modal[aria-hidden="true"] { visibility: hidden; }
+.modal.hidden { display: none; }
