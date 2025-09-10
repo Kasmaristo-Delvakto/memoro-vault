@@ -803,28 +803,28 @@ async function showRecoveryModal(finalMessage, files) {
   }
 
   for (const f of files) {
-    const finalName = uniqueName(f.name || "file.bin");
-    const row = document.createElement("div");
-    row.style.display = "flex";
-    row.style.alignItems = "center";
-    row.style.gap = "10px";
-    row.style.margin = "8px 0";
+  const finalName = uniqueName(f.name || "file.bin");
+  const row = document.createElement("div");
+  row.style.display = "flex";
+  row.style.alignItems = "center";
+  row.style.gap = "10px";
+  row.style.margin = "8px 0";
 
-    const link = document.createElement("a");
-    link.href = trackURL(URL.createObjectURL(file.blob)); // <— wrap it
-    link.download = finalName;
-    link.innerHTML = `📎 ${finalName}`;
-    link.className = "file-link";
+  const link = document.createElement("a");
+  link.href = trackURL(URL.createObjectURL(f.blob));   // ← fixed
+  link.download = finalName;
+  link.innerHTML = `📎 ${finalName}`;
+  link.className = "file-link";
 
-    const previewBtn = document.createElement("button");
-    previewBtn.textContent = "Preview";
-    previewBtn.className = "button";
-    previewBtn.addEventListener("click", () => showPreview(finalName, f.blob));
+  const previewBtn = document.createElement("button");
+  previewBtn.textContent = "Preview";
+  previewBtn.className = "button";
+  previewBtn.addEventListener("click", () => showPreview(finalName, f.blob));
 
-    row.appendChild(link);
-    row.appendChild(previewBtn);
-    host.appendChild(row);
-  }
+  row.appendChild(link);
+  row.appendChild(previewBtn);
+  host.appendChild(row);
+}
 
   // Buttons: Download All as ZIP / Return to Dashboard
   const btnRow = document.createElement("div");
