@@ -65,18 +65,18 @@ const defaultQuestions = [
   "Journey before... (complete the phrase)",
   "What was the name of my yellow Suzuki V-Strom 650 motorcycle?",
   "What is the name of my childhood best friend?",
-  "Was my wife my first kiss? (y/n)",
-  "Was I her first kiss? (y/n)",
-  "Do I like mustard? (y/n)",
-  "I play the guitar AND piano (t/f)",
-  "My wife was a collegiate dancer for Auburn (t/f)",
-  "We had our first child in 2019 (t/f)",
-  "I have played league tennis (t/f)",
-  "I played tennis in high school (t/f)",
+  "What was one of my family's Christmas traditions growing up? (Multiple choice)",
+  "What is the make and model of the first rifle I ever owned? (Multiple choice)",
+  "What is my favorite condiment?",
+  "Which of the numbers below are significant to me? (Multiple choice)",
+  "What is the 4 digit pin for my phone?",
+  "In what year did we have our first child? (Multiple choice)",
+  "Which Myers Briggs (MBTI) personality am I? (Multiple choice)",
+  "My best score on the English portion of the ACT was...(Multiple choice)",
   "My wife and I met in high school (t/f)",
   "My wife is left-handed (t/f)",
   "I am left-handed (t/f)",
-  "I have travelled overseas AND am bilingual (t/f)"
+  "I will never forget this date (Multiple choice)",
 ];
 
 function loadQuestions() {

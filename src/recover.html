@@ -75,11 +75,6 @@ const saved =
   <!-- Main heading -->
 <h1 id="pageTitle">Recover Your Vault</h1>
 
-<!-- Button to return to dashboard -->
-<div class="button-container">
-  <button class="button" onclick="backToDashboard()">Return to Dashboard</button>
-</div>
-
 <!-- Form for entering recovery answers -->
 <form class="recovery-form" id="recoveryForm"></form>
 
@@ -98,23 +93,15 @@ const saved =
         <span class="donation-strong">Thanks for using Memoro Vault.</span><br>
         If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
       </p>
-      <button class="donation-button"
-        onclick="window.memoroAPI.openExternalLink('https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=')">
+      <button class="donation-button" type="button" onclick="donatePreferredCrypto()">
         Donate with preferred crypto
       </button>
-      <div class="donation-subcontainer">
-        <p class="donation-subtext">Offline? Paste it into your browser later.</p>
-        <button class="donation-button" onclick="copyDonationLink()">Copy Donation Link</button>
-      </div>
     </div>
 
     <div class="pow-section">
       <h2 id="vaultRecoveredHeading" class="vault-recovered">Vault Recovered!</h2>
       <pre id="recoveredSeed" class="recovered-seed"></pre>
       <pre id="finalMessage" class="final-message"></pre>
-      <div class="modal-buttons">
-        <button onclick="closeSeedModal()">Return to Dashboard</button>
-      </div>
     </div>
   </div>
 </div>
@@ -145,26 +132,27 @@ const saved =
   <div class="modal-content">
     <h2 id="redHerringTitle" class="red-herring-title">Pay Attention Before You Begin</h2>
     <p id="redHerringText" class="red-herring-text">
-      One of these questions might be a 
-      <span class="red-herring-highlight">Red Herring</span>
-      —a trick question that’s <u class="underline-strong">not supposed to be answered correctly</u>.
-      <br><br>
-      If a Red Herring is present, you must 
-      <span class="leave-blank">leave it blank</span>. 
-      Entering an answer—even the real one—will prevent you from unlocking the vault.
-      <br><br>
-      <span class="red-herring-highlight">How do I spot it?</span><br>
-      Look at the character hint beneath each question. 
-      If the expected character count <u class="underline-strong">differs from the real answer by 2 or more characters</u>, it’s likely the Red Herring.
-      <br><br>
-      <span class="example-label">Example:</span> If your favorite dog’s name was 
-      “<code class="example-code">Samantha</code>” (8 letters), but the hint only shows 4 characters, 
-      <u class="underline-strong">do not answer that question</u>.
-      <br><br>
-      There is either 
-      <span class="exactly-one">exactly one</span> Red Herring 
-      or <span class="exactly-one">none at all</span>—never more than one.
-    </p>
+  One of these questions might be a 
+  <span class="red-herring-highlight">Red Herring</span>
+  — a trick question that’s <u class="underline-strong">not supposed to be answered correctly</u>.
+  <br><br>
+  If a Red Herring is present, you must 
+  <span class="leave-blank">leave it blank</span>. 
+  Entering an answer—even the real one—will prevent you from unlocking the vault.
+  <br><br>
+  <span class="red-herring-highlight">How do I spot it?</span><br>
+  • For text-entry questions: check the character hint beneath each question. 
+  If the expected character count <u class="underline-strong">differs from the real answer by 2 or more characters</u>, it’s likely the Red Herring.<br>
+  • For multiple-choice (MCQ) questions: if none of the options are correct, it is likely the Red Herring and <u class="underline-strong">must be left unanswered</u>.
+  <br><br>
+  <span class="example-label">Example:</span> If your favorite dog’s name was 
+  “<code class="example-code">Samantha</code>” (8 letters), but the hint only shows 4 characters, 
+  <u class="underline-strong">do not answer that question</u>.
+  <br><br>
+  There is either 
+  <span class="exactly-one">exactly one</span> Red Herring 
+  or <span class="exactly-one">none at all</span>—never more than one.
+</p>
     <div class="modal-buttons">
       <button onclick="closeRedHerringModal()">Got it</button>
     </div>

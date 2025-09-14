@@ -29,12 +29,29 @@ function revokeAllUrls() {
   __revokableUrls.clear();
 }
 
-// Best-effort clipboard scrub (requires user gesture / permission in most browsers)
+// --- Robust clipboard blanker (works in more environments) ---
 async function wipeClipboard() {
+  // Try modern API first
   try {
-    // Replace with a single blank char—less suspicious than empty string in some UAs
     await navigator.clipboard.writeText(" ");
-  } catch {}
+    return true;
+  } catch (_) { /* fall back */ }
+
+  // Fallback: hidden textarea + execCommand('copy')
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = " ";
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    return true;
+  } catch (_) {
+    return false; // best-effort
+  }
 }
 
 // Zeroize Uint8Array or ArrayBuffer-ish
@@ -74,7 +91,7 @@ function forgetGlobals() {
   if (term) term.textContent = "";
 }
 
-// One shot: revoke URLs, wipe clipboard, clear storages (except theme), wipe IDB, zeroize
+// --- Nuke all temp state (awaits IDB deletes) ---
 async function nukeTempState() {
   try {
     revokeAllUrls();
@@ -87,7 +104,6 @@ async function nukeTempState() {
       sessionStorage.getItem(THEME_KEY) ??
       localStorage.getItem(THEME_KEY) ?? null;
 
-    // clear everything else
     function clearExceptTheme(store) {
       const keep = new Set([THEME_KEY]);
       for (let i = store.length - 1; i >= 0; i--) {
@@ -103,14 +119,28 @@ async function nukeTempState() {
       sessionStorage.setItem(THEME_KEY, preserved);
     }
 
-    // wipe known databases (broad sweep if supported)
+    // Awaited IndexedDB deletion (broad sweep if supported)
     if (indexedDB.databases) {
       const dbs = await indexedDB.databases();
-      for (const db of dbs) if (db?.name) indexedDB.deleteDatabase(db.name);
+      const deletions = dbs
+        .filter(db => db?.name)
+        .map(db => new Promise((resolve) => {
+          const req = indexedDB.deleteDatabase(db.name);
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        }));
+      await Promise.all(deletions);
     } else {
-      indexedDB.deleteDatabase("memoroVaultVaultStorage");
-      indexedDB.deleteDatabase("memoroVaultDB");
+      const names = ["memoroVaultVaultStorage", "memoroVaultDB"];
+      for (const name of names) {
+        await new Promise((resolve) => {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        });
+      }
     }
+
+    // tiny event-loop flush (belt & suspenders)
+    await new Promise(r => setTimeout(r, 25));
   } catch {}
 }
 
@@ -175,16 +205,28 @@ const terminal = $("powTerminal");
 function showMessageModal(title, message) {
   alert(`${title}: ${message}`);
 }
-function showToast(text, type="info") {
-  const el = $("toast");
+function showToast(text, type = "info") {
+  const el = document.getElementById("toast");
   if (!el) return;
+
   el.textContent = text;
-  el.className = `toast ${type}`;
-  el.style.opacity = "1";
-  setTimeout(() => { el.style.opacity = "0"; }, 1800);
+  // ensure the "show" class is present so CSS flips display/opacity
+  el.className = `toast ${type} show`;
+
+  // keep it visible for a moment, then fade and hide
+  setTimeout(() => {
+    el.style.opacity = "0";
+    // after the fade completes, remove .show to restore display:none
+    setTimeout(() => {
+      el.classList.remove("show");
+      el.style.opacity = ""; // cleanup
+    }, 500); // match your CSS transition
+  }, 1800);
 }
+// --- Exit hooks use the stronger wipe first (keeps it in the click gesture) ---
 async function backToDashboard() {
-  await onLeave();
+  try { await wipeClipboard(); } catch (_) {}
+  await onLeave();                      // awaits nukeTempState()
   window.location.href = "dashboard.html";
 }
 function closePreview() {
@@ -193,23 +235,73 @@ function closePreview() {
 }
 
 async function closeSeedModal() {
-  await onLeave();           // nuke secrets & storage
+  try { await wipeClipboard(); } catch (_) {}
+  await onLeave();                      // awaits nukeTempState()
   window.location.href = "dashboard.html";
 }
 
-function copyDonationLink() {
+// recover.js
+function donatePreferredCrypto() {
   const url = "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
-  navigator.clipboard.writeText(url)
-    .then(() => showToast("Donation link copied!", "success"))
-    .catch(() => showToast("Failed to copy link.", "error"));
+
+  (async () => {
+    try {
+      if (window.memoroAPI?.openExternalLink) {
+        const res = await window.memoroAPI.openExternalLink(url);
+        if (res?.ok) {
+          showToast("Opening donation page…", "info");
+          return;
+        }
+        // fall through to copy if blocked
+      }
+    } catch (_) {}
+    // Fallback: copy to clipboard so user can paste in a browser
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Donation link copied—paste into your browser.", "success");
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast("Donation link copied—paste into your browser.", "success");
+    }
+  })();
 }
+
+// expose for onclick
+Object.assign(window, { donatePreferredCrypto });
+
+// show the “Red Herring” primer once per visit
+function showRedHerringModalOnce() {
+  const KEY = "mv_shown_red_herring_v1";
+  if (sessionStorage.getItem(KEY)) return; // already shown
+  sessionStorage.setItem(KEY, "1");
+  const m = document.getElementById("redHerringModal");
+  if (m) m.classList.add("show");
+}
+
+// …keep your existing bootstraps…
+window.addEventListener("DOMContentLoaded", () => {
+  showRedHerringModalOnce();            // ← add this line
+  hydrateFromIndexedDB().catch(err => {
+    console.error("[recover] bootstrap failed:", err);
+    alert("Could not load your vault from local storage: " + (err.message || err));
+  });
+});
+
 function closeRedHerringModal(){
-  $("redHerringModal").style.display = "none";
+  const m = document.getElementById("redHerringModal");
+  if (m) m.classList.remove("show");
 }
 
 // expose HTML-called functions
 Object.assign(window, {
-  backToDashboard, closePreview, closeSeedModal, copyDonationLink, closeRedHerringModal
+  backToDashboard, closePreview, closeSeedModal, closeRedHerringModal
 });
 
 /* ---------------------------

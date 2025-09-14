@@ -1110,34 +1110,46 @@ async function startPaperCamera() {
   const v = document.getElementById('paperCam');
   if (!v) return;
 
-  __mvCamStream = await navigator.mediaDevices.getUserMedia(constraints);
-  v.srcObject = __mvCamStream;
-  v.playsInline = true;
-  v.style.display = 'block';
-  await v.play();
-
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-  let ticking = false;
-  __mvCamLoop = setInterval(async () => {
-    if (ticking) return;
-    if (!v.videoWidth || !v.videoHeight) return;
-    ticking = true;
-    try {
-      canvas.width = v.videoWidth;
-      canvas.height = v.videoHeight;
-      ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-      const found = await findAllQRCodesOnCanvas(canvas);
-      for (const t of found) ingestQR(t, 'camera');
-      updatePaperProgress();
-    } catch (e) {
-      console.warn('scan frame failed:', e);
-    } finally {
-      ticking = false;
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showMessageModal('Camera Unavailable', 'This environment does not support camera access.');
+      return;
     }
-  }, 300);
+
+    __mvCamStream = await navigator.mediaDevices.getUserMedia(constraints);
+    v.srcObject = __mvCamStream;
+    v.playsInline = true;
+    v.style.display = 'block';
+    await v.play();
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    let ticking = false;
+    __mvCamLoop = setInterval(async () => {
+      if (ticking) return;
+      if (!v.videoWidth || !v.videoHeight) return;
+      ticking = true;
+      try {
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        const found = await findAllQRCodesOnCanvas(canvas);
+        for (const t of found) ingestQR(t, 'camera');
+        updatePaperProgress();
+      } catch (e) {
+        console.warn('scan frame failed:', e);
+      } finally {
+        ticking = false;
+      }
+    }, 300);
+  } catch (e) {
+    console.warn('getUserMedia failed:', e);
+    const msg = (e && (e.message || e.name)) ? `${e.name || 'Error'}: ${e.message}` : 'Unknown error.';
+    showMessageModal('Camera Blocked', `Couldn’t start camera. ${msg}\n\nCheck OS privacy settings and try again.`);
+  }
 }
+
 function stopPaperCamera() {
   if (__mvCamLoop) { clearInterval(__mvCamLoop); __mvCamLoop = null; }
   if (__mvCamStream) {

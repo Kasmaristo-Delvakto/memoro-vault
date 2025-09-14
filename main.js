@@ -83,8 +83,36 @@ async function hardenSession() {
     cb({ responseHeaders: headers });
   });
 
-  // 3) Deny ALL permission prompts (camera/mic/fs/etc.)
-  ses.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+// 3) Allow ONLY video (no mic) for our local app pages
+const isVideoOnly = (details) => {
+  const types = details?.mediaTypes || [];
+  return types.length === 1 && types[0] === 'video';
+};
+const isOurRenderer = (wc) => {
+  try {
+    const url = wc?.getURL?.() || '';
+    return url.startsWith('file://') && isPathAllowedFileUrl(url);
+  } catch { return false; }
+};
+
+if (typeof ses.setPermissionCheckHandler === 'function') {
+  ses.setPermissionCheckHandler((wc, permission, _origin, details) => {
+    if (!isOurRenderer(wc)) return false;
+    if (permission === 'media' || permission === 'camera' || permission === 'videoCapture') {
+      return isVideoOnly(details);
+    }
+    return false;
+  });
+}
+
+ses.setPermissionRequestHandler((wc, permission, callback, details) => {
+  if (isOurRenderer(wc) &&
+      (permission === 'media' || permission === 'camera' || permission === 'videoCapture') &&
+      isVideoOnly(details)) {
+    return callback(true);     // ✅ allow camera (video only)
+  }
+  return callback(false);      // ❌ deny everything else
+});
 }
 
 function createWindow() {
@@ -197,3 +225,4 @@ app.on('will-quit', () => {
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (e) => e.preventDefault());
 });
+

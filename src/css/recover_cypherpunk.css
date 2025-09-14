@@ -688,3 +688,26 @@ body[data-theme="cypherpunk"] .hint-custom-text {
 .mcq-btn:hover { filter:brightness(1.15); }
 .mcq-btn.selected { outline:2px solid #66ccff; }
 .mcq-btn.mcq-clear { opacity:.8; }
+
+/* Bottom action row (Download All / Return) — match clean behavior */
+.btn-row {
+  display: flex;              /* make it a flex row */
+  justify-content: center;    /* center the buttons */
+  gap: 10px;                  /* space between buttons */
+  margin-top: 20px;
+  flex-wrap: wrap;            /* allow wrap on mid widths */
+}
+
+/* Stack nicely on narrow screens */
+@media (max-width: 560px) {
+  .btn-row {
+    flex-direction: column;   /* vertical stack */
+    align-items: stretch;     /* let buttons fill row width */
+    gap: 8px;
+  }
+  .btn-row .button {
+    width: 100%;
+    max-width: 320px;         /* optional: keep them from going super wide */
+    margin-inline: auto;      /* center the full-width cap */
+  }
+}
