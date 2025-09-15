@@ -3,7 +3,7 @@
   "version": "1.0.7",
   "description": "A private, offline memory-based vault for securing digital assets.",
   "main": "main.js",
-  "author": "Kasmaristo Delvakto",
+  "author": "Kasmaristo Delvakto <printandpray@proton.me>",
   "license": "GPL-3.0",
   "scripts": {
     "ci": "npm ci",
@@ -14,7 +14,7 @@
     "make": "electron-forge make",
     "build": "npm run ci && npm run clean && npm run prebuild:win && npm run prebuild:linux && npm run package && npm run bundle-vault && npm run checksum",
     "prebuild:win": "electron-builder --win",
-    "prebuild:linux": "electron-builder --linux",
+    "prebuild:linux": "electron-builder -l AppImage deb rpm",
     "bundle-vault": "zip -r dist/vault.zip vault-assets",
     "checksum": "node scripts/generate-checksum.js",
     "postinstall": "node scripts/postinstall-check.js",
@@ -26,29 +26,22 @@
     "directories": {
       "output": "dist"
     },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "files": [
       "src/**/*",
       "main.js",
       "preload.js",
       "package.json",
-      "src/LICENSE.txt"
+      "src/LICENSE",
+      "src/LICENSE.txt",
+      "src/license.html"
     ],
     "asarUnpack": [],
     "win": {
       "icon": "src/assets/memoro-vault.ico",
       "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64"
-          ]
-        }
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip",  "arch": ["x64"] }
       ]
     },
     "nsis": {
@@ -67,12 +60,21 @@
     },
     "mac": {
       "icon": "src/assets/memoro-logo-white.png",
-      "target": [
-        "dmg"
-      ]
+      "target": ["dmg"]
     },
     "linux": {
-      "icon": "src/assets/"
+      "category": "Utility",
+      "target": ["AppImage", "deb", "rpm"],
+      "icon": "src/assets/",
+      "synopsis": "Offline secure vault with Argon2 + AES-GCM",
+      "description": "Memoro Vault is an offline, self-contained encryption tool.",
+      "maintainer": "Kasmaristo Delvakto <printandpray@proton.me>"
+    },
+    "deb": {
+      "depends": ["libgtk-3-0", "libxss1", "libnss3", "libasound2"]
+    },
+    "rpm": {
+      "depends": ["gtk3", "libXScrnSaver", "nss", "alsa-lib"]
     }
   },
   "devDependencies": {
@@ -81,7 +83,7 @@
     "@electron-forge/maker-rpm": "6.0.0-beta.54",
     "@electron-forge/maker-squirrel": "6.0.0-beta.54",
     "@electron-forge/maker-zip": "6.0.0-beta.54",
-    "@electron-forge/plugin-auto-unpack-natives": "6.0.0-beta.54",
+    "@electron-forge/plugin-auto-unpack-natives": "6.1.0",
     "@electron-forge/plugin-fuses": "6.1.0",
     "cpy-cli": "^5.0.0",
     "electron": "25.3.1",

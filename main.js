@@ -3,39 +3,76 @@
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 process.env.NODE_ENV = 'production';
 
+const fs = require('fs');
 const path = require('path');
 const {
-app,
-BrowserWindow,
-ipcMain,
-shell,
-session,
-globalShortcut,
-Menu
+  app,
+  BrowserWindow,
+  ipcMain,
+  shell,
+  session,
+  globalShortcut,
+  Menu
 } = require('electron');
 
 // ---- Config ----
-// Whitelist EVERYTHING inside the project folder that contains this file:
-const projectRoot = path.resolve(__dirname); // e.g. C:\Users\...\memoro-vault
+const projectRoot = path.resolve(__dirname);
 const projectRootLC = projectRoot.toLowerCase();
-
-// Optional: always allow DevTools (handy while you harden)
 const ALLOW_DEVTOOLS = true;
-
-// Disable Chromium geolocation prompt (and other features if you wish)
 app.commandLine.appendSwitch('disable-features', 'Geolocation');
 
 let mainWindow;
 let isQuitting = false;
+
+// --- First-run License Gate (main process) ---
+const EULA_FILE = path.join(app.getPath('userData'), 'eula_accepted_v1.json');
+
+function isLicenseAccepted() {
+  try {
+    const data = JSON.parse(fs.readFileSync(EULA_FILE, 'utf8'));
+    return data?.accepted === true;
+  } catch {
+    return false;
+  }
+}
+function markLicenseAccepted() {
+  try {
+    fs.writeFileSync(EULA_FILE, JSON.stringify({ accepted: true, ts: Date.now() }), 'utf8');
+  } catch (e) {
+    console.warn('Could not persist EULA acceptance:', e?.message || e);
+  }
+}
+function createLicenseWindow() {
+  const win = new BrowserWindow({
+    width: 680,
+    height: 560,
+    resizable: false,
+    modal: true,
+    show: false,
+    title: 'Memoro Vault — License Agreement',
+    icon: path.join(projectRoot, 'src', 'assets', 'memoro-vault.ico'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      enableRemoteModule: false,
+      preload: path.join(projectRoot, 'preload.js')
+    }
+  });
+  win.removeMenu?.();
+  win.loadFile(path.join(projectRoot, 'src', 'license.html'));
+  win.once('ready-to-show', () => win.show());
+  return win;
+}
+ipcMain.handle('license:accept', async () => { markLicenseAccepted(); return true; });
+ipcMain.handle('license:decline', async () => { app.quit(); return false; });
 
 // Convert file:// URL -> local path and check it's under projectRoot
 function isPathAllowedFileUrl(url) {
   try {
     const u = new URL(url);
     if (u.protocol !== 'file:') return false;
-    // Decode and normalize Windows path
     let p = decodeURIComponent(u.pathname);
-    // On Windows, pathname starts with a leading '/' like /C:/...
     if (process.platform === 'win32' && p.startsWith('/')) p = p.slice(1);
     const norm = path.normalize(p);
     return norm.toLowerCase().startsWith(projectRootLC + path.sep);
@@ -47,21 +84,15 @@ function isPathAllowedFileUrl(url) {
 async function hardenSession() {
   const ses = session.defaultSession;
 
-  // 1) Only allow file:// URLs that resolve inside the project root
+  // 1) Only allow file:// under project root; block http/https
   ses.webRequest.onBeforeRequest((details, cb) => {
     const url = details.url || '';
-
-    if (url.startsWith('file://')) {
-      return cb({ cancel: !isPathAllowedFileUrl(url) });
-    }
-    // Block http/https and any other external protocol outright
+    if (url.startsWith('file://')) return cb({ cancel: !isPathAllowedFileUrl(url) });
     if (/^https?:/i.test(url)) return cb({ cancel: true });
-
-    // Default: allow (covers about:blank, devtools:, etc.)
     return cb({ cancel: false });
   });
 
-  // 2) Apply a consistent CSP header (keeps inline & WASM working, no network)
+  // 2) Tight offline CSP
   ses.webRequest.onHeadersReceived((details, cb) => {
     const csp = [
       "default-src 'self' data: blob: filesystem:",
@@ -71,51 +102,40 @@ async function hardenSession() {
       "font-src 'self' data:",
       "connect-src 'self' data: blob: filesystem: file:",
       "object-src 'none'",
-      "frame-ancestors 'none'",     // cannot be embedded
+      "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "worker-src 'self' blob:",
       "media-src 'self' blob:"
     ].join('; ');
-
-    const headers = { ...details.responseHeaders };
-    headers['Content-Security-Policy'] = [csp];
+    const headers = { ...details.responseHeaders, 'Content-Security-Policy': [csp] };
     cb({ responseHeaders: headers });
   });
 
-// 3) Allow ONLY video (no mic) for our local app pages
-const isVideoOnly = (details) => {
-  const types = details?.mediaTypes || [];
-  return types.length === 1 && types[0] === 'video';
-};
-const isOurRenderer = (wc) => {
-  try {
-    const url = wc?.getURL?.() || '';
-    return url.startsWith('file://') && isPathAllowedFileUrl(url);
-  } catch { return false; }
-};
-
-if (typeof ses.setPermissionCheckHandler === 'function') {
-  ses.setPermissionCheckHandler((wc, permission, _origin, details) => {
-    if (!isOurRenderer(wc)) return false;
-    if (permission === 'media' || permission === 'camera' || permission === 'videoCapture') {
-      return isVideoOnly(details);
-    }
-    return false;
+  // 3) Camera (video only) permission sample
+  const isVideoOnly = (details) => (details?.mediaTypes || []).length === 1 && details.mediaTypes[0] === 'video';
+  const isOurRenderer = (wc) => {
+    try {
+      const url = wc?.getURL?.() || '';
+      return url.startsWith('file://') && isPathAllowedFileUrl(url);
+    } catch { return false; }
+  };
+  if (typeof ses.setPermissionCheckHandler === 'function') {
+    ses.setPermissionCheckHandler((wc, permission, _origin, details) => {
+      if (!isOurRenderer(wc)) return false;
+      if (permission === 'media' || permission === 'camera' || permission === 'videoCapture') return isVideoOnly(details);
+      return false;
+    });
+  }
+  ses.setPermissionRequestHandler((wc, permission, callback, details) => {
+    if (isOurRenderer(wc) &&
+        (permission === 'media' || permission === 'camera' || permission === 'videoCapture') &&
+        isVideoOnly(details)) return callback(true);
+    return callback(false);
   });
 }
 
-ses.setPermissionRequestHandler((wc, permission, callback, details) => {
-  if (isOurRenderer(wc) &&
-      (permission === 'media' || permission === 'camera' || permission === 'videoCapture') &&
-      isVideoOnly(details)) {
-    return callback(true);     // ✅ allow camera (video only)
-  }
-  return callback(false);      // ❌ deny everything else
-});
-}
-
-function createWindow() {
+function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
@@ -125,10 +145,10 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,                 // safe renderer sandbox
+      sandbox: true,
       enableRemoteModule: false,
       spellcheck: false,
-      webgl: false,                  // optional hardening
+      webgl: false,
       autoplayPolicy: 'document-user-activation-required',
       preload: path.join(projectRoot, 'preload.js')
     }
@@ -136,12 +156,9 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(projectRoot, 'src', 'index.html'));
 
-  // Block navigation away from your app files
   mainWindow.webContents.on('will-navigate', (e, url) => {
     if (!isPathAllowedFileUrl(url)) e.preventDefault();
   });
-
-  // No popups
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   mainWindow.once('ready-to-show', () => {
@@ -149,42 +166,46 @@ function createWindow() {
     mainWindow.focus();
   });
 
-  // Graceful shutdown sweep
   mainWindow.on('close', async (e) => {
     if (!isQuitting) {
       e.preventDefault();
       isQuitting = true;
-
       const allWindows = BrowserWindow.getAllWindows();
       for (const win of allWindows) {
         try {
           await Promise.race([
-            win.webContents.executeJavaScript(
-              `typeof nukeEverything === 'function' ? nukeEverything() : Promise.resolve();`
-            ),
+            win.webContents.executeJavaScript(`typeof nukeEverything === 'function' ? nukeEverything() : Promise.resolve();`),
             new Promise(resolve => setTimeout(resolve, 750))
           ]);
         } catch (err) {
           console.warn('Nuke call failed:', err?.message || err);
         }
       }
-
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
       app.quit();
     }
   });
 }
 
-// External link allowlist (or remove to be 100% offline)
+function createAppWindows() {
+  if (!isLicenseAccepted()) {
+    const lwin = createLicenseWindow();
+    lwin.on('closed', () => {
+      if (isLicenseAccepted()) createMainWindow();
+      else app.quit();
+    });
+  } else {
+    createMainWindow();
+  }
+}
+
+// External link allowlist
 ipcMain.on('open-external-link', (_event, url) => {
   try {
     const allowedHosts = ['trocador.app', 'github.com'];
     const parsed = new URL(url);
-    if (allowedHosts.includes(parsed.hostname)) {
-      shell.openExternal(url);
-    } else {
-      console.warn('Blocked unsafe URL:', url);
-    }
+    if (allowedHosts.includes(parsed.hostname)) shell.openExternal(url);
+    else console.warn('Blocked unsafe URL:', url);
   } catch {
     console.error('Invalid URL passed to openExternalLink:', url);
   }
@@ -193,36 +214,22 @@ ipcMain.on('open-external-link', (_event, url) => {
 app.whenReady()
   .then(hardenSession)
   .then(() => {
-// Remove the application menu completely
-Menu.setApplicationMenu(null);
-
-    // Handy DevTools shortcut even in production if ALLOW_DEVTOOLS = true
+    Menu.setApplicationMenu(null);
     if (ALLOW_DEVTOOLS) {
       globalShortcut.register('CommandOrControl+Shift+I', () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.toggleDevTools();
-        }
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.toggleDevTools();
       });
       globalShortcut.register('F12', () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.toggleDevTools();
-        }
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.toggleDevTools();
       });
     }
   })
-  .then(createWindow);
+  .then(createAppWindows);
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (BrowserWindow.getAllWindows().length === 0) createAppWindows();
 });
-
-app.on('will-quit', () => {
-  // Clean up shortcuts
-  globalShortcut.unregisterAll();
-});
-
-// Extra belt-and-suspenders: block any <webview> usage
+app.on('will-quit', () => { globalShortcut.unregisterAll(); });
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (e) => e.preventDefault());
 });
-

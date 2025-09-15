@@ -1,0 +1,72 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0b0b0f;
+  color: #e6e6ea;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, sans-serif;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 20px 16px;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 8px 0 12px;
+  letter-spacing: 0.2px;
+}
+
+.box {
+  background: #121219;
+  border: 1px solid #2b2b35;
+  border-radius: 12px;
+  padding: 16px;
+  height: 360px;
+  overflow: auto;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02) inset;
+}
+
+.license-text {
+  white-space: pre-wrap;
+  margin: 0;
+  line-height: 1.4;
+  font-size: 14px;
+}
+
+.btns {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #2b2b35;
+  background: #1a1a22;
+  color: #e6e6ea;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform .06s ease, background .15s ease, border-color .15s ease;
+}
+
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.primary {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #ffffff;
+}
+
+@media (max-width: 520px) {
+  .btns { justify-content: stretch; }
+  .btns .btn { flex: 1; }
+}
