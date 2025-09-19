@@ -711,3 +711,20 @@ body[data-theme="cypherpunk"] .hint-custom-text {
     margin-inline: auto;      /* center the full-width cap */
   }
 }
+
+/* Force long lines to wrap inside the preview modal */
+.modal-content .preview-content,
+.modal-content .preview-content pre,
+.modal-content .file-preview,
+.modal-content pre,
+.modal-content code {
+  white-space: pre-wrap;     /* keep newlines but allow wrapping */
+  word-break: break-word;    /* break long tokens if needed */
+  overflow-wrap: anywhere;   /* last-resort wrapping for very long strings */
+  max-width: 100%;
+}
+
+/* Optional: avoid horizontal scrollbars in the modal body */
+.modal-content {
+  overflow-x: hidden;
+}

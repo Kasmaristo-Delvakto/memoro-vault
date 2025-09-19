@@ -735,3 +735,28 @@ body[data-theme="cypherpunk"] .modal-content p,
 body[data-theme="cypherpunk"] .modal-content li {
   color: #ccc;                       /* softer body text for readability */
 }
+
+/* Fix entropy <details>/<summary> formatting */
+.entropy-details {
+  max-width: 800px;          
+  margin: 20px auto;         
+  text-align: center;        
+}
+
+.entropy-summary-toggle {
+  display: list-item;        /* ✅ restores the dropdown arrow */
+  list-style: disclosure-closed inside; /* ✅ ensure arrow style */
+  white-space: normal;       
+  word-break: break-word;    
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.entropy-details[open] .entropy-summary-toggle {
+  list-style: disclosure-open inside; /* ✅ open state arrow */
+}
+
+.entropy-body {
+  text-align: left;          
+  margin-top: 15px;
+}

@@ -21,6 +21,14 @@ const projectRootLC = projectRoot.toLowerCase();
 const ALLOW_DEVTOOLS = true;
 app.commandLine.appendSwitch('disable-features', 'Geolocation');
 
+// NEW: cross-platform icon resolver (PNG on Linux, ICO on Windows, PNG on macOS)
+function getPlatformIcon() {
+  const assets = path.join(projectRoot, 'src', 'assets');
+  if (process.platform === 'win32') return path.join(assets, 'memoro-vault.ico');
+  if (process.platform === 'darwin') return path.join(assets, 'memoro-logo-white.png'); // you can swap to .icns later
+  return path.join(assets, 'memoro-vault.png'); // Linux prefers PNG
+}
+
 let mainWindow;
 let isQuitting = false;
 
@@ -50,7 +58,7 @@ function createLicenseWindow() {
     modal: true,
     show: false,
     title: 'Memoro Vault — License Agreement',
-    icon: path.join(projectRoot, 'src', 'assets', 'memoro-vault.ico'),
+    icon: getPlatformIcon(), // CHANGED
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -140,7 +148,7 @@ function createMainWindow() {
     width: 1000,
     height: 700,
     show: false,
-    icon: path.join(projectRoot, 'src', 'assets', 'memoro-vault.ico'),
+    icon: getPlatformIcon(), // CHANGED
     title: 'Memoro Vault',
     webPreferences: {
       nodeIntegration: false,

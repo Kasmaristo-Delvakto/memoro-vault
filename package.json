@@ -1,20 +1,19 @@
 {
   "name": "memoro-vault",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "A private, offline memory-based vault for securing digital assets.",
   "main": "main.js",
   "author": "Kasmaristo Delvakto <printandpray@proton.me>",
   "license": "GPL-3.0",
   "scripts": {
-    "ci": "npm ci",
     "clean": "rimraf dist binaries vault-assets && mkdir dist && mkdir binaries && mkdir vault-assets",
     "clean:binaries": "rimraf binaries/* vault-assets/*",
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "build": "npm run ci && npm run clean && npm run prebuild:win && npm run prebuild:linux && npm run package && npm run bundle-vault && npm run checksum",
-    "prebuild:win": "electron-builder --win",
-    "prebuild:linux": "electron-builder -l AppImage deb rpm",
+    "build:win": "npm run clean && electron-builder --win",
+    "build:linux": "npm run clean && electron-builder -l AppImage deb rpm",
+    "build": "npm run build:win",
     "bundle-vault": "zip -r dist/vault.zip vault-assets",
     "checksum": "node scripts/generate-checksum.js",
     "postinstall": "node scripts/postinstall-check.js",
@@ -36,12 +35,18 @@
       "src/LICENSE.txt",
       "src/license.html"
     ],
-    "asarUnpack": [],
+    "asar": true,
     "win": {
       "icon": "src/assets/memoro-vault.ico",
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "zip",  "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64"]
+        }
       ]
     },
     "nsis": {
@@ -63,31 +68,48 @@
       "target": ["dmg"]
     },
     "linux": {
-      "category": "Utility",
-      "target": ["AppImage", "deb", "rpm"],
-      "icon": "src/assets/",
-      "synopsis": "Offline secure vault with Argon2 + AES-GCM",
-      "description": "Memoro Vault is an offline, self-contained encryption tool.",
-      "maintainer": "Kasmaristo Delvakto <printandpray@proton.me>"
-    },
-    "deb": {
-      "depends": ["libgtk-3-0", "libxss1", "libnss3", "libasound2"]
-    },
-    "rpm": {
-      "depends": ["gtk3", "libXScrnSaver", "nss", "alsa-lib"]
-    }
-  },
+  "category": "Utility",
+  "target": ["AppImage", "deb", "rpm"],
+  "icon": "src/assets/memoro-vault.png",
+  "vendor": "Kasmaristo Delvakto", 
+  "maintainer": "Kasmaristo Delvakto <printandpray@proton.me>",
+  "synopsis": "An offline, tamper-resistant vault for sensitive digital assets",
+  "description": "Memoro Vault is a private, offline encryption tool designed for long-term storage of seed phrases, private keys, and personal data. It combines Argon2 key derivation with AES-GCM encryption. It is packaged in a self-contained application that never requires an internet connection.",
+  "desktop": {
+    "entry": {
+    "Name": "Memoro Vault",
+    "GenericName": "Offline Encrypted Storage",
+    "Comment": "Offline vault for long-term secure storage",
+    "X-AppStream-DeveloperName": "Kasmaristo Delvakto"
+  }
+}
+},
+"deb": {
+  "depends": ["libgtk-3-0", "libxss1", "libnss3", "libasound2"]
+},
+"rpm": {
+  "depends": ["gtk3", "libXScrnSaver", "nss", "alsa-lib"],
+  "fpm": [
+    "--vendor", "Kasmaristo Delvakto",
+    "--maintainer", "Kasmaristo Delvakto <printandpray@proton.me>"
+  ]
+  }
+},
   "devDependencies": {
-    "@electron-forge/cli": "6.0.0-beta.54",
-    "@electron-forge/maker-deb": "6.0.0-beta.54",
-    "@electron-forge/maker-rpm": "6.0.0-beta.54",
-    "@electron-forge/maker-squirrel": "6.0.0-beta.54",
-    "@electron-forge/maker-zip": "6.0.0-beta.54",
-    "@electron-forge/plugin-auto-unpack-natives": "6.1.0",
-    "@electron-forge/plugin-fuses": "6.1.0",
+    "@electron-forge/cli": "6.4.2",
+    "@electron-forge/maker-deb": "6.4.2",
+    "@electron-forge/maker-rpm": "6.4.2",
+    "@electron-forge/maker-squirrel": "6.4.2",
+    "@electron-forge/maker-zip": "6.4.2",
+    "@electron-forge/plugin-auto-unpack-natives": "6.4.2",
+    "@electron-forge/plugin-fuses": "6.4.2",
+    "@electron/asar": "^3.2.10",
+    "@electron/rebuild": "^3.6.0",
+    "@electron/osx-sign": "^1.1.0",
+    "@electron/notarize": "^2.3.0",
     "cpy-cli": "^5.0.0",
     "electron": "25.3.1",
-    "electron-builder": "26.0.12",
+    "electron-builder": "^26.0.12",
     "rimraf": "^6.0.1"
   },
   "dependencies": {
@@ -102,11 +124,11 @@
     "debug": "4.4.0",
     "decompress-response": "6.0.0",
     "extract-zip": "2.0.1",
-    "fs-extra": "8.1.0",
+    "fs-extra": "^11.2.0",
     "global-agent": "3.0.0",
     "got": "11.8.6",
     "json-buffer": "3.0.1",
-    "jsonfile": "4.0.0",
+    "jsonfile": "^6.1.0",
     "lowercase-keys": "2.0.0",
     "progress": "2.0.3",
     "pump": "3.0.2",
@@ -123,5 +145,8 @@
   "bugs": {
     "url": "https://github.com/Kasmaristo-Delvakto/memoro-vault/issues"
   },
-  "homepage": "https://github.com/Kasmaristo-Delvakto/memoro-vault#readme"
+  "homepage": "https://github.com/Kasmaristo-Delvakto/memoro-vault#readme",
+  "overrides": {
+    "@electron/fuses": "1.x"
+  }
 }

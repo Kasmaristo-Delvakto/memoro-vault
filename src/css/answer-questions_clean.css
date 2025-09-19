@@ -604,3 +604,28 @@ body[data-theme="clean"] .modal-content {
   border: 1px solid #000;
   box-shadow: 0 0 12px rgba(0,0,0,0.2);
 }
+
+/* Fix entropy <details>/<summary> formatting */
+.entropy-details {
+  max-width: 800px;          
+  margin: 20px auto;         
+  text-align: center;        
+}
+
+.entropy-summary-toggle {
+  display: list-item;        /* ✅ restores the dropdown arrow */
+  list-style: disclosure-closed inside; /* ✅ ensure arrow style */
+  white-space: normal;       
+  word-break: break-word;    
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.entropy-details[open] .entropy-summary-toggle {
+  list-style: disclosure-open inside; /* ✅ open state arrow */
+}
+
+.entropy-body {
+  text-align: left;          
+  margin-top: 15px;
+}

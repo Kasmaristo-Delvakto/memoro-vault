@@ -198,7 +198,7 @@ async function buildPaperPdfFromLiteZip(liteZipBlob) {
 
     const title = "Memoro Vault - Paper Backup";
     const now   = new Date();
-    const built = `Built: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} | Version: 1.0.7 | Format: mv-lite-v1 | ZIP bytes: ${liteBytes.length}`;
+    const built = `Built: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} | Version: 1.0.8 | Format: mv-lite-v1 | ZIP bytes: ${liteBytes.length}`;
     const shaLine  = `SHA-256 (ZIP): ${shaHex}`;
     const pageLine = `Page ${pageNum} | Scan KEY and HEADER on page 1, then all CT tiles`;
 
@@ -916,7 +916,7 @@ const questionList = userData.answers.map((ans, i) => {
 
   // DO NOT include selected answers or permutation in plaintext
   await addJSON("vault.json", {
-    version: "1.0.7",
+    version: "1.0.8",
     created: new Date().toISOString(),
     instructions: "Use recover.html to unlock this archive using your answers.",
     fullSalt,
@@ -1009,7 +1009,7 @@ Libereco ne estas donaco. Ĝi estas devo.
 
   // Identical contract as FULL. No selected answers or permutations in plaintext.
   await addJSON("vault.json", {
-    version: "1.0.7",
+    version: "1.0.8",
     created: new Date().toISOString(),
     instructions: "Use recover.html to unlock this archive using your answers.",
     fullSalt,
