@@ -35,22 +35,35 @@
   </div>
 
   <!-- Safety modal -->
-  <div id="safetyModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <h2>Before You Begin</h2>
-      <ul>
+<div id="safetyModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h2>Before You Begin</h2>
+
+    <h3>Best Practices</h3>
 <div class="modal-tips">
-  <div>Use a clean, trusted computer.</div>
-  <div>Disconnect from WiFi or turn off internet access.</div>
-  <div>Close unnecessary apps and browsers.</div>
-  <div>Do not use public or shared computers.</div>
-  <div>Ensure no suspicious browser extensions are installed.</div>
+  <div>Memoro Vault is <strong>not a wallet</strong>. It is a <strong>last-resort backup</strong> for long-term storage of sensitive data. If you are protecting seed phrases or private keys, only decrypt them in <strong>Tails OS</strong> for maximum security.</div>
+  <div>Avoid using your real name in the questions or when naming your vault. Initials only.</div>
+  <div>The vault’s strength comes from cryptography, but blending in as a plain <code>.zip</code> file increases your safety. Don’t draw attention to it.</div>
+  <div>Choose answers that outsiders cannot easily guess. Avoid obvious or common choices.</div>
+  <div>Always start from a clean session. Restart your computer or boot fresh into Tails OS before use.</div>
+  <div>Do not paste decrypted text (like seed phrases) into other apps. Clipboard history can leak sensitive data.</div>
+  <div><strong>Memoro Vault includes a “nuke” function</strong> that clears traces when you exit:
+    <ul>
+      <li>Clipboard contents</li>
+      <li>Browser storage (IndexedDB, localStorage, sessionStorage)</li>
+      <li>Temporary decrypted files</li>
+    </ul>
+    This reduces leftovers, but remember: malware or keyloggers can still capture data live. Make sure your internet is turned off before decryption.
+  </div>
+  <div>Only use the official Memoro Vault program. Avoid modified or unofficial versions. Always verify hashes before installation.</div>
 </div>
-      <div class="modal-buttons">
-        <button onclick="acceptSafety()">I Understand</button>
-      </div>
+
+    <div class="modal-buttons">
+      <button onclick="acceptSafety()">I Understand</button>
     </div>
   </div>
+</div>
+
   <script src="js/index.js"></script>
 </body>
 </html>

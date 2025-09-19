@@ -1,8 +1,8 @@
 # Changelog
 
-## [1.0.7] - 2025-06-01
+## [1.0.8] - 2025-06-01
 
-# Memoro Vault v1.0.7
+# Memoro Vault v1.0.8
 
 **Release Date:** 2025-08-06
 
