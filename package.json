@@ -20,6 +20,7 @@
     "postbuild": "gpg --armor --detach-sign dist/memoro-vault.zip && gpg --armor --detach-sign dist/memoro-vault.exe && gpg --armor --detach-sign dist/memoro-vault.dmg && gpg --armor --detach-sign dist/memoro-vault.AppImage"
   },
   "build": {
+    "publish": "never",
     "appId": "com.memorovault.app",
     "productName": "Memoro Vault",
     "directories": {
