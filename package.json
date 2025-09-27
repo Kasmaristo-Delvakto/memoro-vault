@@ -5,29 +5,29 @@
   "main": "main.js",
   "author": "Kasmaristo Delvakto <printandpray@proton.me>",
   "license": "GPL-3.0",
+
   "scripts": {
-    "build:win": "npm run clean && electron-builder --win --publish never",
-    "build:linux": "npm run clean && electron-builder -l AppImage deb rpm --publish never",
     "clean": "rimraf dist binaries vault-assets && mkdir dist && mkdir binaries && mkdir vault-assets",
     "clean:binaries": "rimraf binaries/* vault-assets/*",
+
+    "build:win": "npm run clean && electron-builder --win --publish never",
+    "build:linux": "npm run clean && electron-builder -l AppImage deb rpm --publish never",
+    "build:mac": "npm run clean && electron-builder --mac dmg --publish never",
+
+    "build": "npm run build:win",
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make",
-    "build:win": "npm run clean && electron-builder --win",
-    "build:linux": "npm run clean && electron-builder -l AppImage deb rpm",
-    "build": "npm run build:win",
+    "make": "npm run build:mac",
+
     "bundle-vault": "zip -r dist/vault.zip vault-assets",
     "checksum": "node scripts/generate-checksum.js",
-    "postinstall": "node scripts/postinstall-check.js",
-    "postbuild": "gpg --armor --detach-sign dist/memoro-vault.zip && gpg --armor --detach-sign dist/memoro-vault.exe && gpg --armor --detach-sign dist/memoro-vault.dmg && gpg --armor --detach-sign dist/memoro-vault.AppImage"
+    "postinstall": "node scripts/postinstall-check.js"
   },
+
   "build": {
-    "publish": "null",
     "appId": "com.memorovault.app",
     "productName": "Memoro Vault",
-    "directories": {
-      "output": "dist"
-    },
+    "directories": { "output": "dist" },
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "files": [
       "src/**/*",
@@ -39,17 +39,12 @@
       "src/license.html"
     ],
     "asar": true,
+
     "win": {
       "icon": "src/assets/memoro-vault.ico",
       "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        },
-        {
-          "target": "zip",
-          "arch": ["x64"]
-        }
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip",  "arch": ["x64"] }
       ]
     },
     "nsis": {
@@ -66,38 +61,34 @@
       "installerHeaderIcon": "src/assets/memoro-vault.ico",
       "license": "src/LICENSE.txt"
     },
+
     "mac": {
       "icon": "src/assets/memoro-logo-white.png",
       "target": ["dmg"]
     },
+
     "linux": {
-  "category": "Utility",
-  "target": ["AppImage", "deb", "rpm"],
-  "icon": "src/assets/memoro-vault.png",
-  "vendor": "Kasmaristo Delvakto", 
-  "maintainer": "Kasmaristo Delvakto <printandpray@proton.me>",
-  "synopsis": "An offline, tamper-resistant vault for sensitive digital assets",
-  "description": "Memoro Vault is a private, offline encryption tool designed for long-term storage of seed phrases, private keys, and personal data. It combines Argon2 key derivation with AES-GCM encryption. It is packaged in a self-contained application that never requires an internet connection.",
-  "desktop": {
-    "entry": {
-    "Name": "Memoro Vault",
-    "GenericName": "Offline Encrypted Storage",
-    "Comment": "Offline vault for long-term secure storage",
-    "X-AppStream-DeveloperName": "Kasmaristo Delvakto"
-  }
-}
-},
-"deb": {
-  "depends": ["libgtk-3-0", "libxss1", "libnss3", "libasound2"]
-},
-"rpm": {
-  "depends": ["gtk3", "libXScrnSaver", "nss", "alsa-lib"],
-  "fpm": [
-    "--vendor", "Kasmaristo Delvakto",
-    "--maintainer", "Kasmaristo Delvakto <printandpray@proton.me>"
-  ]
-  }
-},
+      "category": "Utility",
+      "target": ["AppImage", "deb", "rpm"],
+      "icon": "src/assets/memoro-vault.png"
+    },
+
+    "deb": {
+      "maintainer": "Kasmaristo Delvakto <printandpray@proton.me>",
+      "synopsis": "An offline, tamper-resistant vault for sensitive digital assets",
+      "description": "Memoro Vault is a private, offline encryption tool designed for long-term storage of seed phrases, private keys, and personal data. It combines Argon2 key derivation with AES-GCM encryption. It is packaged in a self-contained application that never requires an internet connection.",
+      "depends": ["libgtk-3-0", "libxss1", "libnss3", "libasound2"]
+    },
+
+    "rpm": {
+      "depends": ["gtk3", "libXScrnSaver", "nss", "alsa-lib"],
+      "fpm": [
+        "--vendor", "Kasmaristo Delvakto",
+        "--maintainer", "Kasmaristo Delvakto <printandpray@proton.me>"
+      ]
+    }
+  },
+
   "devDependencies": {
     "@electron-forge/cli": "6.4.2",
     "@electron-forge/maker-deb": "6.4.2",
@@ -115,6 +106,7 @@
     "electron-builder": "^26.0.12",
     "rimraf": "^6.0.1"
   },
+
   "dependencies": {
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
@@ -140,6 +132,7 @@
     "uglify-js": "^3.19.3",
     "yauzl": "2.10.0"
   },
+
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Kasmaristo-Delvakto/memoro-vault.git"
