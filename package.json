@@ -6,6 +6,8 @@
   "author": "Kasmaristo Delvakto <printandpray@proton.me>",
   "license": "GPL-3.0",
   "scripts": {
+    "build:win": "npm run clean && electron-builder --win --publish never",
+    "build:linux": "npm run clean && electron-builder -l AppImage deb rpm --publish never",
     "clean": "rimraf dist binaries vault-assets && mkdir dist && mkdir binaries && mkdir vault-assets",
     "clean:binaries": "rimraf binaries/* vault-assets/*",
     "start": "electron-forge start",
@@ -20,7 +22,7 @@
     "postbuild": "gpg --armor --detach-sign dist/memoro-vault.zip && gpg --armor --detach-sign dist/memoro-vault.exe && gpg --armor --detach-sign dist/memoro-vault.dmg && gpg --armor --detach-sign dist/memoro-vault.AppImage"
   },
   "build": {
-    "publish": "never",
+    "publish": "null",
     "appId": "com.memorovault.app",
     "productName": "Memoro Vault",
     "directories": {
