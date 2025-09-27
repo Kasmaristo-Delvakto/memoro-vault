@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: [ "v*.*.*" ]   # real releases via tags (e.g., v1.0.8)
+    tags: ["v*.*.*"]  # real releases via tags (e.g., v1.0.8)
   workflow_dispatch:
     inputs:
       publish:
@@ -28,43 +28,79 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-      - run: npm ci
+          cache: npm
 
-      # Linux packaging deps
+      - name: Install deps
+        run: npm ci
+
+      # Linux packaging deps (only on Linux)
       - name: Linux packaging deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm fakeroot dpkg
 
-      # Build per OS (split so shell mismatch never happens)
+      # ------- Build per OS -------
       - name: Build Linux
         if: runner.os == 'Linux'
         run: npm run build:linux
 
       - name: Build Windows
         if: runner.os == 'Windows'
-        run: npm run build:win
         shell: powershell
+        run: npm run build:win
 
       - name: Build macOS
         if: runner.os == 'macOS'
-        run: npm run make
+        run: npm run build:mac
 
-      - name: Collect artifacts + checksums
+      # ------- Collect artifacts + checksums per OS -------
+      - name: Collect artifacts + checksums (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p out
           cp -r dist/* out/ 2>/dev/null || true
-          (cd out && for f in *; do [ -f "$f" ] && shasum -a 256 "$f" > "$f.sha256"; done)
+          cd out
+          for f in *; do
+            [ -f "$f" ] && sha256sum "$f" > "$f.sha256"
+          done
+          ls -lh
 
-      - uses: actions/upload-artifact@v4
+      - name: Collect artifacts + checksums (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p out
+          cp -r dist/* out/ 2>/dev/null || true
+          cd out
+          for f in *; do
+            [ -f "$f" ] && shasum -a 256 "$f" > "$f.sha256"
+          done
+          ls -lh
+
+      - name: Collect artifacts + checksums (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item -Path dist\* -Destination out -Recurse -Force -ErrorAction SilentlyContinue
+          Set-Location out
+          Get-ChildItem -File | ForEach-Object {
+            $h = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash
+            "$h  $($_.Name)" | Out-File -FilePath "$($_.Name).sha256" -Encoding ascii -NoNewline
+          }
+          Get-ChildItem | Format-Table Name,Length
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-artifacts
           path: out/*
@@ -72,6 +108,8 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    # Only proceed to publish if either a tag run, or manual run with publish=yes
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish == 'yes'
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -79,13 +117,11 @@ jobs:
 
       - name: Flatten
         run: |
-          mkdir rel
+          mkdir -p rel
           find all -type f -maxdepth 2 -exec cp {} rel/ \;
           ls -lh rel
 
-      # Only publish when (a) a tag push triggered the workflow OR (b) manual run with publish=yes
       - name: Create/Update GitHub Release
-        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish == 'yes'
         uses: softprops/action-gh-release@v2
         with:
           files: rel/*
@@ -96,7 +132,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attest build provenance
-        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish == 'yes'
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: "rel/*"
