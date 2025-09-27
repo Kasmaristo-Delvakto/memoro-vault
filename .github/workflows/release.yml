@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags: [ "v*.*.*" ]   # real releases via tags (e.g., v1.0.8)
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a release (yes/no). 'no' builds only."
+        required: true
+        default: "no"
+      tag:
+        description: "Tag to publish when run manually (e.g., v1.0.8). Optional."
+        required: false
+
+permissions:
+  contents: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - name: Linux packaging deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot dpkg
+      - name: Build per-OS
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            npm run build:linux
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            npm run build:win
+          else
+            npm run make
+          fi
+      - name: Collect artifacts + checksums
+        run: |
+          mkdir -p out
+          cp -r dist/* out/ 2>/dev/null || true
+          (cd out && for f in *; do [ -f "$f" ] && shasum -a 256 "$f" > "$f.sha256"; done)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-artifacts
+          path: out/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: ./all }
+      - name: Flatten
+        run: |
+          mkdir rel
+          find all -type f -maxdepth 2 -exec cp {} rel/ \;
+          ls -lh rel
+
+      # Only publish when (a) a tag push triggered the workflow OR (b) manual run with publish=yes
+      - name: Create/Update GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish == 'yes'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: rel/*
+          draft: false
+          prerelease: false
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest build provenance
+        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.publish == 'yes'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: "rel/*"
