@@ -35,25 +35,35 @@ jobs:
           node-version: 20
           cache: 'npm'
       - run: npm ci
+
+      # Linux packaging deps
       - name: Linux packaging deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm fakeroot dpkg
-      - name: Build per-OS
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            npm run build:linux
-          elif [ "$RUNNER_OS" = "Windows" ]; then
-            npm run build:win
-          else
-            npm run make
-          fi
+
+      # Build per OS (split so shell mismatch never happens)
+      - name: Build Linux
+        if: runner.os == 'Linux'
+        run: npm run build:linux
+
+      - name: Build Windows
+        if: runner.os == 'Windows'
+        run: npm run build:win
+        shell: powershell
+
+      - name: Build macOS
+        if: runner.os == 'macOS'
+        run: npm run make
+
       - name: Collect artifacts + checksums
+        shell: bash
         run: |
           mkdir -p out
           cp -r dist/* out/ 2>/dev/null || true
           (cd out && for f in *; do [ -f "$f" ] && shasum -a 256 "$f" > "$f.sha256"; done)
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-artifacts
@@ -64,7 +74,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-        with: { path: ./all }
+        with:
+          path: ./all
+
       - name: Flatten
         run: |
           mkdir rel
