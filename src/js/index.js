@@ -64,9 +64,10 @@ function smoothApplyTheme(theme){
 
 /* Persist + close modal + show Start */
 function chooseTheme(theme){
-  // persist to both stores so other pages see it
+  // persist to both stores so other pages see it, and to disk for the next launch
   sessionStorage.setItem(THEME_KEY, theme);
   localStorage.setItem(THEME_KEY, theme);
+  try { window.memoroAPI?.saveTheme?.(theme); } catch (_) {}
 
   applyTheme(theme);
 

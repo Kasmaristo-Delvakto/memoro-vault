@@ -240,7 +240,7 @@ window.addEventListener('DOMContentLoaded', () => {
     block.className = 'question-block';
     block.innerHTML = `
   <div class="input-group" style="grid-column: 1 / 2;">
-    <label><b>${i + 1}.</b> ${questionText}</label>
+    <label><b>${i + 1}.</b> ${escapeHtml(questionText)}</label>
     <input type="text"
       id="answer-${i}"
       placeholder="Your answer"
@@ -299,8 +299,8 @@ window.addEventListener('DOMContentLoaded', () => {
     cb.addEventListener('change', () => {
       const selectedIndex = parseInt(cb.dataset.index);
 
-      // Prevent selecting a Layer 1 question as Red Herring
-      if (selectedIndex < 2 && cb.checked) {
+      // Prevent selecting a Layer 1 (unlock) question as Red Herring
+      if (isGateIndex(selectedIndex) && cb.checked) {
         cb.checked = false;
         showMessageModal(
           "Invalid Red Herring",
@@ -342,6 +342,10 @@ window.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.trap-checkbox').forEach(cb => {
     if (cb.checked) trapIndex = parseInt(cb.dataset.index);
   });
+  if (trapIndex >= 0 && isGateIndex(trapIndex)) {
+    showMessageModal('Invalid Red Herring', 'An unlock question cannot be the Red Herring. Please choose a different question.');
+    return;
+  }
 
   answerInputs.forEach(input => {
     const raw = input.value.trim();
@@ -1173,6 +1177,14 @@ function updateEntropy(index) {
   const answer = input.value.trim().toLowerCase();
   const hintObj = customHints[index] || { letters: [], showLength: true };
 
+  // The red herring's decoy answer is replaced by "" before key derivation: 0 bits.
+  if (index === getSelectedTrapIndex()) {
+    entropyDisplay.textContent = 'Entropy: 0.0 bits (red herring, not part of the key)';
+    entropyDisplay.style.color = '#ff9933';
+    calculateTotalEntropy();
+    return;
+  }
+
   // MCQ answers reduce to "one of N options"
 if (hintObj.mcqEnabled) {
   const n = Math.max(2, Math.min(12, Array.isArray(hintObj.mcqOptions) ? hintObj.mcqOptions.length : 0));
@@ -1401,6 +1413,7 @@ document.addEventListener('change', (e) => {
   if (e.target && e.target.classList.contains('trap-checkbox')) {
     const idx = parseInt(e.target.dataset.index, 10);
     if (!isNaN(idx)) updateHintPreview(idx);
+    document.querySelectorAll('input[id^="answer-"]').forEach((_, i) => updateEntropy(i));
   }
 });
 

@@ -9,6 +9,10 @@ import init, {
   aes_gcm_decrypt,
   argon2_derive
 } from "../wasm/memoro_crypto.js";
+import { openViewer, closeViewer, downloadBytes, h, formatBytes, fileKind } from "./file-viewer.js";
+import { createVaultEditor } from "./vault-editor.js";
+
+const MV = window.MemoroVaultCore;
 
 async function initCryptoWasm() {
   await init();
@@ -74,6 +78,13 @@ function forgetGlobals() {
   // decrypted files (blobs can’t be zeroized, but revoke URLs & drop references)
   window.recoveredFiles?.splice?.(0);
   delete window.recoveredFiles;
+  try { closeViewer(); } catch {}
+  try { vaultEditor?.destroy(); } catch {}
+  vaultEditor = null;
+  if (recovered) {
+    for (const u of recovered.contents.uploads) MV.zeroize(u.bytes);
+    recovered = null;
+  }
 
   // vault structures
   delete window.fileMap;
@@ -307,28 +318,35 @@ Object.assign(window, {
 /* ---------------------------
    3) Terminal / progress utilities
 ----------------------------*/
+// Terminal output is plain text (file names come from the vault, so never HTML).
 function printLineFast(line) {
-  terminal.innerHTML += line + '<br>';
+  terminal.appendChild(document.createTextNode(line));
+  terminal.appendChild(document.createElement('br'));
   terminal.scrollTop = terminal.scrollHeight;
 }
 function printLineSlow(line, delay = 30) {
   return new Promise(resolve => {
+    const node = document.createTextNode('');
+    terminal.appendChild(node);
     let i = 0;
     const iv = setInterval(() => {
-      terminal.innerHTML += line[i] || '';
+      node.data += line[i] || '';
       terminal.scrollTop = terminal.scrollHeight;
       i++;
       if (i >= line.length) {
         clearInterval(iv);
-        terminal.innerHTML += '<br>';
+        terminal.appendChild(document.createElement('br'));
         resolve();
       }
     }, delay);
   });
 }
 async function flushBatch(lines) {
-  const out = lines.map(l => `<div>${l}</div>`).join('');
-  terminal.insertAdjacentHTML('beforeend', out);
+  for (const l of lines) {
+    const div = document.createElement('div');
+    div.textContent = l;
+    terminal.appendChild(div);
+  }
   const children = terminal.children;
   while (children.length > 50) terminal.removeChild(children[0]);
   terminal.scrollTop = terminal.scrollHeight;
@@ -346,10 +364,6 @@ async function deriveRawKeyBytes(password, saltHex, settings) {
     : new Uint8Array(await crypto.subtle.digest("SHA-256", pwdBytes));
   const s = settings || { time: 3, mem: 16384, parallelism: 1, hashLen: 32 };
   return window.argon2DeriveRust(pwdBytes, salt, s.time, s.mem, s.parallelism, s.hashLen);
-}
-const encTxt = new TextEncoder();
-function bufToHex(u8) {
-  return Array.from(u8).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
 /* ---------------------------
@@ -508,7 +522,9 @@ function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2
 
     const label = document.createElement("label");
     label.setAttribute("for", `answer-${renderIdx}`);
-    label.innerHTML = `<b>${renderIdx + 1}.</b> ${q.question}`;
+    const num = document.createElement("b");
+    num.textContent = `${renderIdx + 1}.`;
+    label.append(num, ` ${q.question}`);
     block.appendChild(label);
 
     const input = document.createElement("input");
@@ -578,7 +594,7 @@ document.addEventListener("input", (e) => {
 });
 
 /* ---------------------------
-   7) Permutations + PoW
+   7) Permutations
 ----------------------------*/
 function generatePermutations(array) {
   if (array.length <= 1) return [array.slice()];
@@ -590,37 +606,6 @@ function generatePermutations(array) {
     for (const p of perms) result.push([current, ...p]);
   }
   return result;
-}
-
-// Optional “dynamic difficulty” hook; keep simple (leading 0s of sha256)
-function getCurrentDifficulty(attempt) {
-  const zeros = Math.min(4, 1 + Math.floor(attempt/500));
-  return "0".repeat(zeros);
-}
-async function validateProofOfWorkWithAnswers(vaultJson, userAnswers) {
-  if (!vaultJson?.powSalt || !vaultJson?.powChallengeSalt) {
-    throw new Error("Vault is missing PoW salts.");
-  }
-  const fullConcat = userAnswers.map(a => a.trim().toLowerCase()).join("");
-  const baseInput  = vaultJson.powSalt + vaultJson.powChallengeSalt + fullConcat;
-  const dynamic   = getCurrentDifficulty(window.powAttempt || 1);
-
-  let batch = [];
-  let nonce = 0, solved = false;
-  while (!solved) {
-    const hashBytes = await window.sha256Hash(encTxt.encode(baseInput + nonce));
-    const hash = bufToHex(hashBytes);
-    batch.push(`Nonce ${nonce} → ${hash.slice(0,16)}...`);
-    if (hash.startsWith(dynamic)) {
-      solved = true;
-      await flushBatch(batch);
-      await printLineSlow(`Dynamic PoW success at nonce ${nonce}`);
-    }
-    nonce++;
-    if (batch.length >= 2500) { await flushBatch(batch); batch = []; }
-  }
-  vaultJson.powNonce = String(nonce);
-  await printLineSlow(`[✓] Dynamic PoW complete.`);
 }
 
 /* ---------------------------
@@ -636,69 +621,31 @@ async function decryptVaultMeta(rawKey, metaIvU8, metaBlob) {
   }
   return metaJson;
 }
-// final-message.txt via per-file Argon2id(fullConcat+fileId, sha256(...))
-async function decryptFinalMessage(_fullKeyBytes, filesMeta, fullConcat) {
-  const finalMeta = filesMeta.find(f => f.originalName === "final-message.txt");
-  if (!finalMeta) { await printLineFast("[*] No final message to decrypt."); return ""; }
-
-  const blob = window.fileMap[finalMeta.filename] || window.fileMap[finalMeta.filename.toLowerCase()];
-  if (!blob) throw new Error("Missing final message file");
-
-  const encrypted = new Uint8Array(await blob.arrayBuffer());
-  if (encrypted.length < 17) return "";
-
-  const enc = new TextEncoder();
-  const fileId   = finalMeta.filename.replace(".vaultdoc", "");
-  const password = fullConcat + fileId;
-  const fileSalt = new Uint8Array(await window.sha256Hash(enc.encode(password)));
-
-  const rawKey = window.argon2DeriveRust(enc.encode(password), fileSalt, 3, 16384, 1, 32);
-  const iv = new Uint8Array(finalMeta.iv);
-
-  const decU8 = await window.aesDecryptRust(rawKey, iv, encrypted);
-  return new TextDecoder().decode(decU8).trim();
-}
-// all .vaultdoc files via per-file keys
-async function decryptVaultDocs(_fullKeyRaw, vaultMetaFiles, fullConcat) {
-  const recoveredFiles = [];
-  const enc = new TextEncoder();
-
+// Every .vaultdoc with its own Argon2id(fullConcat + fileId) key; the SHA-256 recorded in
+// vault.meta is checked for each file before it is shown.
+async function decryptVaultDocs(vaultMetaFiles, fullConcat) {
+  const decrypted = [];
   for (const meta of vaultMetaFiles) {
     try {
       const blob = window.fileMap[meta.filename] || window.fileMap[String(meta.filename).toLowerCase()];
-      if (!blob) { await printLineFast(`[!] Missing ${meta.filename}, skipping.`); continue; }
-
-      const encrypted = new Uint8Array(await blob.arrayBuffer());
-      if (encrypted.length < 17) { await printLineFast(`[!] ${meta.filename} too short, skipping.`); continue; }
-
-      const fileId   = meta.filename.replace(".vaultdoc", "");
-      const password = fullConcat + fileId;
-      const fileSalt = new Uint8Array(await window.sha256Hash(enc.encode(password)));
-
-      const rawKey = window.argon2DeriveRust(enc.encode(password), fileSalt, 3, 16384, 1, 32);
-      const iv = new Uint8Array(meta.iv);
-      const decU8 = await window.aesDecryptRust(rawKey, iv, encrypted);
-
-      const outBlob = new Blob([new Uint8Array(decU8)], { type: meta.mimeType || "application/octet-stream" });
-
-      recoveredFiles.push({
-        name: meta.originalName || meta.filename,
-        mime: meta.mimeType || "application/octet-stream",
-        blob: outBlob
-      });
-
-      await printLineFast(`[+] Decrypted ${meta.filename}`);
+      if (!blob) { printLineFast(`[!] Missing ${meta.filename}, skipping.`); continue; }
+      const bytes = await MV.decryptFile(fullConcat, meta, new Uint8Array(await blob.arrayBuffer()));
+      decrypted.push({ meta, bytes });
+      printLineFast(`[+] Decrypted and verified ${meta.filename}`);
     } catch (e) {
-      await printLineFast(`[!] Failed to decrypt ${meta.filename}: ${e.message || e}`);
+      printLineFast(`[!] Failed to decrypt ${meta.filename}: ${e.message || e}`);
     }
   }
-
-  return recoveredFiles;
+  return decrypted;
 }
 
 /* ---------------------------
    9) Submit flow
 ----------------------------*/
+// What the editor needs after a successful unlock. Kept in this module (not on window).
+let recovered = null;   // { contents, meta, failed, session }
+let vaultEditor = null;
+
 async function submitRecovery() {
   const overlay = $("powOverlay");
   const progressBar = $("progressBar");
@@ -708,7 +655,7 @@ async function submitRecovery() {
     overlay.style.display = "flex";
     overlay.style.opacity = "1";
     overlay.style.transition = "none";
-    terminal.innerHTML = "";
+    terminal.textContent = "";
     progressBar.innerHTML = "";
     message.innerText = "Trying permutations...";
 
@@ -719,7 +666,6 @@ async function submitRecovery() {
     // Raw vault.json (not L1-decrypted payload — that’s window.vaultData)
     const vaultJson = JSON.parse(await (await vaultZip.get("vault.json")).text());
     const fullSalt = vaultJson.fullSalt;
-    const layer1Salt = vaultJson.layer1Salt;
     const vaultMetaIv = new Uint8Array(vaultJson.vaultMetaIv);
     const argon = vaultJson.argonSettings || { time:3, mem:16384, parallelism:1, hashLen:32 };
 
@@ -753,10 +699,9 @@ async function submitRecovery() {
     }
 
     let attempt = 0;
-    let success = false;
     let metaJson = null;
-    let finalRawKey = null;
     let finalFullConcat = "";
+    let foundPermutation = null;
 
     for (const permuted of permutations) {
       attempt++;
@@ -774,56 +719,56 @@ async function submitRecovery() {
         ...selectedL2Indices.map(i => resolved[i]),
       ].join('');
 
-      // Optional hash preview
-      const hashBytes = await window.sha256Hash(encTxt.encode(fullConcat));
-      const hashPreview = bufToHex(hashBytes).slice(0, 20);
-      printLineFast(`[${attempt}/${totalAttempts}] trying: ${fullConcat.split('').join('|')} → hash=${hashPreview}...`);
+      // Progress only: answers (and any hash of them) never go on screen
+      printLineFast(`[${attempt}/${totalAttempts}] trying answer order #${attempt}...`);
 
       // progress fill
       const filled = Math.floor((attempt / totalAttempts) * totalBlocks);
       const blocks = progressBar.querySelectorAll(".progress-block");
       blocks.forEach((b, i) => b.classList.toggle("filled", i < filled));
 
+      let rawFullKey = null;
       try {
         // L2 key (full key) → decrypt vault.meta
-        const rawFullKey = await deriveRawKeyBytes(fullConcat, fullSalt, argon);
+        rawFullKey = await deriveRawKeyBytes(fullConcat, fullSalt, argon);
         const metaBlob = await vaultZip.get("vault.meta");
         metaJson = await decryptVaultMeta(rawFullKey, vaultMetaIv, metaBlob);
 
         await printLineSlow(`[✔] Vault unlocked on attempt ${attempt}.`);
-        await printLineSlow(`[✔] Final Concat: ${fullConcat}`);
-        await printLineSlow(`[✔] Answer Index Order: ${[
-          ...gateIndices, ...remainingL2Indices, ...selectedL2Indices
-        ].join(', ')}`);
-
-        finalRawKey = rawFullKey;
         finalFullConcat = fullConcat;
-        success = true;
+        foundPermutation = permuted.slice();
         break;
       } catch {
         // try next permutation
+      } finally {
+        zeroize(rawFullKey);
       }
     }
 
-    if (!success || !metaJson || !finalRawKey) {
+    if (!metaJson) {
       throw new Error("All permutations exhausted without success. Please review your answers and try again.");
     }
 
-    // Optional PoW visual (kept lightweight)
-    try { await validateProofOfWorkWithAnswers(vaultJson, finalFullConcat.split('')); } catch(e) {}
+    // Decrypt files (each checked against its SHA-256) and sort them into files / seeds / message
+    const decrypted = await decryptVaultDocs(metaJson.files || [], finalFullConcat);
+    const failed = (metaJson.files || []).length - decrypted.length;
+    const gateAnswers = gateIndices.map(i => userAnswerMap[i]);
+    recovered = {
+      contents: MV.splitContents(metaJson, decrypted),
+      meta: metaJson,
+      failed,
+      session: {
+        vaultJson,
+        vaultEnc: JSON.parse(await (await vaultZip.get("vault.enc")).text()),
+        unlockConcat: window.baseKey || gateAnswers.join(""),
+        gateAnswers,
+        remainingAnswers: remainingL2Indices.map(i => userAnswerMap[i]),
+        selectedAnswers: foundPermutation,
+      },
+    };
+    finalFullConcat = "";
 
-    // Decrypt files & final message (if present)
-    const decryptedFiles = await decryptVaultDocs(finalRawKey, metaJson.files || [], finalFullConcat);
-
-    let finalMessage = "";
-    try {
-      finalMessage = await decryptFinalMessage(finalRawKey, metaJson.files || [], finalFullConcat);
-    } catch (e) {
-      console.warn("Final message unavailable; continuing.", e);
-      await printLineFast(`[!] Final message unavailable: ${e.message || e}. Continuing.`);
-    }
-
-    await showRecoveryModal(finalMessage, decryptedFiles);
+    showRecoveryModal();
 
   } catch (err) {
     console.error("❌ submitRecovery failed:", err);
@@ -835,126 +780,95 @@ async function submitRecovery() {
 window.submitRecovery = submitRecovery; // expose for onclick
 
 /* ---------------------------
-   10) Preview & modal UX
+   10) Recovered files, viewer & editor
 ----------------------------*/
-function blobToText(blob) {
-  return blob.text();
+// One list for display/download: uploads, then seed files, then the final message (vault order)
+function recoveredItems() {
+  const enc = new TextEncoder();
+  const c = recovered.contents;
+  return [
+    ...c.uploads.map(u => ({ name: u.name, mime: u.mime, bytes: u.bytes })),
+    ...c.seeds.map(sd => ({ name: sd.name, mime: "text/plain", bytes: enc.encode(sd.content) })),
+    ...(c.finalMessage ? [{ name: MV.FINAL_MESSAGE_NAME, mime: "text/plain", bytes: enc.encode(c.finalMessage) }] : []),
+  ];
 }
-async function showPreview(name, blob) {
-  // Only open when the user clicks "Preview"
-  const cont = $("previewContent");
-  const title = $("previewTitle");
-  title.textContent = `File Preview — ${name}`;
-  cont.innerHTML = "";
 
-  const type = (blob.type || "").toLowerCase();
-  if (type.startsWith("text/") || /json|xml|csv|yaml|yml/.test(type) || name.endsWith(".txt")) {
-    const pre = document.createElement("pre");
-    pre.className = "preview-pre";
-    pre.textContent = await blobToText(blob);
-    cont.appendChild(pre);
-  } else {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = name;
-    a.textContent = "Download file";
-    cont.appendChild(a);
-  }
-  $("previewModal").style.display = "flex";
+function showPreview(item) {
+  openViewer(item);
 }
-async function showRecoveryModal(finalMessage, files) {
-  const seedPre = $("recoveredSeed");
-  const finalPre = $("finalMessage");
-  seedPre.textContent = files.length
-    ? `${files.length} file(s) decrypted successfully.`
+
+function openVaultEditor() {
+  if (!recovered) return;
+  if (recovered.failed) {
+    showMessageModal("Editing unavailable",
+      `${recovered.failed} file(s) in this vault could not be decrypted. Saving from the editor would leave them out, so editing is turned off for this vault.`);
+    return;
+  }
+  if (!vaultEditor) {
+    vaultEditor = createVaultEditor({
+      session: recovered.session,
+      contents: recovered.contents,
+      meta: recovered.meta,
+      onClose: (contents) => { recovered.contents = contents; renderRecoveredList(); },
+    });
+  }
+  vaultEditor.open();
+}
+
+function renderRecoveredList() {
+  const items = recoveredItems();
+  const count = items.length;
+  $("recoveredSeed").textContent = count
+    ? `${count} file(s) decrypted and verified.` + (recovered.failed ? ` ${recovered.failed} file(s) could not be decrypted.` : "")
     : "No files recovered.";
+  $("finalMessage").textContent = recovered.contents.finalMessage
+    ? `Final message:\n\n${recovered.contents.finalMessage}`
+    : "";
 
-  // Build a clean list of file links + preview buttons (no auto-preview)
-  const existing = document.getElementById("recoveryFileLinks");
-  if (existing) existing.remove();
+  document.getElementById("recoveryFileLinks")?.remove();
+  const host = h("div", { id: "recoveryFileLinks", class: "recovery-file-links" },
+    h("h3", { class: "decrypted-files-title", text: "Decrypted Files:" }));
 
-  const host = document.createElement("div");
-  host.id = "recoveryFileLinks";
-  host.className = "recovery-file-links";
-
-  const title = document.createElement("h3");
-  title.className = "decrypted-files-title";
-  title.textContent = "Decrypted Files:";
-  host.appendChild(title);
-
-  // keep a set to avoid duplicate names
-  const seen = new Set();
-  function uniqueName(name) {
-    let base = name, ext = "";
-    const dot = name.lastIndexOf(".");
-    if (dot !== -1) { base = name.slice(0, dot); ext = name.slice(dot); }
-    let n = name, i = 1;
-    while (seen.has(n)) n = `${base}_${i++}${ext}`;
-    seen.add(n);
-    return n;
+  for (const item of items) {
+    const kind = fileKind(item.name, item.mime, item.bytes);
+    host.appendChild(h("div", { class: "mv-recovered-row" },
+      h("span", { class: `mv-badge mv-badge-${kind}`, text: { image: "IMG", pdf: "PDF", text: "TXT", audio: "AUD", video: "VID" }[kind] || "BIN" }),
+      h("span", { class: "mv-recovered-name", text: item.name, title: item.name }),
+      h("span", { class: "mv-recovered-size", text: formatBytes(item.bytes.length) }),
+      h("button", { type: "button", class: "button mv-small", text: "Open", onclick: () => showPreview(item) }),
+      h("button", { type: "button", class: "button mv-small", text: "Download", onclick: () => downloadBytes(item.bytes, item.name, item.mime) })));
   }
 
-  for (const f of files) {
-  const finalName = uniqueName(f.name || "file.bin");
-  const row = document.createElement("div");
-  row.style.display = "flex";
-  row.style.alignItems = "center";
-  row.style.gap = "10px";
-  row.style.margin = "8px 0";
-
-  const link = document.createElement("a");
-  link.href = trackURL(URL.createObjectURL(f.blob));   // ← fixed
-  link.download = finalName;
-  link.innerHTML = `📎 ${finalName}`;
-  link.className = "file-link";
-
-  const previewBtn = document.createElement("button");
-  previewBtn.textContent = "Preview";
-  previewBtn.className = "button";
-  previewBtn.addEventListener("click", () => showPreview(finalName, f.blob));
-
-  row.appendChild(link);
-  row.appendChild(previewBtn);
-  host.appendChild(row);
-}
-
-  // Buttons: Download All as ZIP / Return to Dashboard
-  const btnRow = document.createElement("div");
-  btnRow.className = "btn-row";
-  btnRow.style.marginTop = "16px";
-  btnRow.style.display = "flex";
-  btnRow.style.gap = "12px";
-
-  const zipAllBtn = document.createElement("button");
-  zipAllBtn.textContent = "Download All as ZIP";
-  zipAllBtn.className = "button";
+  const zipAllBtn = h("button", { type: "button", class: "button", text: "Download All as ZIP" });
   zipAllBtn.addEventListener("click", async () => {
     const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
-    for (const f of files) {
-      const safeName = f.name || "file.bin";
-      await writer.add(safeName, new zip.BlobReader(f.blob));
+    const used = new Set();
+    for (const item of items) {
+      let name = item.name || "file.bin", n = 1;
+      while (used.has(name.toLowerCase())) name = `${n++}_${item.name}`;
+      used.add(name.toLowerCase());
+      await writer.add(name, new zip.Uint8ArrayReader(item.bytes));
     }
     const zipped = await writer.close();
-    const url = URL.createObjectURL(zipped);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "Memoro_Recovered_Files.zip";
+    const url = trackURL(URL.createObjectURL(zipped));
+    const a = h("a", { href: url, download: "Memoro_Recovered_Files.zip" });
+    document.body.appendChild(a);
     a.click();
+    a.remove();
   });
 
-  const backBtn = document.createElement("button");
-  backBtn.textContent = "Return to Dashboard";
-  backBtn.className = "button";
-  backBtn.addEventListener("click", backToDashboard);
-
-  btnRow.appendChild(zipAllBtn);
-  btnRow.appendChild(backBtn);
-  host.appendChild(btnRow);
+  host.appendChild(h("div", { class: "btn-row mv-recovered-actions" },
+    h("button", { type: "button", class: "button mv-edit-vault", text: "Open Vault Editor", onclick: openVaultEditor }),
+    zipAllBtn,
+    h("button", { type: "button", class: "button", text: "Return to Dashboard", onclick: backToDashboard })));
+  host.appendChild(h("p", { class: "mv-recovered-hint", text: "The vault editor lets you view, add, rename and remove files, change seed phrases and the final message, then save a new copy that opens with the same answers." }));
 
   // Attach to the modal’s recovered section (2nd .pow-section)
-  const recoveredBox = document.querySelector("#seedModal .pow-section:nth-of-type(2)");
-  recoveredBox.appendChild(host);
+  document.querySelector("#seedModal .pow-section:nth-of-type(2)").appendChild(host);
+}
 
+function showRecoveryModal() {
+  renderRecoveredList();
   $("seedModal").classList.add("show");
 }
 

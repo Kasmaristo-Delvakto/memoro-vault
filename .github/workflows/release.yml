@@ -34,11 +34,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install deps
         run: npm ci
+
+      # Vault format, compatibility, entropy and tamper tests (pure Node + the shipped WASM)
+      - name: Test vault format
+        if: runner.os == 'Linux'
+        run: npm test
 
       # Linux packaging deps (only on Linux)
       - name: Linux packaging deps

@@ -1,9 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
   <meta charset="UTF-8" />
   <title>Recover Your Vault - Memoro Vault</title>
   <script src="libs/zip.min.js"></script>
+  <script src="libs/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
+  </script>
+  <script src="libs/jspdf.umd.min.js"></script>
+  <script src="libs/qrcode.min.js"></script>
+  <script src="js/vault-core.js"></script>
+  <script src="js/paper-backup.js"></script>
   <script type="module">
   import init, {
     sha256_hash,
@@ -26,6 +35,7 @@
 
   <link id="theme-cypherpunk" rel="stylesheet" href="css/recover_cypherpunk.css">
   <link id="theme-clean"       rel="stylesheet" href="css/recover_clean.css" disabled>
+  <link rel="stylesheet" href="css/vault-editor.css">
 
 <script>
   // Theme switcher for recover page

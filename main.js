@@ -9,7 +9,9 @@ const {
   app,
   BrowserWindow,
   ipcMain,
+  dialog,
   shell,
+  clipboard,
   session,
   globalShortcut,
   Menu
@@ -31,6 +33,66 @@ function getPlatformIcon() {
 
 let mainWindow;
 let isQuitting = false;
+
+// All windows use an in-memory session: answers, seed phrases and files that pages keep in
+// IndexedDB/localStorage never reach the disk, so nothing is left behind for recovery tools.
+// (No "persist:" prefix means Chromium keeps the whole partition in RAM.)
+const SESSION_PARTITION = 'memoro-ephemeral';
+
+// Releases up to 1.0.8 kept answers, seed phrases and uploaded files in the on-disk storage of
+// the default session. Nothing uses those folders any more, so overwrite (best effort) and delete
+// them before Chromium opens the profile. On SSDs and copy-on-write file systems the overwrite
+// cannot be guaranteed, but the files stop being readable from the profile.
+const LEGACY_WEB_STORAGE = ['IndexedDB', 'Local Storage', 'Session Storage', 'blob_storage', 'WebStorage', 'databases', 'File System', 'Service Worker'];
+function scrubFile(file) {
+  try {
+    const size = fs.statSync(file).size;
+    const fd = fs.openSync(file, 'r+');
+    try {
+      const zeros = Buffer.alloc(Math.min(size, 1 << 20));
+      for (let off = 0; off < size; off += zeros.length) fs.writeSync(fd, zeros, 0, Math.min(zeros.length, size - off), off);
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch { /* best effort */ }
+}
+function scrubDir(dir) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  for (const e of entries) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) scrubDir(p);
+    else if (e.isFile()) scrubFile(p);
+  }
+}
+function scrubLegacyWebStorage() {
+  const base = app.getPath('userData');
+  for (const name of LEGACY_WEB_STORAGE) {
+    const dir = path.join(base, name);
+    if (!fs.existsSync(dir)) continue;
+    scrubDir(dir);
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+}
+scrubLegacyWebStorage();
+
+// --- Non-secret preferences (only the theme) live in a small JSON file ---
+const PREFS_FILE = path.join(app.getPath('userData'), 'prefs.json');
+const THEMES = new Set(['cypherpunk', 'clean']);
+function readTheme() {
+  try {
+    const t = JSON.parse(fs.readFileSync(PREFS_FILE, 'utf8'))?.theme;
+    return THEMES.has(t) ? t : null;
+  } catch {
+    return null;
+  }
+}
+ipcMain.on('prefs:get-theme', (e) => { e.returnValue = readTheme(); });
+ipcMain.handle('prefs:set-theme', async (_e, theme) => {
+  if (!THEMES.has(theme)) return false;
+  try { fs.writeFileSync(PREFS_FILE, JSON.stringify({ theme }), 'utf8'); return true; } catch { return false; }
+});
 
 // --- First-run License Gate (main process) ---
 const EULA_FILE = path.join(app.getPath('userData'), 'eula_accepted_v1.json');
@@ -60,6 +122,7 @@ function createLicenseWindow() {
     title: 'Memoro Vault — License Agreement',
     icon: getPlatformIcon(), // CHANGED
     webPreferences: {
+      partition: SESSION_PARTITION,
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -89,8 +152,7 @@ function isPathAllowedFileUrl(url) {
   }
 }
 
-async function hardenSession() {
-  const ses = session.defaultSession;
+async function hardenSession(ses) {
 
   // 1) Only allow file:// under project root; block http/https
   ses.webRequest.onBeforeRequest((details, cb) => {
@@ -100,7 +162,8 @@ async function hardenSession() {
     return cb({ cancel: false });
   });
 
-  // 2) Tight offline CSP
+  // 2) Tight offline CSP. Every page also carries the same policy in a <meta> tag as a
+  //    second layer, so it still holds if a page is ever loaded without this hook.
   ses.webRequest.onHeadersReceived((details, cb) => {
     const csp = [
       "default-src 'self' data: blob: filesystem:",
@@ -151,6 +214,7 @@ function createMainWindow() {
     icon: getPlatformIcon(), // CHANGED
     title: 'Memoro Vault',
     webPreferences: {
+      partition: SESSION_PARTITION,
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -207,6 +271,37 @@ function createAppWindows() {
   }
 }
 
+// Saving a vault or paper backup: the renderer hands over the finished bytes and learns whether
+// they really reached the disk (an <a download> cannot report a cancelled or failed save).
+const SAVE_TYPES = {
+  '.zip': { name: 'Memoro Vault (ZIP)', extensions: ['zip'] },
+  '.pdf': { name: 'Paper backup (PDF)', extensions: ['pdf'] },
+};
+ipcMain.handle('vault:save-file', async (event, { name, bytes } = {}) => {
+  const fileName = path.basename(String(name || 'memoro-vault.zip'));
+  const type = SAVE_TYPES[path.extname(fileName).toLowerCase()];
+  if (!type || !(bytes instanceof Uint8Array)) return { saved: false, error: 'Unsupported file.' };
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    defaultPath: path.join(app.getPath('downloads'), fileName),
+    filters: [type],
+  });
+  if (canceled || !filePath) return { saved: false, canceled: true };
+  try {
+    await fs.promises.writeFile(filePath, bytes);
+    const written = await fs.promises.stat(filePath);
+    if (written.size !== bytes.length) throw new Error('The file on disk has the wrong size.');
+    return { saved: true, fileName: path.basename(filePath) };
+  } catch (err) {
+    return { saved: false, error: err?.message || String(err) };
+  }
+});
+
+// Write-only donation link helper (renderers have no clipboard module since Electron 44)
+const DONATION_URL =
+  "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
+ipcMain.handle('copy-donation-link', async () => { await clipboard.writeText(DONATION_URL); return true; });
+
 // External link allowlist
 ipcMain.on('open-external-link', (_event, url) => {
   try {
@@ -220,7 +315,14 @@ ipcMain.on('open-external-link', (_event, url) => {
 });
 
 app.whenReady()
-  .then(hardenSession)
+  .then(() => Promise.all([
+    hardenSession(session.fromPartition(SESSION_PARTITION)),
+    hardenSession(session.defaultSession),
+    // Releases up to 1.0.8 kept answers and files in the on-disk default session. Nothing uses
+    // it any more, so clear whatever an older version may have left behind.
+    session.defaultSession.clearStorageData().catch(() => {}),
+    session.defaultSession.clearCache().catch(() => {})
+  ]))
   .then(() => {
     Menu.setApplicationMenu(null);
     if (ALLOW_DEVTOOLS) {
@@ -240,4 +342,12 @@ app.on('activate', () => {
 app.on('will-quit', () => { globalShortcut.unregisterAll(); });
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (e) => e.preventDefault());
+  // Every window (license included): no pop-ups, no navigation outside the app folder.
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  contents.on('will-navigate', (e, url) => {
+    if (!isPathAllowedFileUrl(url)) e.preventDefault();
+  });
+  contents.on('will-redirect', (e, url) => {
+    if (!isPathAllowedFileUrl(url)) e.preventDefault();
+  });
 });

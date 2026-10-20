@@ -1,18 +1,26 @@
 // preload.js
 'use strict';
 
-const { contextBridge, ipcRenderer, clipboard } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
-// --- Constants (write-only donation link) ---
-const DONATION_URL =
-  "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
+// Storage is in-memory (see main.js), so seed the saved theme before page scripts read it.
+try {
+  const theme = ipcRenderer.sendSync('prefs:get-theme');
+  if (theme) {
+    if (!localStorage.getItem('theme')) localStorage.setItem('theme', theme);
+    if (!sessionStorage.getItem('theme')) sessionStorage.setItem('theme', theme);
+  }
+} catch (_) { /* storage unavailable: pages fall back to their default theme */ }
 
 // --- Bridge: core app APIs (same names you already use) ---
 contextBridge.exposeInMainWorld('memoroAPI', {
   saveVaultFile: (data) => ipcRenderer.send('save-vault', data),
   showMessage:   (msg)  => ipcRenderer.send('show-message', msg),
   openExternalLink: (url) => ipcRenderer.send('open-external-link', url),
-  writeDonationLink: () => clipboard.writeText(DONATION_URL) // write-only helper
+  writeDonationLink: () => ipcRenderer.invoke('copy-donation-link'), // write-only helper (clipboard lives in main)
+  saveTheme: (theme) => ipcRenderer.invoke('prefs:set-theme', theme),
+  // Resolves { saved, fileName } only after the bytes are on disk; { saved:false, canceled } otherwise
+  saveFile: (name, bytes) => ipcRenderer.invoke('vault:save-file', { name, bytes })
 });
 
 // --- Bridge: crypto helpers (unchanged) ---
