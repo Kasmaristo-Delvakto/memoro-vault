@@ -57,227 +57,36 @@
 })();
 
 
-// ==============================
-// Paper Backup (Lite ZIP → QR PDF)
-// 3-per-row, centered grid • max tile size
-// Clean banner • ~300 DPI QRs • Quiet zone • EC(Q) for KEY/HEADER
-// Tags: MVKEY|, MVHDR|, MVCT|
-// ==============================
+// Paper backup (Lite ZIP → QR PDF) lives in js/paper-backup.js; vault sealing in js/vault-core.js.
+const MV = window.MemoroVaultCore;
 
-// --- Helpers ---
-function bytesToBase64(u8) {
-  let s = '';
-  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
-  return btoa(s);
-}
-function chunkString(str, maxLen) {
-  const out = [];
-  for (let i = 0; i < str.length; i += maxLen) out.push(str.slice(i, i + maxLen));
-  return out;
-}
-
-// --- REPLACE: AES for Lite ZIP → use Rust AES-GCM now ---
-async function aesGcmEncryptBytes(keyBytes, plaintextU8) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await window.aesEncryptRust(keyBytes, iv, plaintextU8); // Uint8Array
-  return { iv: Array.from(iv), ct: Array.from(ct) };
-}
-
-
-/**
- * Render a QR payload to a canvas sized for sharp printing.
- * - targetPt: side length in PDF points (72pt = 1 inch)
- * - ecLevel: "M" (default) or "Q"
- * - Adds a 4-module quiet zone around the code
- */
-async function qrcodeToCanvas(text, targetPt, ecLevel = "M") {
-  const TARGET_DPI = 300;
-  const desiredPx  = Math.max(256, Math.ceil(targetPt * (TARGET_DPI / 72)));
-
-  // Case A: node-qrcode UMD
-  if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
-    const canvas = document.createElement("canvas");
-    await window.QRCode.toCanvas(canvas, text, {
-      errorCorrectionLevel: ecLevel,
-      margin: 4,                 // quiet-zone in modules
-      width: desiredPx
-    });
-    return canvas;
-  }
-
-  // Case B: qrcode-generator
-  if (typeof window.qrcode === "function") {
-    const qr = window.qrcode(0, ecLevel);
-    qr.addData(text);
-    qr.make();
-
-    const count         = qr.getModuleCount();
-    const pxPerModule   = Math.max(4, Math.floor(desiredPx / count));
-    const marginModules = 4;                          // quiet-zone in modules
-    const marginPx      = marginModules * pxPerModule;
-    const size          = count * pxPerModule + marginPx * 2;
-
-    const canvas = document.createElement("canvas");
-    canvas.width  = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d");
-
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, size, size);
-
-    ctx.fillStyle = "#000";
-    for (let r = 0; r < count; r++) {
-      for (let c = 0; c < count; c++) {
-        if (qr.isDark(r, c)) {
-          ctx.fillRect(
-            marginPx + c * pxPerModule,
-            marginPx + r * pxPerModule,
-            pxPerModule, pxPerModule
-          );
-        }
-      }
-    }
-    return canvas;
-  }
-
-  throw new Error("QR library not loaded (expected window.QRCode or window.qrcode).");
-}
-
-// --- Main: Lite ZIP → Paper PDF ---
-async function buildPaperPdfFromLiteZip(liteZipBlob) {
-  const liteBytes = new Uint8Array(await liteZipBlob.arrayBuffer());
-
-  // 1) Random 32‑byte file key
-  const keyBytes = crypto.getRandomValues(new Uint8Array(32));
-
-  // 2) Encrypt Lite ZIP with that key
-  const { iv, ct } = await aesGcmEncryptBytes(keyBytes, liteBytes);
-
-  // 3) Header: version + iv + size + SHA‑256(plaintext)
-  const shaHex = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", liteBytes)))
-    .map(b => b.toString(16).padStart(2,'0')).join('');
-  const header = { v: "mv-lite-v1", iv, size: liteBytes.length, sha256: shaHex };
-  const headerB64 = btoa(unescape(encodeURIComponent(JSON.stringify(header))));
-
-  // 4) Recovery key (single share)
-  const keyHex = Array.from(keyBytes).map(b => b.toString(16).padStart(2,"0")).join("");
-
-  // 5) Ciphertext into QR tiles
-  const CT_B64    = bytesToBase64(ct);
-  const CHUNK_LEN = 324; // payload per tile (scanner-friendly)
-  const ctChunks  = chunkString(CT_B64, CHUNK_LEN);
-  const total     = ctChunks.length;
-
-  const KEY_TAG    = `MVKEY|${keyHex}`;
-  const HEADER_TAG = `MVHDR|${headerB64}`;
-  const CT_PREFIX  = "MVCT|";
-
-  // 6) PDF layout (letter: 612×792pt)
-  const { jsPDF } = window.jspdf;
-  const pdf   = new jsPDF({ unit: "pt", format: "letter" });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-
-  const MARGIN    = 24;  // page side/top/bottom margins
-  const GAP       = 12;  // gap between tiles
-  const LABEL_PAD = 14;  // space above each tile for label
-  const BANNER_H  = 72;  // banner block height
-
-  function compute3ColLayout() {
-    const innerW = pageW - 2 * MARGIN;
-    const cols   = 3;
-    const tile   = Math.floor((innerW - GAP * (cols - 1)) / cols);
-    const usedW  = cols * tile + (cols - 1) * GAP;
-    const startX = MARGIN + Math.floor((innerW - usedW) / 2); // center horizontally
-    return { cols, tile, startX };
-  }
-
-  function drawBanner(pageNum) {
-    pdf.setFont("courier", "normal");
-    pdf.setFontSize(11);
-
-    const title = "Memoro Vault - Paper Backup";
-    const now   = new Date();
-    const built = `Built: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} | Version: 1.0.8 | Format: mv-lite-v1 | ZIP bytes: ${liteBytes.length}`;
-    const shaLine  = `SHA-256 (ZIP): ${shaHex}`;
-    const pageLine = `Page ${pageNum} | Scan KEY and HEADER on page 1, then all CT tiles`;
-
-    pdf.text(title,   MARGIN, MARGIN + 12);
-    pdf.setFontSize(10);
-    pdf.text(built,   MARGIN, MARGIN + 28);
-    pdf.text(shaLine, MARGIN, MARGIN + 44);
-
-    const w = pdf.getTextWidth(pageLine);
-    pdf.text(pageLine, pageW - MARGIN - w, MARGIN + 12);
-  }
-
-  function drawLabel(x, y, text) {
-    pdf.setFont("courier", "bold");
-    pdf.setFontSize(9);
-    pdf.text(text, x + 2, y - 4); // just above the tile
-    pdf.setFont("courier", "normal");
-  }
-
-  async function drawTile(x, y, sizePt, payload, label, ecLevel = "M") {
-    drawLabel(x, y, label);
-    const canvas = await qrcodeToCanvas(payload, sizePt, ecLevel);
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", x, y, sizePt, sizePt);
-  }
-
-  // 7) Page rendering (3 columns)
-  let ctIdx = 0;
-  let pageNum = 1;
-
-  const grid = compute3ColLayout();
-  drawBanner(pageNum);
-
-  let x = grid.startX;
-  let y = MARGIN + BANNER_H + LABEL_PAD;
-  const rowH = LABEL_PAD + grid.tile;
-
-  // First row: KEY | HEADER | CT 1 (if any)
-  await drawTile(x, y, grid.tile, KEY_TAG,    "KEY",    "Q"); x += grid.tile + GAP;
-  await drawTile(x, y, grid.tile, HEADER_TAG, "HEADER", "Q"); x += grid.tile + GAP;
-
-  if (ctIdx < total) {
-    const tag = `${CT_PREFIX}${ctIdx + 1}/${total}|${ctChunks[ctIdx]}`;
-    await drawTile(x, y, grid.tile, tag, `CT ${ctIdx + 1}/${total}`, "M");
-    ctIdx++;
-  }
-
-  // Remaining rows on page 1
-  x = grid.startX; y += rowH + GAP;
-
-  while (ctIdx < total) {
-    // New page if next row won't fit
-    if (y + grid.tile + MARGIN > pageH) {
-      pdf.addPage(); pageNum++;
-      drawBanner(pageNum);
-      x = grid.startX; y = MARGIN + BANNER_H + LABEL_PAD;
-    }
-
-    // Up to 3 CT tiles per row
-    for (let c = 0; c < grid.cols && ctIdx < total; c++) {
-      const tag = `${CT_PREFIX}${ctIdx + 1}/${total}|${ctChunks[ctIdx]}`;
-      await drawTile(x, y, grid.tile, tag, `CT ${ctIdx + 1}/${total}`, "M");
-      ctIdx++;
-      x += (c < grid.cols - 1) ? (grid.tile + GAP) : 0;
-    }
-    x = grid.startX; y += rowH + GAP;
-  }
-
-  pdf.save("memoro-lite-QR.pdf");
-}
-
-// Expose for other scripts (prevents “not defined” if called from elsewhere)
-window.buildPaperPdfFromLiteZip = buildPaperPdfFromLiteZip;
 // ---------- Lite Picker helpers ----------
-const LITE_CAP_BYTES = 153600; // ≈ 150 KiB cap on raw content
+const LITE_CAP_BYTES = MV.LITE_CAP_BYTES; // ≈ 150 KiB cap on raw content
 
 function fmtBytes(n) {
   if (n < 1024) return `${n} B`;
   if (n < 1024*1024) return `${(n/1024).toFixed(1)} KB`;
   return `${(n/1024/1024).toFixed(2)} MB`;
+}
+
+// One checkbox row in the Lite picker. Names are user-supplied, so they go in as text, never HTML.
+function litePickerRow(id, dataAttr, dataValue, rawSize, label = dataValue) {
+  const row = document.createElement('label');
+  row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px dashed rgba(0,255,153,.2)';
+  const left = document.createElement('span');
+  left.style.cssText = 'display:flex;align-items:center;gap:8px;';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.id = id;
+  box.setAttribute(dataAttr, dataValue);
+  const code = document.createElement('code');
+  code.textContent = label;
+  left.append(box, code);
+  const size = document.createElement('span');
+  size.style.color = '#b8ffd9';
+  size.textContent = fmtBytes(rawSize);
+  row.append(left, size);
+  return row;
 }
 
 /**
@@ -312,33 +121,15 @@ function openLitePicker({ seedFiles, uploads, finalMessageBytesLen }) {
     // Seeds list
     for (const s of seedFiles) {
       const rawSize = new TextEncoder().encode(s.content || '').length;
-      const id = `seed_${btoa(s.name).replace(/=+$/,'')}`;
-      const row = document.createElement('label');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px dashed rgba(0,255,153,.2)';
-      row.innerHTML = `
-        <span style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="${id}" data-name="${s.name}">
-          <code>${s.name}</code>
-        </span>
-        <span style="color:#b8ffd9">${fmtBytes(rawSize)}</span>
-      `;
-      seedsEl.appendChild(row);
+      const id = `seed_${seedFiles.indexOf(s)}`;
+      seedsEl.appendChild(litePickerRow(id, 'data-name', s.name, rawSize));
     }
 
     // Uploads list
     for (const f of uploads) {
       const rawSize = (f.raw && f.raw.byteLength) ? f.raw.byteLength : 0;
       const id = `upl_${f.id}`;
-      const row = document.createElement('label');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px dashed rgba(0,255,153,.2)';
-      row.innerHTML = `
-        <span style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="${id}" data-id="${f.id}">
-          <code>${f.name}</code>
-        </span>
-        <span style="color:#b8ffd9">${fmtBytes(rawSize)}</span>
-      `;
-      uploadsEl.appendChild(row);
+      uploadsEl.appendChild(litePickerRow(id, 'data-id', String(f.id), rawSize, f.name));
     }
 
     function calcTotalBytes() {
@@ -429,11 +220,6 @@ function openLitePicker({ seedFiles, uploads, finalMessageBytesLen }) {
       alert(msg);
     }
 
-      function generateRandomHex(length) {
-      const bytes = crypto.getRandomValues(new Uint8Array(length / 2));
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
     async function delay(ms) {
       return new Promise(res => setTimeout(res, ms));
     }
@@ -470,75 +256,107 @@ async function startVaultBuild() {
     printToTerminal(`[+] Found ${files.length} file(s) for encryption.`, 20);
     await delay(150);
 
-    printToTerminal("[*] Deriving base key...", 25);
-    const unlockConcat = inputs.unlockAnswer1 + inputs.unlockAnswer2;
-
-    printToTerminal("[*] Generating full key salt...", 38);
-    const fullSalt = generateRandomHex(32);
-
-    printToTerminal("[*] Selecting and permuting questions...", 45);
+    printToTerminal("[*] Selecting and permuting questions...", 30);
+    // Layer-2 layout: a CSPRNG shuffle of the non-gate questions. The first six get a
+    // hidden answer order (brute-forced at recovery), the rest keep a fixed order.
     const numQuestions = inputs.normalizedAnswers.length;
-    const allIndices = Array.from({ length: numQuestions }, (_, i) => i);
     const gateIndices = [inputs.unlockIndexes[0], inputs.unlockIndexes[1]];
-    const layer2Indices = allIndices.filter(i => !gateIndices.includes(i));
-    const selectedL2Indices = layer2Indices.sort(() => Math.random() - 0.5).slice(0, 6);
-    const remainingL2Indices = layer2Indices.filter(i => !selectedL2Indices.includes(i));
-
-    // 1) FULL payload (includes uploads)
-    printToTerminal("[+] Encrypting FULL vault...", 60);
-    const payloadsFull = await encryptVaultPayload(
-      inputs, files, unlockConcat, null, fullSalt,
-      selectedL2Indices, gateIndices, remainingL2Indices, /* liteMode */ false
+    const layer2Indices = MV.shuffle(
+      Array.from({ length: numQuestions }, (_, i) => i).filter(i => !gateIndices.includes(i))
     );
+    const selectedL2Indices = layer2Indices.slice(0, 6);
+    const remainingL2Indices = layer2Indices.slice(6);
 
-    printToTerminal("[*] Packaging FULL vault...", 80);
-    await packageAndDownloadZip(payloadsFull, inputs, fullSalt, gateIndices);
-    printToTerminal("[✔] Full vault downloaded.", 90);
+    const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
+    const answerAt = (i) => inputs.normalizedAnswers[i];
+    const sealArgs = {
+      unlockConcat: inputs.unlockAnswer1 + inputs.unlockAnswer2,
+      layer1Payload: {
+        questionList: buildQuestionList(inputs),
+        selectedL2Indices, remainingL2Indices, gateIndices
+      },
+      gateAnswers: gateIndices.map(answerAt),
+      remainingAnswers: remainingL2Indices.map(answerAt),
+      selectedAnswers: selectedL2Indices.map(answerAt),
+      questionPrompts: gateIndices.map(i => inputs.questions[i] || `Question ${i + 1}`),
+      uploads: files.map(f => ({ name: f.name, mime: f.type, bytes: new Uint8Array(f.raw) })),
+      seeds: namedSeedFiles.map(s => ({ name: s.name, content: s.content })),
+      finalMessage: inputs.finalMessage || ""
+    };
 
-    // 2) LITE payload — let the user choose contents (≤ 150 KB)
-const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
-const finalMessageBytesLen = inputs.finalMessage?.trim()
-  ? new TextEncoder().encode(inputs.finalMessage.trim()).length
-  : 0;
+    // 1) FULL vault (includes uploads)
+    printToTerminal("[+] Encrypting FULL vault...", 45);
+    const full = await MV.sealVault(Object.assign({}, sealArgs, {
+      onProgress: (done, total) => printToTerminal("[+] Encrypting FULL vault...", 45 + Math.round(30 * done / total))
+    }));
 
-printToTerminal("[*] Choose what to include in your paper backup...", 92);
-let liteSelection = null;
-try {
-  liteSelection = await openLitePicker({
-    seedFiles: namedSeedFiles,
-    uploads: files,
-    finalMessageBytesLen
-  });
-} catch (e) {
-  if (e && e.message === "User cancelled Lite picker") {
-    printToTerminal("[i] Paper backup skipped by user. Proceeding to final instructions...", 96);
-    showPostBuildModal();
-    return; // exit gracefully instead of throwing
-  }
-  throw e; // real error, let outer catch handle
-}
+    printToTerminal("[*] Packaging FULL vault...", 76);
+    const fullZip = await MV.packageZip(full, { includeDocs: true });
 
-printToTerminal("[*] Building Lite Vault (using your selection)...", 94);
-const payloadsLite = await buildLitePayloadFromFull(
-  inputs,                     // userData
-  files,                      // provide uploads so selection can include them
-  inputs.unlockAnswer1 + inputs.unlockAnswer2,
-  fullSalt,
-  gateIndices,
-  selectedL2Indices,
-  remainingL2Indices,
-  payloadsFull,
-  liteSelection
-);
+    // Re-open the ZIP we just made and decrypt every part before handing it over.
+    printToTerminal("[*] Verifying vault (re-opening and decrypting every file)...", 80);
+    await MV.verifyVaultZip(fullZip, {
+      unlockConcat: sealArgs.unlockConcat,
+      permutedConcat: full.permutedConcat,
+      expected: [
+        ...sealArgs.uploads.map(u => ({ name: u.name, bytes: u.bytes })),
+        ...sealArgs.seeds.map(sd => ({ name: sd.name, bytes: new TextEncoder().encode(sd.content) })),
+        ...(sealArgs.finalMessage.trim()
+          ? [{ name: MV.FINAL_MESSAGE_NAME, bytes: new TextEncoder().encode(sealArgs.finalMessage.trim()) }]
+          : [])
+      ]
+    });
 
-// ZIP the Lite vault (don’t download directly)
-const liteZipBlob = await makeLiteVaultZipBlob(
-  payloadsLite, inputs, fullSalt, gateIndices
-);
+    downloadBlob(fullZip, "memoro-vault.zip");
+    printToTerminal("[✔] Full vault verified and downloaded.", 90);
 
-// Turn Lite ZIP into a single-file QR PDF and auto-download
-printToTerminal("[*] Encrypting Lite ZIP and creating single-file QR PDF...", 96);
-await buildPaperPdfFromLiteZip(liteZipBlob);
+    // 2) LITE payload: let the user choose contents (≤ 150 KB)
+    const finalMessageBytesLen = sealArgs.finalMessage.trim()
+      ? new TextEncoder().encode(sealArgs.finalMessage.trim()).length
+      : 0;
+
+    printToTerminal("[*] Choose what to include in your paper backup...", 92);
+    let liteSelection = null;
+    try {
+      liteSelection = await openLitePicker({
+        seedFiles: namedSeedFiles,
+        uploads: files,
+        finalMessageBytesLen
+      });
+    } catch (e) {
+      if (e && e.message === "User cancelled Lite picker") {
+        printToTerminal("[i] Paper backup skipped by user. Proceeding to final instructions...", 96);
+        showPostBuildModal();
+        return; // exit gracefully instead of throwing
+      }
+      throw e; // real error, let outer catch handle
+    }
+
+    printToTerminal("[*] Building Lite Vault (using your selection)...", 94);
+    const uploadIds = new Set(liteSelection.uploadIds.map(String));
+    const liteUploads = sealArgs.uploads.filter((_, i) => uploadIds.has(String(files[i].id)));
+    const liteSeeds = sealArgs.seeds.filter(sd => liteSelection.seedNames.includes(sd.name));
+    const liteFinal = liteSelection.includeFinalMessage ? sealArgs.finalMessage : "";
+
+    let liteTotal = liteFinal.trim() ? finalMessageBytesLen : 0;
+    for (const u of liteUploads) liteTotal += u.bytes.byteLength;
+    for (const sd of liteSeeds) liteTotal += new TextEncoder().encode(sd.content || "").length;
+    if (liteTotal > LITE_CAP_BYTES) {
+      throw new Error(`Lite selection exceeds 150 KB cap (${liteTotal} bytes).`);
+    }
+
+    // Same answers, salts and hidden order as the full vault, so the same answers open both.
+    const lite = await MV.sealVault(Object.assign({}, sealArgs, {
+      uploads: liteUploads,
+      seeds: liteSeeds,
+      finalMessage: liteFinal,
+      fixed: { layer1Salt: full.layer1Salt, fullSalt: full.fullSalt, permutation: full.permutation }
+    }));
+    const liteZipBlob = await MV.packageZip(lite, { includeDocs: false });
+
+    // Turn Lite ZIP into a single-file QR PDF and auto-download
+    printToTerminal("[*] Encrypting Lite ZIP and creating single-file QR PDF...", 96);
+    await MemoroPaperBackup.buildPaperPdfFromLiteZip(liteZipBlob);
 
     printToTerminal("[✔] Full vault and paper PDF created.", 100);
     showPostBuildModal();
@@ -547,6 +365,13 @@ await buildPaperPdfFromLiteZip(liteZipBlob);
     printToTerminal(`[!] Error: ${err.message}`, null);
     showToast("Something went wrong while creating your vault.");
   }
+}
+
+function downloadBlob(blob, fileName) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  link.click();
 }
 
 async function loadUserInputs() {
@@ -607,114 +432,9 @@ async function loadUserInputs() {
       return result;
     }
 
-    // getVaultKeyMaterial.js
-function getVaultKeyMaterial({ gateAnswers, knownAnswers, bruteAnswers, gateIndices, knownAnswerIndices, bruteIndices, fullSalt }) {
-  // Answers must be placed in the correct slot
-  const allAnswers = [];
-  const totalLen = gateIndices.length + knownAnswerIndices.length + bruteIndices.length;
-  // Find max index
-  const maxIndex = Math.max(...gateIndices, ...knownAnswerIndices, ...bruteIndices);
-  for (let i = 0; i <= maxIndex; i++) allAnswers[i] = "";
-  gateIndices.forEach((idx, i) => { allAnswers[idx] = gateAnswers[i]; });
-  knownAnswerIndices.forEach((idx, i) => { allAnswers[idx] = knownAnswers[i]; });
-  bruteIndices.forEach((idx, i) => { allAnswers[idx] = bruteAnswers[i]; });
-  const fullConcat = allAnswers.join('');
-  return fullSalt + fullConcat;
-}
-
-// blankRedHerring.js
-function blankRedHerring(answers, trapIndex) {
-  if (trapIndex !== undefined && trapIndex !== null && trapIndex >= 0 && trapIndex < answers.length) {
-    answers = answers.slice();
-    answers[trapIndex] = "";
-  }
-  return answers;
-}
-
-// --- NEW: derive raw key bytes via Rust Argon2id (for Rust AES) ---
-async function deriveRawKeyBytes(password, saltHex, settingsOverride) {
-  const enc = new TextEncoder();
-  const pwdBytes = enc.encode(password);
-
-  const salt = saltHex
-    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(h => parseInt(h, 16)))
-    : new Uint8Array(await crypto.subtle.digest("SHA-256", pwdBytes));
-
-  const s = settingsOverride || { time: 3, mem: 16384, parallelism: 1, hashLen: 32 };
-  return window.argon2DeriveRust(pwdBytes, salt, s.time, s.mem, s.parallelism, s.hashLen);
-}
-
-// (Optional) keep this if any leftover code still expects a CryptoKey:
-async function deriveAesCryptoKey(password, saltHex, settingsOverride) {
-  const raw = await deriveRawKeyBytes(password, saltHex, settingsOverride);
-  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, true, ["encrypt","decrypt"]);
-}
-
- // deriveKey.js (Rust Argon2id)
-async function deriveKey(password, saltHex, settingsOverride) {
-  const enc = new TextEncoder();
-  const pwdBytes = enc.encode(password);
-
-  const salt = saltHex
-    ? Uint8Array.from(saltHex.match(/.{1,2}/g).map(h => parseInt(h, 16)))
-    : new Uint8Array(await crypto.subtle.digest("SHA-256", pwdBytes));
-
-  const s = settingsOverride || { time: 3, mem: 16384, parallelism: 1, hashLen: 32 };
-
-  // Raw derived bytes from Rust Argon2id:
-  const raw = window.argon2DeriveRust(
-    pwdBytes,
-    salt,
-    s.time,
-    s.mem,
-    s.parallelism,
-    s.hashLen
-  );
-
-  // Use as AES-GCM key
-  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, true, ["encrypt","decrypt"]);
-}
-
-
-    // Add generatePermutations function from recover.html
-    function generatePermutations(array) {
-      if (array.length <= 1) return [array.slice()];
-      const result = [];
-
-      for (let i = 0; i < array.length; i++) {
-        const current = array[i];
-        const remaining = array.slice(0, i).concat(array.slice(i + 1));
-        const perms = generatePermutations(remaining);
-        for (const perm of perms) {
-          result.push([current, ...perm]); // force copy
-        }
-      }
-
-      return result;
-    }
-
-async function encryptVaultPayload(
-  userData,
-  files,
-  unlockConcat,
-  _unused_fullConcat,
-  fullSalt,
-  selectedL2Indices,
-  gateIndices,
-  remainingL2Indices,
-  liteMode = false,
-  opts = {} // { fixedLayer1Salt?: string, fixedPermutation?: string[], liteSelection?: {...} }
-) {
-  const encoder = new TextEncoder();
-
-  // ── Layer 1 key (gate answers) ───────────────────────────────────────────────
-  const layer1Salt = opts.fixedLayer1Salt || generateRandomHex(32);
-  const layer1KeyRaw = await deriveRawKeyBytes(unlockConcat, layer1Salt, {
-    time: 3, mem: 16384, parallelism: 1, hashLen: 32
-  });
-
-  // Build questionList (now MCQ-aware, with per-question option shuffle)
-const questionList = userData.answers.map((ans, i) => {
+// Question list stored in vault.enc (MCQ-aware; MCQ options get a CSPRNG shuffle per question)
+function buildQuestionList(userData) {
+  return userData.answers.map((ans, i) => {
   const trimmed = (ans || "").trim();
   const spaceIndexes = userData.spaceIndexes?.[i] || [];
   const hintEntry = userData.hints?.[i] || {};
@@ -747,10 +467,7 @@ const questionList = userData.answers.map((ans, i) => {
     // Clamp 6–12 and shuffle
     const targetCount = Math.min(12, Math.max(6, raw.length));
     const limited = raw.slice(0, targetCount);
-    mcqOptions = limited
-      .map(v => [Math.random(), v])
-      .sort((a, b) => a[0] - b[0])
-      .map(p => p[1]);
+    mcqOptions = MV.shuffle(limited);
 
     // For MCQ, length/letters aren’t shown in UI
     hintValuesLocal = [];
@@ -775,302 +492,6 @@ const questionList = userData.answers.map((ans, i) => {
     mcqOptions
   };
 });
-
-  // Encrypt L1 question metadata with Rust AES
-  const iv1 = crypto.getRandomValues(new Uint8Array(12));
-  const encQuestions = encoder.encode(JSON.stringify({
-    questionList, selectedL2Indices, remainingL2Indices, gateIndices
-  }));
-  const encData = await window.aesEncryptRust(layer1KeyRaw, iv1, encQuestions);
-  const vaultEncrypted = { ciphertext: Array.from(encData), iv: Array.from(iv1) };
-
-  // ── Permutation & fullKey derivation ────────────────────────────────────────
-  let finalPermutationUsed = opts.fixedPermutation;
-  if (!finalPermutationUsed) {
-    const perms = generatePermutations(selectedL2Indices.map(i => userData.normalizedAnswers[i]));
-    const randIndex = Math.floor(Math.random() * perms.length);
-    finalPermutationUsed = perms[randIndex];
-  }
-
-  const permutedAnswers = [
-    userData.normalizedAnswers[gateIndices[0]],
-    userData.normalizedAnswers[gateIndices[1]],
-    ...remainingL2Indices.map(i => userData.normalizedAnswers[i]),
-    ...finalPermutationUsed
-  ];
-  const permutedConcat = permutedAnswers.join('');
-
-  const fullKeyRaw = await deriveRawKeyBytes(permutedConcat, fullSalt, {
-    time: 3, mem: 16384, parallelism: 1, hashLen: 32
-  });
-
-  // vaultHash binds order + answers
-  const vaultHashRaw = await sha256Hash(new TextEncoder().encode(permutedConcat));
-  const vaultHash = Array.from(vaultHashRaw).map(b => b.toString(16).padStart(2, '0')).join('');
-
-  // ── Per-file encryption helper ──────────────────────────────────────────────
-  const fileMeta = [];
-  const encryptedFiles = [];
-  let finalMessageInfo = null; // { internal, iv }
-
-  async function encryptAndPushFile(buffer, name, mime) {
-    const enc = new TextEncoder();
-    const fileId = crypto.randomUUID().replace(/-/g, "");
-    const internalFilename = fileId + ".vaultdoc";
-
-    // fileSalt = SHA256(permutedConcat + fileId)
-    const fileSalt = new Uint8Array(
-      await window.sha256Hash(enc.encode(permutedConcat + fileId))
-    );
-
-    // Derive per-file key with Rust Argon2id
-    const rawKey = window.argon2DeriveRust(
-      enc.encode(permutedConcat + fileId),
-      fileSalt,
-      3, 16384, 1, 32
-    );
-
-    // Encrypt with Rust AES-GCM
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encryptedBuffer = await window.aesEncryptRust(rawKey, iv, buffer);
-
-    // SHA-256 of plaintext for integrity metadata
-    const shaBuf = await window.sha256Hash(buffer);
-    const sha256Hex = Array.from(shaBuf).map(b => b.toString(16).padStart(2, "0")).join("");
-
-    fileMeta.push({
-      id: fileId,
-      filename: internalFilename,
-      originalName: name,
-      mimeType: mime,
-      iv: Array.from(iv),
-      sha256: sha256Hex
-    });
-
-    const blob = new Blob([new Uint8Array(encryptedBuffer)], { type: "application/octet-stream" });
-    encryptedFiles.push({ filename: internalFilename, blob });
-
-    if (name === "final-message.txt") {
-      finalMessageInfo = { internal: internalFilename, iv: Array.from(iv) };
-    }
-  }
-
-  // ---------- Decide what to include ----------
-  const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
-  let seedsToInclude   = namedSeedFiles;
-  let uploadsToInclude = files;
-  let includeFinal     = !!(userData.finalMessage && userData.finalMessage.trim());
-
-  if (liteMode && opts.liteSelection) {
-    const sel = opts.liteSelection;
-    seedsToInclude = namedSeedFiles.filter(s => sel.seedNames.includes(s.name));
-    const idSet = new Set(sel.uploadIds.map(String));
-    uploadsToInclude = files.filter(f => idSet.has(String(f.id)));
-    includeFinal = !!sel.includeFinalMessage;
-
-    let total = 0;
-    for (const s of seedsToInclude) total += new TextEncoder().encode(s.content || '').length;
-    for (const u of uploadsToInclude) total += (u?.raw?.byteLength || 0);
-    if (includeFinal) total += new TextEncoder().encode(userData.finalMessage.trim()).length;
-    if (total > LITE_CAP_BYTES) {
-      throw new Error(`Lite selection exceeds 150 KB cap (${total} bytes).`);
-    }
-  }
-
-  // ---------- Encrypt the chosen content ----------
-  for (const f of uploadsToInclude) {
-    await encryptAndPushFile(new Uint8Array(f.raw), f.name, f.type);
-  }
-  for (const seed of seedsToInclude) {
-    await encryptAndPushFile(new TextEncoder().encode(seed.content), seed.name, "text/plain");
-  }
-  if (includeFinal) {
-    await encryptAndPushFile(new TextEncoder().encode(userData.finalMessage.trim()), "final-message.txt", "text/plain");
-  }
-
-  // Encrypt vault.meta with fullKey (Rust AES)
-  const iv3 = crypto.getRandomValues(new Uint8Array(12));
-  const metaEnc = new TextEncoder().encode(JSON.stringify({
-    files: fileMeta,
-    seedFiles: seedsToInclude,
-    vaultHash
-  }));
-  const metaData = await window.aesEncryptRust(fullKeyRaw, iv3, metaEnc);
-  const fileMetaEncrypted = { data: new Uint8Array(metaData), iv: Array.from(iv3) };
-
-  return {
-    vaultEncrypted,
-    fileMetaEncrypted,
-    encryptedFiles,
-    layer1Salt,
-    vaultHash,
-    selectedPermutation: finalPermutationUsed,
-    finalMessageInfo
-  };
-}
-
-    async function packageAndDownloadZip(payloads, userData, fullSalt, gateIndices) {
-  const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
-  const addJSON = (name, data) => writer.add(name, new zip.TextReader(JSON.stringify(data, null, 2)));
-  const addBlob = (name, blob) => writer.add(name, new zip.BlobReader(blob));
-
-  // DO NOT include selected answers or permutation in plaintext
-  await addJSON("vault.json", {
-    version: "1.0.8",
-    created: new Date().toISOString(),
-    instructions: "Use recover.html to unlock this archive using your answers.",
-    fullSalt,
-    layer1Salt: payloads.layer1Salt,
-    questionPrompts: [
-      userData.questions[gateIndices[0]] || `Question ${gateIndices[0] + 1}`,
-      userData.questions[gateIndices[1]] || `Question ${gateIndices[1] + 1}`
-    ],
-    vaultMetaIv: payloads.fileMetaEncrypted.iv,
-    argonSettings: { time: 3, mem: 16384, parallelism: 1, type: "Argon2id", hashLen: 32 },
-  });
-
-  await addJSON("vault.enc", payloads.vaultEncrypted);
-  await addBlob("vault.meta", new Blob([payloads.fileMetaEncrypted.data], { type: "application/octet-stream" }));
-
-  for (const file of payloads.encryptedFiles) {
-    await addBlob(file.filename, file.blob);
-  }
-
-// FULL ONLY helper docs
-await writer.add("README.txt", new zip.TextReader(
-`Memoro Vault
-===========
-
-What you have found is an encrypted archive created with Memoro Vault.
-It was likely prepared by someone who wished their most important digital
-information to be preserved securely and passed down.
-
-Inside this archive are files and messages that can only be unlocked
-with the correct answers to memory-based questions. Without those answers,
-decryption is mathematically impossible. There are no backdoors.
-
-To open this vault, you will need:
-1. The Memoro Vault program (provided as a desktop installer in the same folder).
-2. The exact answers to the questions chosen by the person who built it.
-3. The original vault file itself (this ZIP).
-
-If you are a family member who has recently discovered these files, this vault
-was designed to protect sensitive material such as letters, records,
-cryptocurrency keys, or final instructions. Guard it carefully.
-
-Redundant storage is critical: make multiple copies to M-DISC, offline drives,
-and printed QR backups if available. A single corrupt copy can render it
-unrecoverable.
-
-Libereco ne estas donaco. Ĝi estas devo.
-— Kaŝmaristo Delvakto`
-));
-
-await writer.add("Vault_Builder_Instructions.txt", new zip.TextReader(
-`Vault Builder Instructions
-=========================
-
-This archive was created with Memoro Vault. If you are reading this, it
-means the vault was intentionally packaged for long-term preservation.
-
-To keep it safe:
-1. Place this ZIP file together with the Memoro Vault installer
-   (e.g. memoro-win.exe, memoro-linux.AppImage, or memoro-mac.dmg)
-   inside a clearly labeled folder (for example, "Family_Vault").
-2. Copy that folder to multiple storage media:
-   • One archival M-DISC
-   • One offline USB/SSD in a fireproof safe
-   • One cloud service of your choice
-3. If a paper QR backup PDF was produced, print and store it with equal care.
-   Those QR tiles can fully reconstruct this vault if digital copies are lost.
-
-Important: Do not rename, modify, or edit any files inside this archive.
-Doing so will make the vault impossible to recover.
-
-To unlock, run the Memoro Vault recovery program and follow the on-screen
-instructions. You will be prompted to enter answers in the exact order
-chosen by the original builder.
-
-Libereco ne estas donaco. Ĝi estas devo.
-— Kaŝmaristo Delvakto`
-));
-
-  const blob = await writer.close();
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "memoro-vault.zip";
-  link.click();
-}
-
-    async function makeLiteVaultZipBlob(payloadsLite, userData, fullSalt, gateIndices) {
-  const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
-  const addJSON = (name, data) => writer.add(name, new zip.TextReader(JSON.stringify(data, null, 2)));
-  const addBlob = (name, blob) => writer.add(name, new zip.BlobReader(blob));
-
-  // Identical contract as FULL. No selected answers or permutations in plaintext.
-  await addJSON("vault.json", {
-    version: "1.0.8",
-    created: new Date().toISOString(),
-    instructions: "Use recover.html to unlock this archive using your answers.",
-    fullSalt,
-    layer1Salt: payloadsLite.layer1Salt,
-    questionPrompts: [
-      userData.questions[gateIndices[0]] || `Question ${gateIndices[0] + 1}`,
-      userData.questions[gateIndices[1]] || `Question ${gateIndices[1] + 1}`
-    ],
-    vaultMetaIv: payloadsLite.fileMetaEncrypted.iv,
-    argonSettings: { time: 3, mem: 16384, parallelism: 1, type: "Argon2id", hashLen: 32 },
-  });
-
-  // vault.enc + vault.meta
-  await addJSON("vault.enc", payloadsLite.vaultEncrypted);
-  await addBlob("vault.meta", new Blob([payloadsLite.fileMetaEncrypted.data], { type: "application/octet-stream" }));
-
-  // Only seed/final encrypted files are present
-  for (const f of payloadsLite.encryptedFiles) {
-    await addBlob(f.filename, f.blob);
-  }
-
-  // No README / instructions in Lite
-  const blob = await writer.close();
-  return blob;
-}
-
-    // Build a Lite payload that derives keys EXACTLY like the full vault.
-// Uses the SAME unlockConcat, SAME layer1Salt, SAME permutation, and SAME fullSalt.
-async function buildLitePayloadFromFull(
-  userData,
-  files,                 // pass the real uploads array here (Lite will filter via liteSelection)
-  unlockConcat,          // MUST be the same value used for the Full build (e.g., answer1 + answer2)
-  fullSalt,
-  gateIndices,
-  selectedL2Indices,
-  remainingL2Indices,
-  payloadsFull,          // from the first encryptVaultPayload call
-  liteSelection          // { includeFinalMessage, seedNames, uploadIds }
-) {
-  if (!payloadsFull || !payloadsFull.layer1Salt || !payloadsFull.selectedPermutation) {
-    throw new Error("Lite build requires layer1Salt and selectedPermutation from the Full build.");
-  }
-
-  const fixedLayer1Salt  = payloadsFull.layer1Salt;         // reuse exact L1 salt
-  const fixedPermutation = payloadsFull.selectedPermutation; // reuse exact permutation
-
-  // IMPORTANT: pass unlockConcat (not null) so Argon2 derives the SAME L1 key as Full
-  const payloadsLite = await encryptVaultPayload(
-    userData,
-    files,                 // uploads available; function will include only those selected
-    unlockConcat,          // ✅ same as Full
-    null,                  // _unused_fullConcat
-    fullSalt,              // ✅ same as Full for deriving the final key
-    selectedL2Indices,
-    gateIndices,
-    remainingL2Indices,
-    /* liteMode */ true,
-    { fixedLayer1Salt, fixedPermutation, liteSelection }
-  );
-
-  return payloadsLite;
 }
 
     function showBackupMessage(url) {
@@ -1149,98 +570,6 @@ window.BuildMatrix = {
 // Auto-start in cypherpunk mode
 if (document.body.getAttribute('data-theme') === 'cypherpunk') {
   window.BuildMatrix.start();
-}
-
-window.addEventListener("beforeunload", () => {
-  if (!preserveOnBack) {
-    // Fire-and-forget wipe on uncontrolled unloads (tab close, hard nav, etc.)
-    nukeEverything({ fireAndForget: true });
-  }
-});
-
-/**
- * Wipes all app data except the theme.
- * - Preserves THEME_KEY from both storages (reads from either, writes to both)
- * - Deletes only known Memoro Vault IndexedDB databases
- * - Guarded to run once per page (prevents double-wipe on redirects)
- */
-async function nukeEverything(opts = {}) {
-  if (_nukeHasRun) return;
-  _nukeHasRun = true;
-
-  try {
-    // 1) Cache theme from either storage (session wins, then local)
-    const themeSession = sessionStorage.getItem(THEME_KEY);
-    const themeLocal   = localStorage.getItem(THEME_KEY);
-    const preservedTheme = themeSession ?? themeLocal ?? "cypherpunk";
-
-    // 2) Clear storages EXCEPT THEME_KEY (avoid .clear() so theme survives)
-    const safeClear = (store) => {
-      for (let i = store.length - 1; i >= 0; i--) {
-        const k = store.key(i);
-        if (k !== THEME_KEY) store.removeItem(k);
-      }
-    };
-    safeClear(localStorage);
-    safeClear(sessionStorage);
-
-    // 3) Restore theme to BOTH storages so any page can read it
-    localStorage.setItem(THEME_KEY, preservedTheme);
-    sessionStorage.setItem(THEME_KEY, preservedTheme);
-
-    // 4) Delete only our app DBs
-    const deleteKnownDBs = async () => {
-      try {
-        if (indexedDB.databases) {
-          const dbs = await indexedDB.databases();
-          for (const db of dbs) {
-            const name = db?.name;
-            if (name === "memoroVaultVaultStorage" || name === "memoroVaultDB") {
-              indexedDB.deleteDatabase(name);
-            }
-          }
-        } else {
-          // Fallback for older Chromium/Electron
-          indexedDB.deleteDatabase("memoroVaultVaultStorage");
-          indexedDB.deleteDatabase("memoroVaultDB");
-        }
-      } catch (e) {
-        console.warn("Memoro Vault: DB wipe warning:", e);
-      }
-    };
-
-    if (opts.fireAndForget) {
-      // Don't block unload; kick off async DB cleanup
-      deleteKnownDBs();
-    } else {
-      await deleteKnownDBs();
-    }
-
-    console.log("Memoro Vault: Local data wiped (theme preserved).");
-  } catch (err) {
-    console.warn("Memoro Vault wipe failed:", err);
-  }
-}
-
-function showPostBuildModal() {
-  const modal = document.getElementById("postBuildModal");
-  document.body.style.overflow = "hidden"; // Prevent body scroll behind modal
-  if (modal) {
-    modal.style.display = "flex"; // Keep it centered and scrollable
-  }
-}
-
-function closePostBuildModal() {
-  const modal = document.getElementById("postBuildModal");
-  if (modal) {
-    document.body.style.overflow = "";
-    modal.style.display = "none";
-    preserveOnBack = true;               // ✅ prevent beforeunload from wiping again on redirect
-    setTimeout(async () => {
-      await nukeEverything();            // full, awaited wipe here
-      window.location.href = "dashboard.html";
-    }, 300);
-  }
 }
 
 // ---- Wipe helpers / guards ----

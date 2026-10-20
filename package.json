@@ -1,6 +1,6 @@
 {
   "name": "memoro-vault",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "description": "A private, offline memory-based vault for securing digital assets.",
   "main": "main.js",
   "author": "Kasmaristo Delvakto <printandpray@proton.me>",
@@ -21,6 +21,9 @@
 
     "bundle-vault": "zip -r dist/vault.zip vault-assets",
     "checksum": "node scripts/generate-checksum.js",
+    "test": "node --test --test-concurrency=1 test/*.test.cjs",
+    "test:e2e": "node --test --test-concurrency=1 test/e2e/*.e2e.cjs",
+    "screenshots": "node test/e2e/screenshots.cjs",
     "postinstall": "node scripts/postinstall-check.js"
   },
 
@@ -39,6 +42,14 @@
       "src/license.html"
     ],
     "asar": true,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true,
+      "resetAdHocDarwinSignature": true
+    },
 
     "win": {
       "icon": "src/assets/memoro-vault.ico",
@@ -102,8 +113,9 @@
     "@electron/osx-sign": "^1.1.0",
     "@electron/notarize": "^2.3.0",
     "cpy-cli": "^5.0.0",
-    "electron": "25.3.1",
+    "electron": "44.9.2",
     "electron-builder": "^26.0.12",
+    "playwright-core": "1.64.1",
     "rimraf": "^6.0.1"
   },
 

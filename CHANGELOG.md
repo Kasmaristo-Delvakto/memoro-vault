@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.1.0] - 2026-10-20
+
+### Added
+- **Vault editor.** After a vault is recovered, Open Vault Editor lets you add, rename and remove files, add or change seed phrases, rewrite the final message and save a new vault with the same questions and answers, without rebuilding it. Every save uses fresh salts, IVs, file IDs and a new hidden answer order, and the new ZIP is re-opened and verified file by file before you choose where to save it. Edits are marked as saved only after the file is confirmed on disk, so a cancelled save dialog keeps them. A new paper backup can be made in the same step.
+- **In-app viewer** for images, PDFs (rendered by the bundled pdf.js with eval disabled), text, audio and video, shown straight from memory. Text files can be edited from the editor.
+- Recovered files are listed with Open and Download buttons, and the final message is shown on the recovery screen.
+- `npm test` (vault format, cross-version compatibility, entropy and tamper tests) and `npm run test:e2e` (full app flows in Electron, optionally against a 1.0.8 checkout).
+
+### Security
+- Layer-2 question selection, the hidden answer order and multiple-choice option order now use `crypto.getRandomValues` with unbiased sampling instead of `Math.random()` (the known limitation listed for 1.0.8).
+- Every recovered file is checked against the SHA-256 recorded in `vault.meta`; newly built vaults are re-opened and fully decrypted before download.
+- The recovery terminal no longer prints the answers or a SHA-256 prefix of them. That prefix could have let anyone who saw the screen test guesses without paying the Argon2id cost.
+- All windows use an in-memory session, so answers, uploads and the unlock hand-off are never written to the browser profile on disk. On launch, the storage folders older versions left in the profile are overwritten (best effort) and deleted.
+- Electron 25.3.1 → 44.9.2 (Chromium security fixes, including image decoders now used by the viewer). Release builds set Electron fuses (no `ELECTRON_RUN_AS_NODE`, no `NODE_OPTIONS`, no `--inspect`, app loaded only from `app.asar`).
+- Each page also carries its Content-Security-Policy as a `<meta>` tag, and every window (including the license window) refuses pop-ups and navigation outside the app.
+- User-supplied names and questions are rendered as text, never as HTML, on the dashboard, recovery page, question setup and paper-backup picker.
+- Derived keys are zeroed after use, and decrypted file buffers are zeroed when you leave the recovery page.
+
+### Fixed
+- A red herring could be placed on one of the chosen unlock questions (only questions 1 and 2 were checked), which made the vault very hard to recover.
+- The entropy meter counted the red herring's decoy answer toward vault strength even though that answer is blanked before key derivation.
+- The final message was decrypted but never displayed on the recovery screen.
+
+### Compatibility
+- The vault format is unchanged. Vaults built or edited by 1.1.0 open in 1.0.8, and 1.0.8 vaults open and can be edited in 1.1.0.
+- macOS builds need macOS 13 (Ventura) or later (Electron 44 requirement).
+
 ## [1.0.8] - 2025-06-01
 
 # Memoro Vault v1.0.8

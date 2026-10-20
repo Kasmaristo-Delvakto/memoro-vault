@@ -109,7 +109,7 @@ else {
     const div = document.createElement('div');
     div.className = 'question-item';
     div.innerHTML = `
-      <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${questions[i]}</div>
+      <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${escapeQuestionHtml(questions[i])}</div>
       <button class="edit-button" onclick="openModal(${i})">Edit</button>
       <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
     `;
@@ -144,7 +144,7 @@ function saveModalEdit() {
   const newQuestion = document.getElementById('editInput').value.trim();
   if (newQuestion && currentEditIndex !== null) {
     questions[currentEditIndex] = newQuestion;
-    document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${newQuestion}`;
+    document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${escapeQuestionHtml(newQuestion)}`;
     localStorage.setItem('questions', JSON.stringify(questions));
   }
   closeModal();
@@ -423,7 +423,7 @@ window.onload = loadQuestions;
     const newQuestion = document.getElementById('editInput').value.trim();
     if (newQuestion && currentEditIndex !== null) {
       questions[currentEditIndex] = newQuestion;
-      document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${newQuestion}`;
+      document.getElementById(`question-${currentEditIndex}`).innerHTML = `<b>${currentEditIndex + 1}.</b> ${escapeQuestionHtml(newQuestion)}`;
       localStorage.setItem('questions', JSON.stringify(questions));
     }
     closeModal();
@@ -561,3 +561,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// Questions are user-entered text; show them as text, never as markup.
+function escapeQuestionHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

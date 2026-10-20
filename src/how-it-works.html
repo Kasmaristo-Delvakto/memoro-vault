@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
   <meta charset="UTF-8">
   <title>How Memoro Vault Works</title>
 <link id="theme-cypherpunk" rel="stylesheet" href="css/how-it-works_cypherpunk.css">
@@ -75,6 +76,14 @@
     These backups divide the encrypted vault into QR-encoded tiles that can be printed and stored in a secure location or distributed among trusted individuals. 
     Even if all digital copies are lost, the vault can be reconstructed entirely from these printed pages, requiring no USB drives or online storage. 
     This feature ensures resilience against hardware failure or digital decay.
+  </p>
+
+  <h2>Viewing and Editing a Vault</h2>
+  <p>
+    Once a vault is open, its photos, PDFs, text, audio and video can be viewed inside Memoro Vault, so nothing has to be saved to disk just to look at it.
+    The vault editor lets you add, rename and remove files, change seed phrases and rewrite the final message without rebuilding the vault from scratch.
+    Saving seals everything again with the same questions and answers, but with fresh salts, fresh encryption and a new hidden answer order, then re-opens the new file and checks every item before it is handed to you.
+    Older copies still open with the same answers and still hold their old contents, so replace every stored copy (and reprint the paper backup) after you save.
   </p>
 
   <h2>Practical Applications</h2>

@@ -160,7 +160,7 @@ function addVaultToList(vaultId, fileName, vaultData, skipSaving = false) {
   vaultItem.id = vaultId;
   vaultItem.innerHTML = `
     <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-      <h2 id="title-${vaultId}" style="margin:0;">${fileName}</h2>
+      <h2 id="title-${vaultId}" style="margin:0;"></h2>
       <div style="position:relative;">
         <button class="three-dots" onclick="toggleMenu('${vaultId}')">⋮</button>
         <div class="vault-menu" id="menu-${vaultId}">
@@ -172,6 +172,8 @@ function addVaultToList(vaultId, fileName, vaultData, skipSaving = false) {
     <p>Status:Locked</p>
     <button class="unlock-button" onclick="openUnlockModal('${vaultId}')">Unlock Vault</button>
   `;
+  // The ZIP's file name is outside data: set it as text, never as markup
+  vaultItem.querySelector(`#title-${vaultId}`).textContent = fileName;
   vaultList.appendChild(vaultItem);
   if (!skipSaving) saveVaultsToLocalStorage();
 }
@@ -364,7 +366,12 @@ async function submitUnlock() {
     const { ciphertext, iv } = vaultEncJson;
 
     const l1KeyRaw = await deriveRawKeyBytes(answer1 + answer2, layer1Salt, vault.vaultData.argonSettings);
-    const decU8 = await window.aesDecryptRust(l1KeyRaw, new Uint8Array(iv), new Uint8Array(ciphertext));
+    let decU8;
+    try {
+      decU8 = await window.aesDecryptRust(l1KeyRaw, new Uint8Array(iv), new Uint8Array(ciphertext));
+    } finally {
+      l1KeyRaw.fill(0);
+    }
     const decrypted = new TextDecoder().decode(decU8);
     const fullVaultData = JSON.parse(decrypted);
 
@@ -688,7 +695,7 @@ const paperEls = {
 
 async function scanPdfFile(file) {
   const buf = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false, enableXfa: false }).promise;
 
   // Layout constants (approx letter@300dpi)
   const COLS      = 3;
