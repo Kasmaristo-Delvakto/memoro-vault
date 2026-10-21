@@ -5,6 +5,7 @@ process.env.NODE_ENV = 'production';
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const {
   app,
   BrowserWindow,
@@ -13,15 +14,17 @@ const {
   shell,
   clipboard,
   session,
-  globalShortcut,
   Menu
 } = require('electron');
 
 // ---- Config ----
 const projectRoot = path.resolve(__dirname);
 const projectRootLC = projectRoot.toLowerCase();
-const ALLOW_DEVTOOLS = true;
+// DevTools only when running from source (npm start / tests), never in release builds
+const ALLOW_DEVTOOLS = !app.isPackaged;
 app.commandLine.appendSwitch('disable-features', 'Geolocation');
+// The app is offline by design: Chromium may not resolve any host name at all.
+app.commandLine.appendSwitch('host-resolver-rules', 'MAP * ~NOTFOUND');
 
 // NEW: cross-platform icon resolver (PNG on Linux, ICO on Windows, PNG on macOS)
 function getPlatformIcon() {
@@ -46,9 +49,10 @@ const SESSION_PARTITION = 'memoro-ephemeral';
 const LEGACY_WEB_STORAGE = ['IndexedDB', 'Local Storage', 'Session Storage', 'blob_storage', 'WebStorage', 'databases', 'File System', 'Service Worker'];
 function scrubFile(file) {
   try {
-    const size = fs.statSync(file).size;
-    const fd = fs.openSync(file, 'r+');
+    // O_NOFOLLOW: a file swapped for a symlink is refused instead of overwriting its target
+    const fd = fs.openSync(file, fs.constants.O_RDWR | (fs.constants.O_NOFOLLOW || 0));
     try {
+      const size = fs.fstatSync(fd).size;
       const zeros = Buffer.alloc(Math.min(size, 1 << 20));
       for (let off = 0; off < size; off += zeros.length) fs.writeSync(fd, zeros, 0, Math.min(zeros.length, size - off), off);
       fs.fsyncSync(fd);
@@ -62,6 +66,7 @@ function scrubDir(dir) {
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
   for (const e of entries) {
     const p = path.join(dir, e.name);
+    if (e.isSymbolicLink()) continue; // removed with the folder, target left alone
     if (e.isDirectory()) scrubDir(p);
     else if (e.isFile()) scrubFile(p);
   }
@@ -70,8 +75,11 @@ function scrubLegacyWebStorage() {
   const base = app.getPath('userData');
   for (const name of LEGACY_WEB_STORAGE) {
     const dir = path.join(base, name);
-    if (!fs.existsSync(dir)) continue;
-    scrubDir(dir);
+    let st;
+    try { st = fs.lstatSync(dir); } catch { continue; }
+    if (st.isSymbolicLink()) { try { fs.unlinkSync(dir); } catch {} continue; }
+    if (st.isDirectory()) scrubDir(dir);
+    else if (st.isFile()) scrubFile(dir);
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
   }
 }
@@ -126,6 +134,7 @@ function createLicenseWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      devTools: ALLOW_DEVTOOLS,
       enableRemoteModule: false,
       preload: path.join(projectRoot, 'preload.js')
     }
@@ -142,11 +151,15 @@ ipcMain.handle('license:decline', async () => { app.quit(); return false; });
 function isPathAllowedFileUrl(url) {
   try {
     const u = new URL(url);
-    if (u.protocol !== 'file:') return false;
+    // file://host/... is a network (UNC) path on Windows and would leak credentials over SMB
+    if (u.protocol !== 'file:' || u.host) return false;
     let p = decodeURIComponent(u.pathname);
     if (process.platform === 'win32' && p.startsWith('/')) p = p.slice(1);
     const norm = path.normalize(p);
-    return norm.toLowerCase().startsWith(projectRootLC + path.sep);
+    const caseInsensitiveFs = process.platform === 'win32' || process.platform === 'darwin';
+    return caseInsensitiveFs
+      ? norm.toLowerCase().startsWith(projectRootLC + path.sep)
+      : norm.startsWith(projectRoot + path.sep);
   } catch {
     return false;
   }
@@ -154,12 +167,16 @@ function isPathAllowedFileUrl(url) {
 
 async function hardenSession(ses) {
 
-  // 1) Only allow file:// under project root; block http/https
+  // 1) Allowlist: app files under the project root, data: and blob: URLs; everything else
+  //    (http, https, ws, wss, ftp, other schemes) is cancelled.
   ses.webRequest.onBeforeRequest((details, cb) => {
     const url = details.url || '';
-    if (url.startsWith('file://')) return cb({ cancel: !isPathAllowedFileUrl(url) });
-    if (/^https?:/i.test(url)) return cb({ cancel: true });
-    return cb({ cancel: false });
+    let scheme;
+    try { scheme = new URL(url).protocol; } catch { return cb({ cancel: true }); }
+    if (scheme === 'file:') return cb({ cancel: !isPathAllowedFileUrl(url) });
+    if (scheme === 'data:' || scheme === 'blob:') return cb({ cancel: false });
+    if (scheme === 'devtools:' && ALLOW_DEVTOOLS) return cb({ cancel: false });
+    return cb({ cancel: true });
   });
 
   // 2) Tight offline CSP. Every page also carries the same policy in a <meta> tag as a
@@ -218,6 +235,7 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      devTools: ALLOW_DEVTOOLS,
       enableRemoteModule: false,
       spellcheck: false,
       webgl: false,
@@ -285,14 +303,24 @@ ipcMain.handle('vault:save-file', async (event, { name, bytes } = {}) => {
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     defaultPath: path.join(app.getPath('downloads'), fileName),
     filters: [type],
+    properties: ['showOverwriteConfirmation', 'createDirectory', 'dontAddToRecent'],
   });
   if (canceled || !filePath) return { saved: false, canceled: true };
+  // Write next to the target and rename, so a crash or full disk never leaves a half-written vault
+  const tmp = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${crypto.randomBytes(6).toString('hex')}.part`);
   try {
-    await fs.promises.writeFile(filePath, bytes);
-    const written = await fs.promises.stat(filePath);
-    if (written.size !== bytes.length) throw new Error('The file on disk has the wrong size.');
+    const fh = await fs.promises.open(tmp, 'wx');
+    try {
+      await fh.writeFile(bytes);
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
+    if ((await fs.promises.stat(tmp)).size !== bytes.length) throw new Error('The file on disk has the wrong size.');
+    await fs.promises.rename(tmp, filePath);
     return { saved: true, fileName: path.basename(filePath) };
   } catch (err) {
+    try { await fs.promises.unlink(tmp); } catch { /* already gone */ }
     return { saved: false, error: err?.message || String(err) };
   }
 });
@@ -302,17 +330,9 @@ const DONATION_URL =
   "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
 ipcMain.handle('copy-donation-link', async () => { await clipboard.writeText(DONATION_URL); return true; });
 
-// External link allowlist
-ipcMain.on('open-external-link', (_event, url) => {
-  try {
-    const allowedHosts = ['trocador.app', 'github.com'];
-    const parsed = new URL(url);
-    if (allowedHosts.includes(parsed.hostname)) shell.openExternal(url);
-    else console.warn('Blocked unsafe URL:', url);
-  } catch {
-    console.error('Invalid URL passed to openExternalLink:', url);
-  }
-});
+// The only page the app ever opens in the system browser is this fixed donation link;
+// renderers cannot pass a URL of their own.
+ipcMain.handle('open-donation-page', async () => { await shell.openExternal(DONATION_URL); return true; });
 
 app.whenReady()
   .then(() => Promise.all([
@@ -325,23 +345,22 @@ app.whenReady()
   ]))
   .then(() => {
     Menu.setApplicationMenu(null);
-    if (ALLOW_DEVTOOLS) {
-      globalShortcut.register('CommandOrControl+Shift+I', () => {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.toggleDevTools();
-      });
-      globalShortcut.register('F12', () => {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.toggleDevTools();
-      });
-    }
   })
   .then(createAppWindows);
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createAppWindows();
 });
-app.on('will-quit', () => { globalShortcut.unregisterAll(); });
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (e) => e.preventDefault());
+  // F12 / Ctrl+Shift+I open DevTools only in development, and only while this window has focus
+  if (ALLOW_DEVTOOLS) {
+    contents.on('before-input-event', (e, input) => {
+      if (input.type !== 'keyDown') return;
+      const combo = (input.control || input.meta) && input.shift && String(input.key).toLowerCase() === 'i';
+      if (input.key === 'F12' || combo) { e.preventDefault(); contents.toggleDevTools(); }
+    });
+  }
   // Every window (license included): no pop-ups, no navigation outside the app folder.
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
   contents.on('will-navigate', (e, url) => {

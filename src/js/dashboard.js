@@ -365,7 +365,7 @@ async function submitUnlock() {
     const vaultEncJson = JSON.parse(vaultEncText);
     const { ciphertext, iv } = vaultEncJson;
 
-    const l1KeyRaw = await deriveRawKeyBytes(answer1 + answer2, layer1Salt, vault.vaultData.argonSettings);
+    const l1KeyRaw = await deriveRawKeyBytes(answer1 + answer2, layer1Salt, window.MemoroVaultCore.safeArgonSettings(vault.vaultData.argonSettings));
     let decU8;
     try {
       decU8 = await window.aesDecryptRust(l1KeyRaw, new Uint8Array(iv), new Uint8Array(ciphertext));
@@ -528,6 +528,7 @@ async function handleVaultZip(event) {
 
     const vaultJsonBlob = await eJson.getData(new zip.BlobWriter('application/json'));
     const vaultData     = JSON.parse(await vaultJsonBlob.text());
+    window.MemoroVaultCore.safeArgonSettings(vaultData.argonSettings); // refuse unsupported settings now, not at unlock
 
     const vaultEncBlob = await eEnc.getData(new zip.BlobWriter('application/octet-stream'));
     const vaultEncU8   = new Uint8Array(await vaultEncBlob.arrayBuffer());
@@ -958,11 +959,12 @@ async function findAllQRCodesOnCanvas(canvas) {
   return Array.from(results);
 }
 
+// Status lines include file names and QR contents, which are outside data: text only, never HTML.
 function setPaperMsg(msg) {
   const el = paperEls.status();
   if (!el) return;
-  const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
-  el.innerHTML += (el.innerHTML ? "<br>" : "") + line;
+  if (el.firstChild) el.appendChild(document.createElement('br'));
+  el.appendChild(document.createTextNode(`[${new Date().toLocaleTimeString()}] ${msg}`));
   el.scrollTop = el.scrollHeight;
 }
 
@@ -1003,7 +1005,11 @@ function parseQRText(txt) {
         const esc = Array.prototype.map.call(raw, ch => '%' + ch.charCodeAt(0).toString(16).padStart(2,'0')).join('');
         json = JSON.parse(decodeURIComponent(esc));
       }
-      if (!json || !Array.isArray(json.iv) || typeof json.size !== 'number' || typeof json.sha256 !== 'string') return null;
+      // Strict shape: 12-byte IV, sane size, lowercase hex SHA-256 (a forged header gets nothing through)
+      if (!json || typeof json !== 'object' || !Array.isArray(json.iv) || json.iv.length !== 12 ||
+          !json.iv.every(b => Number.isInteger(b) && b >= 0 && b <= 255) ||
+          !Number.isSafeInteger(json.size) || json.size < 0 || json.size > 10 * 1024 * 1024 ||
+          typeof json.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(json.sha256)) return null;
       return { type: "MVHDR", data: json };
     } catch { return null; }
   }
@@ -1013,7 +1019,7 @@ function parseQRText(txt) {
     const idx   = parseInt(m[1],10);
     const total = parseInt(m[2],10);
     const b64   = m[3].trim();
-    if (!idx || !total || idx < 1 || idx > total) return null;
+    if (!idx || !total || idx < 1 || idx > total || total > 10000) return null;
     return { type: "MVCT", idx, total, b64 };
   }
   return null;
@@ -1087,7 +1093,7 @@ async function handlePaperFiles(e) {
     header: null, keyHex: null, tiles: {}, totalTiles: null, seenPayloads: new Set()
   });
   const status = paperEls.status();
-  if (status) status.innerHTML = "";
+  if (status) status.textContent = "";
   setPaperMsg(`Processing ${files.length} file(s)...`);
   updatePaperProgress();
 
@@ -1219,7 +1225,7 @@ function openPaperDecrypt() {
   });
 
   const statusEl = paperEls.status();
-  if (statusEl) { statusEl.innerHTML = 'Waiting for uploads…'; statusEl.scrollTop = 0; }
+  if (statusEl) { statusEl.textContent = 'Waiting for uploads…'; statusEl.scrollTop = 0; }
 
   const btn = paperEls.rebuildBtn();
   if (btn) {

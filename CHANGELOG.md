@@ -17,6 +17,19 @@
 - Each page also carries its Content-Security-Policy as a `<meta>` tag, and every window (including the license window) refuses pop-ups and navigation outside the app.
 - User-supplied names and questions are rendered as text, never as HTML, on the dashboard, recovery page, question setup and paper-backup picker.
 - Derived keys are zeroed after use, and decrypted file buffers are zeroed when you leave the recovery page.
+- Pre-release audit fixes:
+  - The paper-backup restore log rendered file names and QR header fields as HTML; it is now text only, and QR headers must have a 12-byte IV, a sane size and a hex SHA-256.
+  - Hint letters from a vault are rendered as text with lengths capped.
+  - Argon2 settings in `vault.json` are bounded (no CPU or memory bombs), and oversized archives are refused before they are unpacked.
+  - File names read from a vault are cleaned of path separators, control and bidi characters.
+  - Re-saving takes the unlock prompts from the encrypted question list instead of plaintext `vault.json`.
+  - Request filtering is now an allowlist (app files, data: and blob: only) with host-name resolution disabled, and `file://host/` URLs are refused.
+  - The generic external-link bridge was replaced by a fixed donation-page call; unused bridge methods were removed.
+  - Saves ask before overwriting and are written atomically.
+  - DevTools are disabled in release builds and shortcuts no longer register system-wide.
+  - Closing the window from the recovery screen now runs the same wipe as leaving it, the unlock hand-off is deleted as soon as it is read, and the session-expiry wipe on the answers page now clears everything it should.
+  - New vaults keep the red herring out of the hidden-order group, so the order adds the full 720 combinations.
+  - 24 unused npm packages (with 9 known advisories) are no longer bundled into the app, along with unused legacy crypto files.
 
 ### Fixed
 - A red herring could be placed on one of the chosen unlock questions (only questions 1 and 2 were checked), which made the vault very hard to recover.

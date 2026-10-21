@@ -25,6 +25,7 @@ Security and entropy
 - App storage is kept in memory only, so nothing sensitive is written to the browser profile on disk. Leftover storage from older versions is overwritten and deleted on first launch.
 - Electron upgraded from 25.3.1 to 44.9.2, with hardened fuses on release builds.
 - Names and questions from vault files are always rendered as text.
+- Pre-release audit: hostile vaults and paper backups can no longer inject markup, Argon2 settings and archive sizes are bounded, file names are cleaned, the app cannot resolve host names or open arbitrary links, saves confirm overwrites and write atomically, DevTools are off in release builds, and no unused npm packages ship with the app.
 
 Fixes
 -----

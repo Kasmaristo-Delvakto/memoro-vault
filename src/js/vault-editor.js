@@ -21,10 +21,10 @@ export function seedFileName(input) {
   return base ? `${base}.txt` : '';
 }
 
-/** File names stay plain: no path separators or control characters, at most 200 characters. */
+/** File names stay plain (same rules as names read from a vault); empty input stays empty. */
 export function cleanFileName(input) {
-  // eslint-disable-next-line no-control-regex
-  return String(input || '').replace(/[\\/\u0000-\u001f\u007f]/g, '_').trim().slice(0, 200);
+  const s = String(input || '').trim();
+  return s ? MV.cleanFileName(s, '') : '';
 }
 
 function wordCount(s) {

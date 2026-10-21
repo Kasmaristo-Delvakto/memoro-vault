@@ -47,7 +47,10 @@ function displayMime(kind, name, mime, bytes) {
     if (/\.svg$/i.test(name) || mime === 'image/svg+xml') return 'image/svg+xml';
     return sniffed || (String(mime).startsWith('image/') ? mime : 'image/png');
   }
-  if (kind === 'audio' || kind === 'video') return String(mime || '') || (kind === 'audio' ? 'audio/mpeg' : 'video/mp4');
+  if (kind === 'audio' || kind === 'video') {
+    const m = String(mime || '').toLowerCase();
+    return m.startsWith(`${kind}/`) ? m : (kind === 'audio' ? 'audio/mpeg' : 'video/mp4');
+  }
   return 'application/octet-stream';
 }
 
