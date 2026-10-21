@@ -263,8 +263,6 @@ window.addEventListener('DOMContentLoaded', () => {
       id="answer-${i}"
       placeholder="Your answer"
       required
-      oninput="forceLowercase(this); refreshHintModal(); updateEntropy(${i}); updateHintPreview(${i})"
-      onpaste="handlePaste(event, ${i})"
     >
   </div>
 
@@ -272,7 +270,6 @@ window.addEventListener('DOMContentLoaded', () => {
   <div style="display: flex; align-items: center;">
     <input type="checkbox"
       id="hint-options-${i}"
-      onchange="if(this.checked) openHintModal(${i})"
     >
     <span style="line-height: 1;">Hint Options</span>
   </div>
@@ -287,7 +284,6 @@ window.addEventListener('DOMContentLoaded', () => {
       Use as <strong class="red-herring">Red Herring</strong>
     </label>
     <span class="info-icon"
-          onclick="event.stopPropagation(); document.getElementById('trapModal').style.display='flex';"
           title="What is a Red Herring?">ℹ</span>
   </div>
 
@@ -301,6 +297,23 @@ window.addEventListener('DOMContentLoaded', () => {
 `;
 
     form.appendChild(block);
+
+    // Event listeners instead of inline handlers (the CSP forbids inline script)
+    const answerEl = block.querySelector(`#answer-${i}`);
+    answerEl.addEventListener('input', () => {
+      forceLowercase(answerEl);
+      refreshHintModal();
+      updateEntropy(i);
+      updateHintPreview(i);
+    });
+    answerEl.addEventListener('paste', (event) => handlePaste(event, i));
+    block.querySelector(`#hint-options-${i}`).addEventListener('change', (event) => {
+      if (event.target.checked) openHintModal(i);
+    });
+    block.querySelector('.info-icon').addEventListener('click', (event) => {
+      event.stopPropagation();
+      document.getElementById('trapModal').style.display = 'flex';
+    });
     updateEntropy(i); // Initialize entropy
 
     if (i === numberOfQuestions - 1) {
@@ -685,16 +698,20 @@ function buildMcqCountDropdown() {
 function renderMcqDecoyInputs(countMinusOne, savedDecoys = []) {
   const holder = document.getElementById('mcqOptions');
   if (!holder) return;
-  holder.innerHTML = '';
+  holder.replaceChildren();
+  // built with DOM calls: decoy text is user input and must never be parsed as HTML
   for (let i = 0; i < countMinusOne; i++) {
     const wrap = document.createElement('div');
     wrap.className = 'input-group';
-    wrap.innerHTML = `
-      <label>Decoy ${i+1}</label>
-      <input type="text" class="mcq-decoy" data-decoy-index="${i}"
-             placeholder="convincing but wrong"
-             value="${(savedDecoys[i]||'').replace(/"/g,'&quot;')}" />
-    `;
+    const label = document.createElement('label');
+    label.textContent = `Decoy ${i + 1}`;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'mcq-decoy';
+    input.dataset.decoyIndex = String(i);
+    input.placeholder = 'convincing but wrong';
+    input.value = savedDecoys[i] || '';
+    wrap.append(label, input);
     holder.appendChild(wrap);
   }
 }
@@ -1187,14 +1204,20 @@ function buildMcqCountDropdown() {
 function renderMcqDecoyInputs(countMinusOne, savedDecoys = []) {
   const holder = document.getElementById('mcqOptions');
   if (!holder) return;
-  holder.innerHTML = '';
+  holder.replaceChildren();
+  // built with DOM calls: decoy text is user input and must never be parsed as HTML
   for (let i = 0; i < countMinusOne; i++) {
     const wrap = document.createElement('div');
     wrap.className = 'input-group';
-    wrap.innerHTML = `
-      <label>Decoy ${i+1}</label>
-      <input type="text" class="mcq-decoy" data-decoy-index="${i}" placeholder="convincing but wrong" value="${(savedDecoys[i]||'').replace(/"/g,'&quot;')}" />
-    `;
+    const label = document.createElement('label');
+    label.textContent = `Decoy ${i + 1}`;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'mcq-decoy';
+    input.dataset.decoyIndex = String(i);
+    input.placeholder = 'convincing but wrong';
+    input.value = savedDecoys[i] || '';
+    wrap.append(label, input);
     holder.appendChild(wrap);
   }
 }

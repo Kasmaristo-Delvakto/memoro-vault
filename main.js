@@ -184,7 +184,7 @@ async function hardenSession(ses) {
   ses.webRequest.onHeadersReceived((details, cb) => {
     const csp = [
       "default-src 'self' data: blob: filesystem:",
-      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+      "script-src 'self' 'wasm-unsafe-eval'", // no inline script: pages use js/actions.js
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: filesystem:",
       "font-src 'self' data:",

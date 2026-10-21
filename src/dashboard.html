@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <script src="js/actions.js"></script>
   <meta charset="UTF-8">
   <title>Memoro Vault - Dashboard</title>
 <script src="libs/zip.min.js"></script>
@@ -11,108 +12,25 @@
 
 <!-- Use the official WICG polyfill you downloaded -->
 <script src="./libs/barcode-detector.polyfill.js"></script>
-<script>
-  // Force local file, no network
-  if (window.setZXingModuleOverrides) {
-    window.setZXingModuleOverrides({
-      locateFile: (filename/* e.g. zxing_reader.wasm */) => `./libs/reader/${filename}`
-    });
-  }
-  // Optional: eagerly init if you want
-  if (window.prepareZXingModule) {
-    window.prepareZXingModule({ overrides: { locateFile: f => `./libs/reader/${f}` }});
-  }
-</script>
+<script src="js/zxing-config.js"></script>
 
-<script>
-// The polyfill defines window.BarcodeDetector automatically if the
-// native API is missing. No manual assignment needed here.
-</script>
 <!-- PDF.js core -->
 <script src="libs/pdf.min.js"></script>
-<script>
-  // Configure PDF.js to use the worker from your local libs folder
-  if (window['pdfjsLib']) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
-  }
-</script>
 
 <!-- QR decoder -->
 <script src="libs/jsqr.min.js"></script>
 
-<script type="module">
-  import init, {
-    sha256_hash,
-    aes_gcm_encrypt,
-    aes_gcm_decrypt,
-    argon2_derive
-  } from "./wasm/memoro_crypto.js";
-
-  window.initCryptoWasm = async () => {
-    await init();
-    window.sha256Hash       = (u8) => Promise.resolve(sha256_hash(u8));
-    window.aesEncryptRust   = (k,n,p) => Promise.resolve(aes_gcm_encrypt(k,n,p));
-    window.aesDecryptRust   = (k,n,c) => Promise.resolve(aes_gcm_decrypt(k,n,c));
-    window.argon2DeriveRust = (pwdBytes, saltBytes, t, m, p, len) =>
-      argon2_derive(pwdBytes, saltBytes, t, m, p, len);
-  };
-  window.initCryptoWasm();
-</script>
 
 
   <link id="theme-cypherpunk" rel="stylesheet" href="css/dashboard_cypherpunk.css">
   <link id="theme-clean" rel="stylesheet" href="css/dashboard_clean.css" disabled>
-<script>
-  // Toggle dashboard styles + (later) matrix by theme
-  function applyDashboardTheme(theme) {
-    const cy = document.getElementById('theme-cypherpunk');
-    const cl = document.getElementById('theme-clean');
-    const isCypher = (theme === 'cypherpunk');
-
-    // 1) Flip stylesheets (safe in <head>)
-    if (cy) cy.disabled = !isCypher;
-    if (cl) cl.disabled =  isCypher;
-
-    // 2) Body attribute (only when body exists)
-    const setBodyAttr = () => {
-      if (document.body) {
-        document.body.setAttribute('data-theme', isCypher ? 'cypherpunk' : 'clean');
-      }
-    };
-    if (document.readyState === 'loading') {
-      window.addEventListener('DOMContentLoaded', setBodyAttr, { once: true });
-    } else {
-      setBodyAttr();
-    }
-
-    // 3) Matrix control happens after DashboardMatrix is defined (bottom of file)
-    if (window.DashboardMatrix) {
-      if (isCypher) DashboardMatrix.start();
-      else DashboardMatrix.stop();
-    }
-  }
-
-  // Read saved theme and pre-flip stylesheets early (avoid FOUC). Body/matrix handled later.
-   (function initDashboardTheme(){
-const saved =
-  sessionStorage.getItem('theme') ??
-  localStorage.getItem('theme') ??
-  'cypherpunk';
-    window.__savedDashboardTheme = saved;
-
-    const cy = document.getElementById('theme-cypherpunk');
-    const cl = document.getElementById('theme-clean');
-    const isCypher = (saved === 'cypherpunk');
-    if (cy) cy.disabled = !isCypher;
-    if (cl) cl.disabled =  isCypher;
-  })();
-</script>
+  <script src="js/theme-preflip.js"></script>
 
 
 </head>
 <body>
   <div class="ui-frame" aria-hidden="true"></div>
-  <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" onchange="handleVaultZip(event)">
+  <input type="file" id="vaultZipInput" accept=".zip" style="display:none;" data-action="handleVaultZip" data-on="change" data-pass-event>
 <div style="display: flex; justify-content: center;">
   <h1><span class="typewriter-text" style="animation-delay: 0s;">Memoro Vault</span></h1>
 </div>
@@ -129,10 +47,10 @@ const saved =
 
 
 <div class="button-group">
-  <button class="button" style="animation-delay: 3.5s;" onclick="promptOfflineWarning('create')">+ Create New Vault</button>
-  <button class="button" style="animation-delay: 5.5s;" onclick="promptOfflineWarning('load')">Load Vault File</button>
-  <button class="button" style="animation-delay: 9.5s;" onclick="openPaperDecrypt()">Restore Physical Backup</button>
-  <button class="button" style="animation-delay: 7.5s;" onclick="goToHowItWorks()">How Memoro Works</button>
+  <button class="button" style="animation-delay: 3.5s;" data-action="promptOfflineWarning" data-arg="create">+ Create New Vault</button>
+  <button class="button" style="animation-delay: 5.5s;" data-action="promptOfflineWarning" data-arg="load">Load Vault File</button>
+  <button class="button" style="animation-delay: 9.5s;" data-action="openPaperDecrypt">Restore Physical Backup</button>
+  <button class="button" style="animation-delay: 7.5s;" data-action="goToHowItWorks">How Memoro Works</button>
 </div>
 
 <div class="vault-list" id="vaultList"></div>
@@ -155,8 +73,8 @@ const saved =
     </div>
 
     <div class="modal-buttons">
-      <button id="unlockButton" onclick="submitUnlock()">Unlock</button>
-      <button onclick="cancelUnlock()">Cancel</button>
+      <button id="unlockButton" data-action="submitUnlock">Unlock</button>
+      <button data-action="cancelUnlock">Cancel</button>
     </div>
   </div>
 </div>
@@ -167,8 +85,8 @@ const saved =
     <h2>Offline Mode Recommended</h2>
     <p>We recommend disabling your internet connection temporarily for maximum security.</p>
     <div class="modal-buttons">
-      <button onclick="proceedAfterOfflineWarning()">Continue</button>
-      <button onclick="cancelOfflineWarning()">Cancel</button>
+      <button data-action="proceedAfterOfflineWarning">Continue</button>
+      <button data-action="cancelOfflineWarning">Cancel</button>
     </div>
   </div>
 </div>
@@ -179,7 +97,7 @@ const saved =
     <h2 id="messageModalTitle">Title</h2>
     <p id="messageModalText">Message goes here.</p>
     <div class="modal-buttons">
-      <button onclick="closeMessageModal()">OK</button>
+      <button data-action="closeMessageModal">OK</button>
     </div>
   </div>
 </div>
@@ -190,8 +108,8 @@ const saved =
     <h2>Confirm</h2>
     <p id="confirmModalText">Are you sure?</p>
     <div class="modal-buttons">
-      <button onclick="confirmNo()">No</button>
-      <button onclick="confirmYes()">Yes</button>
+      <button data-action="confirmNo">No</button>
+      <button data-action="confirmYes">Yes</button>
     </div>
   </div>
 </div>
@@ -202,8 +120,8 @@ const saved =
     <h2>Rename Vault</h2>
     <input type="text" id="renameInput" placeholder="New vault name">
     <div class="modal-buttons">
-      <button onclick="submitRename()">Rename</button>
-      <button onclick="cancelRename()">Cancel</button>
+      <button data-action="submitRename">Rename</button>
+      <button data-action="cancelRename">Cancel</button>
     </div>
   </div>
 </div>
@@ -234,17 +152,17 @@ const saved =
   <video id="paperCam" playsinline class="paper-cam" style="display:none;"></video>
 
   <div class="modal-buttons paper-cam-actions">
-    <button onclick="startKeyCam()">Start Camera</button>
-    <button onclick="stopKeyCam()">Stop Camera</button>
-    <button onclick="scanFromVideoOnce()">Scan Key</button>
+    <button data-action="startKeyCam">Start Camera</button>
+    <button data-action="stopKeyCam">Stop Camera</button>
+    <button data-action="scanFromVideoOnce">Scan Key</button>
   </div>
 </div>
 
 <div id="paperStatus" class="paper-status"></div>
 
     <div class="modal-buttons" style="margin-top:10px;">
-      <button onclick="closePaperDecrypt()">Close</button>
-      <button id="rebuildBtn" onclick="rebuildLiteFromPaper()" disabled>Rebuild Lite ZIP</button>
+      <button data-action="closePaperDecrypt">Close</button>
+      <button id="rebuildBtn" data-action="rebuildLiteFromPaper" disabled>Rebuild Lite ZIP</button>
     </div>
   </div>
 </div>

@@ -1,31 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <script src="js/actions.js"></script>
   <meta charset="UTF-8">
   <title>Building Your Vault - Memoro Vault</title>
   <script src="libs/zip.min.js"></script>
   <script src="libs/secrets.min.js"></script>
   <script src="libs/jspdf.umd.min.js"></script>
   <script src="libs/qrcode.min.js"></script>
-  <script type="module">
-  import init, {
-    sha256_hash,
-    aes_gcm_encrypt,
-    aes_gcm_decrypt,
-    argon2_derive
-  } from './wasm/memoro_crypto.js';
-
-  // Expose Promise-friendly wrappers
-  window.initCryptoWasm = async () => {
-    await init();
-    window.sha256Hash       = (u8) => Promise.resolve(sha256_hash(u8));
-    window.aesEncryptRust   = (k,n,p) => Promise.resolve(aes_gcm_encrypt(k,n,p));
-    window.aesDecryptRust   = (k,n,c) => Promise.resolve(aes_gcm_decrypt(k,n,c));
-    window.argon2DeriveRust = (pwdBytes, saltBytes, t, m, p, len) =>
-      argon2_derive(pwdBytes, saltBytes, t, m, p, len);
-  };
-</script>
+  <script type="module" src="js/wasm-boot.js"></script>
 
 
 <!-- Theme styles for Build Vault -->
@@ -71,9 +55,9 @@
     </div>
 
     <div id="actionButtons">
-      <button onclick="preserveAndGoBack()">Back to Answers</button>
-      <button onclick="retryDownload()">Retry Download</button>
-      <button onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
+      <button data-action="preserveAndGoBack">Back to Answers</button>
+      <button data-action="retryDownload">Retry Download</button>
+      <button data-href="dashboard.html">Return to Dashboard</button>
     </div>
   </div>
 
@@ -135,7 +119,7 @@
           </p>
 
           <div class="modal-actions">
-            <button class="btn-primary" onclick="closePostBuildModal()">Got it</button>
+            <button class="btn-primary" data-action="closePostBuildModal">Got it</button>
           </div>
         </div>
       </div>

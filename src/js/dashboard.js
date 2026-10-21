@@ -162,15 +162,15 @@ function addVaultToList(vaultId, fileName, vaultData, skipSaving = false) {
     <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
       <h2 id="title-${vaultId}" style="margin:0;"></h2>
       <div style="position:relative;">
-        <button class="three-dots" onclick="toggleMenu('${vaultId}')">⋮</button>
+        <button class="three-dots" data-action="toggleMenu" data-arg="${vaultId}">⋮</button>
         <div class="vault-menu" id="menu-${vaultId}">
-          <button onclick="renameVault('${vaultId}')">Rename</button>
-          <button onclick="deleteVault('${vaultId}')">Delete</button>
+          <button data-action="renameVault" data-arg="${vaultId}">Rename</button>
+          <button data-action="deleteVault" data-arg="${vaultId}">Delete</button>
         </div>
       </div>
     </div>
     <p>Status:Locked</p>
-    <button class="unlock-button" onclick="openUnlockModal('${vaultId}')">Unlock Vault</button>
+    <button class="unlock-button" data-action="openUnlockModal" data-arg="${vaultId}">Unlock Vault</button>
   `;
   // The ZIP's file name is outside data: set it as text, never as markup
   vaultItem.querySelector(`#title-${vaultId}`).textContent = fileName;
