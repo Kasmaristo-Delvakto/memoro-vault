@@ -65,6 +65,19 @@ async function handleFileStorageUpload(event) {
 
   if (selectedFiles.length === 0) return;
 
+  // Measured runtime limits (see vault-core.js): 1.5 GB per file, 1.9 GB per vault
+  const MAX_FILE = 1.5 * 1024 ** 3, MAX_VAULT = 1.9 * 1024 ** 3;
+  const tooBig = selectedFiles.filter(f => f.size > MAX_FILE);
+  if (tooBig.length) {
+    showMessageModal('File Too Large', `${tooBig.map(f => f.name).join(', ')} ${tooBig.length === 1 ? 'is' : 'are'} larger than the 1.5 GB a single file in a vault can be, so ${tooBig.length === 1 ? 'it was' : 'they were'} not added.`);
+    return;
+  }
+  const already = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]').reduce((n, m) => n + (m.size || 0), 0);
+  if (already + selectedFiles.reduce((n, f) => n + f.size, 0) > MAX_VAULT) {
+    showMessageModal('Vault Too Large', 'Adding these files would take the vault past 1.9 GB, which is more than Memoro Vault can seal and open. Nothing was added.');
+    return;
+  }
+
   const newFiles = selectedFiles.map(f => ({ file: f, id: crypto.randomUUID() }));
   const existingMeta = JSON.parse(localStorage.getItem('uploadedFileMeta') || '[]');
   const newMeta = [];
@@ -86,28 +99,30 @@ async function handleFileStorageUpload(event) {
     }
   }
 
-  const combinedMeta = [...existingMeta, ...newMeta];
-
-  openVaultDB().then(db => {
-  const tx = db.transaction('vaultFiles', 'readwrite');
-  const store = tx.objectStore('vaultFiles');
-  for (const file of processedFiles) {
-    store.put(file);
+  // Files can be far larger than one in-memory IndexedDB write allows, so each is kept in 16 MB
+  // pieces (idb-chunks.js). Any failure is shown; nothing is silently dropped.
+  let db;
+  const stored = [];
+  try {
+    db = await openVaultDB();
+    for (const f of processedFiles) {
+      const info = await MemoroChunks.putBytes(db, 'vaultFiles', 'id', f.id, f.raw);
+      await MemoroChunks.putRecord(db, 'vaultFiles', { id: f.id, name: f.name, size: f.size, type: f.type, chunks: info.chunks });
+      stored.push(newMeta.find(m => m.id === f.id));
+    }
+  } catch (err) {
+    console.error('Upload failed:', err);
+    if (err && (err.name === 'NotFoundError' || String(err.message).includes('object store'))) {
+      indexedDB.deleteDatabase('memoroVaultDB'); // Clear broken DB
+      showMessageModal("IndexedDB Reset", "A missing data store was detected. The vault database has been reset. Please try uploading your files again.");
+    } else {
+      showMessageModal("Upload Failed", `Some files could not be kept in memory (${err && err.message ? err.message : err}). The files listed below are the ones that were added.`);
+    }
+  } finally {
+    if (db) db.close();
   }
-  tx.oncomplete = () => {
-    db.close();
-    localStorage.setItem('uploadedFileMeta', JSON.stringify(combinedMeta));
-    displayUploadedFiles();
-  };
-}).catch(async (err) => {
-  if (err.name === 'NotFoundError' || err.message.includes('object store')) {
-    indexedDB.deleteDatabase('memoroVaultDB'); // Clear broken DB
-    showMessageModal("IndexedDB Reset", "A missing data store was detected. The vault database has been reset. Please try uploading your files again.");
-  } else {
-    showMessageModal("IndexedDB Error", "Unexpected error: " + err.message);
-  }
-});
-
+  localStorage.setItem('uploadedFileMeta', JSON.stringify([...existingMeta, ...stored]));
+  displayUploadedFiles();
 }
 
 function displayUploadedFiles() {
@@ -141,6 +156,9 @@ function displayUploadedFiles() {
         const tx = db.transaction('vaultFiles', 'readwrite');
         const store = tx.objectStore('vaultFiles');
         store.delete(file.id);
+        // and its 16 MB pieces
+        const pieces = Math.ceil((file.size || 0) / MemoroChunks.CHUNK);
+        for (let i = 0; i < pieces; i++) store.delete(`${file.id}#chunk${i}`);
         tx.oncomplete = () => {
           db.close();
           displayUploadedFiles(); // refresh
@@ -424,6 +442,10 @@ if (finalTrapIndex >= 0) {
       localStorage.removeItem("namedSeeds"); // ✅ clear temp seed list after saving
 
       window.location.href = "build-vault.html";
+    };
+    tx.onabort = () => {
+      db.close();
+      showMessageModal("Could Not Save", "Your answers could not be kept in memory: " + (tx.error && tx.error.message ? tx.error.message : "unknown error") + ". Nothing was lost on this page; please try again.");
     };
   };
 

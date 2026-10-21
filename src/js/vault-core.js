@@ -26,6 +26,10 @@
   const FILE_ID_BYTES = 16;       // 32 hex chars, same shape as v1.0.8 ids
   const FINAL_MESSAGE_NAME = 'final-message.txt';
   const LITE_CAP_BYTES = 153600;  // ≈150 KiB raw cap for the QR paper backup
+  // Measured limits of the app's runtime: one file must fit twice in the 4 GB WASM memory while it
+  // is encrypted, and a whole vault ZIP must fit in one ArrayBuffer (just under 2 GB).
+  const MAX_FILE_BYTES = 1.5 * 1024 ** 3;
+  const MAX_VAULT_BYTES = 1.9 * 1024 ** 3;
   const INSTRUCTIONS = 'Use recover.html to unlock this archive using your answers.';
 
   const enc = new TextEncoder();
@@ -269,6 +273,15 @@
       throw new Error('Two unlock question prompts are required.');
     }
 
+    let contentBytes = enc.encode(finalMessage).length;
+    for (const u of uploads) {
+      const n = toU8(u.bytes).length;
+      if (n > MAX_FILE_BYTES) throw new Error(`${u.name} is larger than the 1.5 GB a single file in a vault can be.`);
+      contentBytes += n;
+    }
+    for (const sd of seeds) contentBytes += enc.encode(sd.content).length;
+    if (contentBytes > MAX_VAULT_BYTES) throw new Error('The vault contents add up to more than 1.9 GB, which is more than Memoro Vault can seal and open.');
+
     const total = uploads.length + seeds.length + (finalMessage ? 1 : 0) + 3;
     let done = 0;
     const tick = (label) => { done++; if (o.onProgress) o.onProgress(done, total, label); };
@@ -423,12 +436,16 @@ Libereco ne estas donaco. Ĝi estas devo.
     return z;
   }
 
-  /** Packs a sealed vault into a ZIP Blob (full vaults carry the two helper text files). */
+  /**
+   * Packs a sealed vault into ZIP bytes (full vaults carry the two helper text files).
+   * Bytes, not a Blob: large vaults must stay out of the in-memory Blob storage, which is capped.
+   * Encrypted entries are stored without compression; ciphertext does not compress.
+   */
   async function packageZip(sealed, { includeDocs = true } = {}) {
     const z = zipLib();
-    const writer = new z.ZipWriter(new z.BlobWriter('application/zip'));
+    const writer = new z.ZipWriter(new z.Uint8ArrayWriter());
     const addJSON = (name, data) => writer.add(name, new z.TextReader(JSON.stringify(data, null, 2)));
-    const addBytes = (name, u8) => writer.add(name, new z.BlobReader(new Blob([u8], { type: 'application/octet-stream' })));
+    const addBytes = (name, u8) => writer.add(name, new z.Uint8ArrayReader(toU8(u8)), { level: 0 });
 
     await addJSON('vault.json', sealed.vaultJson);
     await addJSON('vault.enc', sealed.vaultEnc);
@@ -441,10 +458,10 @@ Libereco ne estas donaco. Ĝi estas devo.
     return writer.close();
   }
 
-  /** Reads a vault ZIP into { entries: Map<lowercaseName, Uint8Array>, vaultJson, vaultEnc }. */
-  async function readVaultZip(blob) {
+  /** Reads a vault ZIP (bytes or Blob) into { entries: Map<lowercaseName, Uint8Array>, vaultJson, vaultEnc }. */
+  async function readVaultZip(input) {
     const z = zipLib();
-    const reader = new z.ZipReader(new z.BlobReader(blob));
+    const reader = new z.ZipReader(input instanceof Uint8Array ? new z.Uint8ArrayReader(input) : new z.BlobReader(input));
     const entries = new Map();
     try {
       for (const e of await reader.getEntries()) {
@@ -496,33 +513,38 @@ Libereco ne estas donaco. Ĝi estas devo.
    * unlock answers, vault.meta opens with the full answer string, the vault hash matches, and
    * every file decrypts with a matching SHA-256 (and matches `expected` byte-for-byte when given).
    */
-  async function verifyVaultZip(blob, { unlockConcat, permutedConcat, expected, onProgress } = {}) {
-    const { entries, vaultJson, vaultEnc } = await readVaultZip(blob);
+  function bytesEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  async function verifyVaultZip(zipInput, { unlockConcat, permutedConcat, expected, onProgress, keepFiles = false } = {}) {
+    const { entries, vaultJson, vaultEnc } = await readVaultZip(zipInput);
     const l1 = await decryptLayer1(unlockConcat, vaultJson, vaultEnc);
     if (!Array.isArray(l1.questionList)) throw new Error('Verification: question layer is malformed.');
     const meta = await decryptMeta(permutedConcat, vaultJson, entries.get('vault.meta'));
     if (meta.vaultHash !== await sha256Hex(enc.encode(permutedConcat))) {
       throw new Error('Verification: vault hash mismatch.');
     }
+    if (expected && expected.length !== meta.files.length) throw new Error('Verification: file count mismatch.');
+    // One file at a time: each ciphertext and plaintext is dropped once checked, so verifying a
+    // large vault does not hold a second full copy of it in memory.
     const out = [];
-    let i = 0;
-    for (const m of meta.files) {
-      const ct = entries.get(String(m.filename).toLowerCase());
+    for (let i = 0; i < meta.files.length; i++) {
+      const m = meta.files[i];
+      const key = String(m.filename).toLowerCase();
+      const ct = entries.get(key);
       if (!ct) throw new Error(`Verification: ${m.filename} is missing from the ZIP.`);
+      entries.delete(key);
       const plain = await decryptFile(permutedConcat, m, ct);
-      out.push({ meta: m, bytes: plain });
-      if (onProgress) onProgress(++i, meta.files.length, m.originalName);
-    }
-    if (expected) {
-      if (expected.length !== out.length) throw new Error('Verification: file count mismatch.');
-      expected.forEach((e, idx) => {
-        const got = out[idx];
-        if (got.meta.originalName !== e.name) throw new Error(`Verification: name mismatch for ${e.name}.`);
-        const want = toU8(e.bytes);
-        if (want.length !== got.bytes.length || !want.every((b, k) => b === got.bytes[k])) {
-          throw new Error(`Verification: contents differ for ${e.name}.`);
-        }
-      });
+      if (expected) {
+        const e = expected[i];
+        if (m.originalName !== e.name) throw new Error(`Verification: name mismatch for ${e.name}.`);
+        if (!bytesEqual(toU8(e.bytes), plain)) throw new Error(`Verification: contents differ for ${e.name}.`);
+      }
+      out.push(keepFiles ? { meta: m, bytes: plain } : { meta: m });
+      if (onProgress) onProgress(i + 1, meta.files.length, m.originalName);
     }
     return { vaultJson, layer1: l1, meta, files: out };
   }
@@ -637,19 +659,20 @@ Libereco ne estas donaco. Ĝi estas devo.
       metaExtras: o.metaExtras,
       onProgress: o.onProgress,
     });
-    const blob = await packageZip(sealed, { includeDocs: true });
+    const zipBytes = await packageZip(sealed, { includeDocs: true });
+    for (const f of sealed.files) f.bytes = null; // the ZIP holds them now
 
     const expected = [
       ...uploads.map(u => ({ name: u.name, bytes: u.bytes })),
       ...seeds.map(s => ({ name: s.name, bytes: enc.encode(s.content) })),
       ...(finalMessage ? [{ name: FINAL_MESSAGE_NAME, bytes: enc.encode(finalMessage) }] : []),
     ];
-    await verifyVaultZip(blob, { unlockConcat: o.unlockConcat, permutedConcat: sealed.permutedConcat, expected });
-    return { blob, sealed, uploads, seeds, finalMessage };
+    await verifyVaultZip(zipBytes, { unlockConcat: o.unlockConcat, permutedConcat: sealed.permutedConcat, expected });
+    return { zipBytes, sealed, uploads, seeds, finalMessage };
   }
 
   root.MemoroVaultCore = Object.freeze({
-    APP_VERSION, ARGON, SALT_BYTES, IV_BYTES, FINAL_MESSAGE_NAME, LITE_CAP_BYTES,
+    APP_VERSION, ARGON, SALT_BYTES, IV_BYTES, FINAL_MESSAGE_NAME, LITE_CAP_BYTES, MAX_FILE_BYTES, MAX_VAULT_BYTES,
     README_TEXT, BUILDER_TEXT,
     toU8, bytesToHex, hexToBytes, zeroize, normalizeAnswer,
     randomBytes, randomHex, randomInt, shuffle,

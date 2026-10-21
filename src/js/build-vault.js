@@ -295,6 +295,7 @@ async function startVaultBuild() {
 
     printToTerminal("[*] Packaging FULL vault...", 76);
     const fullZip = await MV.packageZip(full, { includeDocs: true });
+    for (const f of full.files) f.bytes = null; // the ZIP holds them now
 
     // Re-open the ZIP we just made and decrypt every part before handing it over.
     printToTerminal("[*] Verifying vault (re-opening and decrypting every file)...", 80);
@@ -310,8 +311,12 @@ async function startVaultBuild() {
       ]
     });
 
-    downloadBlob(fullZip, "memoro-vault.zip");
-    printToTerminal("[✔] Full vault verified and downloaded.", 90);
+    if (!await saveVaultBytes(fullZip, "memoro-vault.zip")) {
+      printToTerminal("[!] The vault was not saved. Use Retry Download to build it again.", null);
+      showToast("The vault was not saved. Use Retry Download to build it again.");
+      return;
+    }
+    printToTerminal("[✔] Full vault verified and saved.", 90);
 
     // 2) LITE payload: let the user choose contents (≤ 150 KB)
     const finalMessageBytesLen = sealArgs.finalMessage.trim()
@@ -355,11 +360,11 @@ async function startVaultBuild() {
       finalMessage: liteFinal,
       fixed: { layer1Salt: full.layer1Salt, fullSalt: full.fullSalt, permutation: full.permutation }
     }));
-    const liteZipBlob = await MV.packageZip(lite, { includeDocs: false });
+    const liteZip = await MV.packageZip(lite, { includeDocs: false });
 
     // Turn Lite ZIP into a single-file QR PDF and auto-download
     printToTerminal("[*] Encrypting Lite ZIP and creating single-file QR PDF...", 96);
-    await MemoroPaperBackup.buildPaperPdfFromLiteZip(liteZipBlob);
+    await MemoroPaperBackup.buildPaperPdfFromLiteZip(liteZip);
 
     printToTerminal("[✔] Full vault and paper PDF created.", 100);
     showPostBuildModal();
@@ -367,6 +372,22 @@ async function startVaultBuild() {
     console.error("Vault build error:", err);
     printToTerminal(`[!] Error: ${err.message}`, null);
     showToast("Something went wrong while creating your vault.");
+  }
+}
+
+// Saves through the main process, so a cancelled or failed write is noticed and a large vault
+// never has to become one huge in-memory Blob. Outside the desktop app it is a normal download.
+async function saveVaultBytes(bytes, fileName) {
+  const api = window.memoroAPI;
+  if (!api || typeof api.saveFile !== "function") {
+    downloadBlob(new Blob([bytes], { type: "application/zip" }), fileName);
+    return true;
+  }
+  for (;;) {
+    const r = await api.saveFile(fileName, bytes);
+    if (r && r.saved) return true;
+    const why = r && r.error ? `The vault could not be written (${r.error}).` : "The vault was not saved.";
+    if (!confirm(`${why}\n\nChoose a location again?`)) return false;
   }
 }
 
@@ -421,17 +442,26 @@ async function loadUserInputs() {
       });
 
       const result = [];
-      for (const meta of uploadedMeta) {
-        const fileData = await new Promise((resolve, reject) => {
-          const tx = db.transaction("vaultFiles", "readonly");
-          const store = tx.objectStore("vaultFiles");
-          const getReq = store.get(meta.id);
-          getReq.onsuccess = () => resolve(getReq.result?.raw);
-          getReq.onerror = () => reject("File read failed");
-        });
-        result.push({ ...meta, raw: fileData });
+      try {
+        for (const meta of uploadedMeta) {
+          const rec = await new Promise((resolve, reject) => {
+            const tx = db.transaction("vaultFiles", "readonly");
+            const store = tx.objectStore("vaultFiles");
+            const getReq = store.get(meta.id);
+            getReq.onsuccess = () => resolve(getReq.result);
+            getReq.onerror = () => reject(new Error("File read failed"));
+          });
+          // uploads are stored in 16 MB pieces (idb-chunks.js); older records carry the bytes whole
+          let raw = rec && rec.raw;
+          if (!raw && rec && Number.isInteger(rec.chunks)) {
+            raw = (await MemoroChunks.getBytes(db, "vaultFiles", meta.id, { chunks: rec.chunks, size: rec.size })).buffer;
+          }
+          if (!raw) throw new Error(`${meta.name} is no longer in memory. Go back to the answers page and add it again.`);
+          result.push({ ...meta, raw });
+        }
+      } finally {
+        db.close();
       }
-      db.close();
       return result;
     }
 

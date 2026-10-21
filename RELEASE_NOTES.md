@@ -36,4 +36,5 @@ Fixes
 Compatibility
 -------------
 - Same vault format as 1.0.8, in both directions.
+- Vaults up to 1.9 GB (single files up to 1.5 GB), tested end to end with a 1 GB vault. Large vaults need plenty of RAM while open: editing a 1 GB vault used close to 10 GB.
 - macOS builds require macOS 13 or later.

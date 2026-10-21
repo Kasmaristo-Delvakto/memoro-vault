@@ -255,8 +255,19 @@ export function createVaultEditor({ session, contents, meta = {}, onClose }) {
   }
 
   async function addFiles(fileList) {
-    const files = Array.from(fileList || []);
+    let files = Array.from(fileList || []);
     if (!files.length) return;
+    const tooBig = files.filter(f => f.size > MV.MAX_FILE_BYTES);
+    if (tooBig.length) {
+      await infoDialog('File too large', `${tooBig.map(f => f.name).join(', ')} ${tooBig.length === 1 ? 'is' : 'are'} larger than the 1.5 GB a single file in a vault can be, so ${tooBig.length === 1 ? 'it was' : 'they were'} not added.`);
+      files = files.filter(f => f.size <= MV.MAX_FILE_BYTES);
+      if (!files.length) return;
+    }
+    const current = s.uploads.reduce((n, u) => n + u.bytes.length, 0);
+    if (current + files.reduce((n, f) => n + f.size, 0) > MV.MAX_VAULT_BYTES) {
+      await infoDialog('Vault too large', 'Adding these files would take the vault past 1.9 GB, which is more than Memoro Vault can seal and open. Nothing was added.');
+      return;
+    }
     const large = files.filter(f => f.size > LARGE_FILE);
     if (large.length && !await confirmDialog('Large file', `${large.map(f => f.name).join(', ')} ${large.length === 1 ? 'is' : 'are'} over ${formatBytes(LARGE_FILE)}. Saving will take a while and needs plenty of free memory. Add anyway?`, { okLabel: 'Add' })) {
       return;
@@ -407,7 +418,7 @@ export function createVaultEditor({ session, contents, meta = {}, onClose }) {
       });
       progress(null);
 
-      const written = await saveUntilWritten('memoro-vault.zip', new Uint8Array(await result.blob.arrayBuffer()), 'Vault');
+      const written = await saveUntilWritten('memoro-vault.zip', result.zipBytes, 'Vault');
       if (!written) {
         await infoDialog('Changes kept', 'The new vault was not saved, so nothing changed on disk. Your edits are still here, and you can save again whenever you are ready.');
         return;
@@ -469,9 +480,9 @@ export function createVaultEditor({ session, contents, meta = {}, onClose }) {
         metaExtras: { revision: s.revision, modified: s.lastSaved, lite: true },
         fixed: { layer1Salt: sealed.layer1Salt, fullSalt: sealed.fullSalt, permutation: sealed.permutation },
       });
-      const zipBlob = await MV.packageZip(lite, { includeDocs: false });
+      const liteZip = await MV.packageZip(lite, { includeDocs: false });
       progress('Drawing QR codes...', 60);
-      const r = await window.MemoroPaperBackup.buildPaperPdfFromLiteZip(zipBlob, {
+      const r = await window.MemoroPaperBackup.buildPaperPdfFromLiteZip(liteZip, {
         save: async (bytes, name) => { progress(null); return saveUntilWritten(name, bytes, 'Paper backup'); },
       });
       progress(null);

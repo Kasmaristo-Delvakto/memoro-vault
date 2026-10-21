@@ -32,6 +32,7 @@
   - 24 unused npm packages (with 9 known advisories) are no longer bundled into the app, along with unused legacy crypto files.
 
 ### Fixed
+- Large vaults work with the in-memory storage. Data passes between pages in 16 MB pieces (one in-memory write is limited to roughly 128 MB), big vault parts stay out of the capped in-memory Blob storage, verification checks one file at a time, and every storage failure is reported instead of leaving Unlock or an upload waiting forever. Encrypted ZIP entries are now stored uncompressed, which makes saving large vaults much faster. Limits: 1.5 GB per file and 1.9 GB per vault, tested end to end with a 1 GB vault from 1.0.8.
 - A red herring could be placed on one of the chosen unlock questions (only questions 1 and 2 were checked), which made the vault very hard to recover.
 - The entropy meter counted the red herring's decoy answer toward vault strength even though that answer is blanked before key derivation.
 - The final message was decrypted but never displayed on the recovery screen.

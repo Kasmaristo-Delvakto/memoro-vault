@@ -70,9 +70,9 @@
    * Pass `save(bytes, fileName)` to control saving (it should resolve to { fileName } once written,
    * or null when the person declines); without it the PDF is offered as a normal download.
    */
-  async function buildPaperPdfFromLiteZip(liteZipBlob, { fileName = 'memoro-lite-QR.pdf', save = null } = {}) {
+  async function buildPaperPdfFromLiteZip(liteZip, { fileName = 'memoro-lite-QR.pdf', save = null } = {}) {
     const MV = window.MemoroVaultCore;
-    const liteBytes = new Uint8Array(await liteZipBlob.arrayBuffer());
+    const liteBytes = liteZip instanceof Uint8Array ? liteZip : new Uint8Array(await liteZip.arrayBuffer());
 
     // 1) Random 32-byte file key + 2) encrypt the Lite ZIP (Rust AES-GCM)
     const keyBytes = MV.randomBytes(32);
