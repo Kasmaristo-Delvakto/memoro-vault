@@ -110,8 +110,8 @@ else {
     div.className = 'question-item';
     div.innerHTML = `
       <div class="question-text" id="question-${i}"><b>${i + 1}.</b> ${escapeQuestionHtml(questions[i])}</div>
-      <button class="edit-button" onclick="openModal(${i})">Edit</button>
-      <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" onchange="limitSelection()">
+      <button class="edit-button" data-action="openModal" data-arg="${i}" data-arg-type="number">Edit</button>
+      <input type="checkbox" class="unlock-checkbox" id="unlock-${i}" data-action="limitSelection" data-on="change">
     `;
     questionList.appendChild(div);
   }

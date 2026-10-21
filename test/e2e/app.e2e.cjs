@@ -156,6 +156,14 @@ test('pages run under an enforced Content-Security-Policy (no eval)', async () =
     const r = await S.ctx.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.executeJavaScript(
       "(() => { try { eval('1'); return 'eval allowed'; } catch (e) { return 'blocked'; } })()"));
     assert.equal(r, 'blocked', `${p}: ${r}`);
+    // no inline script at all: neither <script> blocks nor on* attributes run
+    const inline = await S.ctx.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.executeJavaScript(`(() => {
+      window.__mvInline = 0;
+      const s = document.createElement('script'); s.textContent = 'window.__mvInline = 1'; document.head.appendChild(s);
+      const d = document.createElement('div'); d.setAttribute('onclick', 'window.__mvInline = 2'); document.body.appendChild(d); d.click();
+      const v = window.__mvInline; s.remove(); d.remove(); return v;
+    })()`));
+    assert.equal(inline, 0, `${p}: inline script ran (${inline})`);
   }
 });
 
@@ -442,6 +450,74 @@ test('v1.0.8 compatibility: a vault built by the old release can be edited here'
     'photo.png': PNG, 'deed.pdf': PDF, 'drop-me.txt': DROP, 'added-later.pdf': PDF2,
     'btc_wallet.txt': Buffer.from(SEED1), 'final-message.txt': Buffer.from(userData.finalMessage),
   });
+});
+
+test('create a vault through every screen, starting from the welcome page', { timeout: 400000 }, async () => {
+  const ctx = S.ctx;
+  const page = ctx.page;
+  const A = ['juniper', 'biscuit', 'teal', 'okafor', 'riverside', 'not this one', 'hatchet', 'sparrow'];
+
+  await goto(ctx, 'index.html');
+  await page.evaluate(() => { localStorage.removeItem('theme'); sessionStorage.removeItem('theme'); });
+  await goto(ctx, 'index.html');
+  await page.click('#themeModal button[data-theme="cypherpunk"]');
+  await page.click('#startBtn');
+  await Promise.all([page.waitForURL(/dashboard\.html/, { timeout: 30000 }), page.click('#safetyModal button[data-action="acceptSafety"]')]);
+
+  await page.click('button[data-action="promptOfflineWarning"][data-arg="create"]');
+  await Promise.all([page.waitForURL(/create-vault\.html/), page.click('#offlineWarning button[data-action="proceedAfterOfflineWarning"]')]);
+  await page.evaluate(() => { const r = document.getElementById('questionSlider'); r.value = '8'; r.dispatchEvent(new Event('input', { bubbles: true })); });
+  assert.equal(await page.locator('#questionCount').innerText(), '8');
+  await Promise.all([page.waitForURL(/setup-questions\.html/), page.click('button[data-action="startVaultSetup"]')]);
+
+  // edit a question; markup typed into it stays plain text
+  await page.locator('.question-item').first().locator('button.edit-button').click();
+  await page.fill('#editInput', 'What was the <b>lake</b> cabin called?');
+  await page.click('button[data-action="saveModalEdit"]');
+  assert.match(await page.locator('#question-0').innerText(), /<b>lake<\/b>/);
+  await page.locator('#unlock-0').check();
+  await page.locator('#unlock-1').check();
+  await page.click('button[data-action="showDisclaimer"]');
+  await Promise.all([page.waitForURL(/answer-questions\.html/), page.click('#disclaimerModal button[data-action="proceedToAnswers"]')]);
+
+  for (let i = 0; i < A.length; i++) await page.fill(`#answer-${i}`, A[i]);
+  assert.match(await page.locator('#entropy-3').innerText(), /bits/);
+  await page.locator('#hint-options-2').check();
+  await page.locator('#hintModal').waitFor({ state: 'visible' });
+  await page.fill('#customHintText', 'think paint');
+  await page.click('#hintSaveBtn');
+  await page.locator('.question-block').nth(5).locator('.info-icon').click();
+  await page.locator('#trapModal').waitFor({ state: 'visible' });
+  await page.click('#trapModal button[data-hide="trapModal"]');
+  await page.locator('.trap-checkbox[data-index="5"]').check();
+  await page.fill('#newSeedName', 'Cold wallet');
+  await page.fill('#newSeedContent', SEED1);
+  await page.click('button[data-action="saveNamedSeed"]');
+  await page.locator('#namedSeedsList .seed-entry').waitFor();
+  await page.fill('#finalMessage', 'Made through every screen.');
+
+  const before = await downloadCount(ctx);
+  await Promise.all([page.waitForURL(/build-vault\.html/), page.click('button[data-action="submitAnswers"]')]);
+  const zipFile = await waitForDownload(ctx, 'memoro-vault.zip', { after: before });
+  await page.locator('#litePickerModal').waitFor({ state: 'visible', timeout: 60000 });
+  await page.locator('#litePickerCancel').click();
+  await page.locator('#postBuildModal').waitFor({ state: 'visible' });
+  await Promise.all([page.waitForURL(/dashboard\.html/), page.click('#postBuildModal button[data-action="closePostBuildModal"]')]);
+
+  // import, rename through the vault menu, unlock and recover
+  await importVault(ctx, zipFile);
+  await page.click('.vault-item .three-dots');
+  await page.click('.vault-menu button[data-action="renameVault"]');
+  await page.fill('#renameInput', 'Every Screen');
+  await page.click('#renameModal button[data-action="submitRename"]');
+  assert.equal(await page.locator('.vault-item h2').innerText(), 'Every Screen');
+  await H.unlock(ctx, A[0], A[1]);
+  await page.locator('input.answer-input').first().waitFor();
+  const labels = await page.locator('#recoveryForm label').allInnerTexts();
+  assert.ok(labels.some(l => l.includes('<b>lake</b>')), 'question markup shown as text');
+  await H.recover(ctx, Object.fromEntries(A.map((a, i) => [i, i === 5 ? '' : a])));
+  assert.deepEqual(await page.locator('.mv-recovered-name').allInnerTexts(), ['cold_wallet.txt', 'final-message.txt']);
+  assert.match(await page.locator('#finalMessage').innerText(), /Made through every screen/);
 });
 
 test('no answers, seed phrases or file contents were written into the app profile on disk', { timeout: 60000 }, async () => {

@@ -1,85 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <script src="js/actions.js"></script>
   <meta charset="UTF-8" />
   <title>Recover Your Vault - Memoro Vault</title>
   <script src="libs/zip.min.js"></script>
   <script src="libs/pdf.min.js"></script>
-  <script>
-    if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'libs/pdf.worker.min.js';
-  </script>
   <script src="libs/jspdf.umd.min.js"></script>
   <script src="libs/qrcode.min.js"></script>
   <script src="js/vault-core.js"></script>
   <script src="js/idb-chunks.js"></script>
   <script src="js/paper-backup.js"></script>
-  <script type="module">
-  import init, {
-    sha256_hash,
-    aes_gcm_encrypt,
-    aes_gcm_decrypt,
-    argon2_derive
-  } from "./wasm/memoro_crypto.js";
-
-  window.initCryptoWasm = async () => {
-    await init();
-    window.sha256Hash       = (u8) => Promise.resolve(sha256_hash(u8));
-    window.aesEncryptRust   = (k,n,p) => Promise.resolve(aes_gcm_encrypt(k,n,p));
-    window.aesDecryptRust   = (k,n,c) => Promise.resolve(aes_gcm_decrypt(k,n,c));
-    window.argon2DeriveRust = (pwdBytes, saltBytes, t, m, p, len) =>
-      argon2_derive(pwdBytes, saltBytes, t, m, p, len);
-  };
-
-  window.initCryptoWasm();
-</script>
 
   <link id="theme-cypherpunk" rel="stylesheet" href="css/recover_cypherpunk.css">
   <link id="theme-clean"       rel="stylesheet" href="css/recover_clean.css" disabled>
   <link rel="stylesheet" href="css/vault-editor.css">
+  <script src="js/theme-preflip.js"></script>
 
-<script>
-  // Theme switcher for recover page
-  function applyRecoverTheme(theme) {
-    const cy = document.getElementById('theme-cypherpunk');
-    const cl = document.getElementById('theme-clean');
-    const isCypher = (theme === 'cypherpunk');
-
-    if (cy) cy.disabled = !isCypher;
-    if (cl) cl.disabled =  isCypher;
-
-    const setBodyAttr = () => {
-      if (document.body) {
-        document.body.setAttribute('data-theme', isCypher ? 'cypherpunk' : 'clean');
-      }
-    };
-    if (document.readyState === 'loading') {
-      window.addEventListener('DOMContentLoaded', setBodyAttr, { once: true });
-    } else {
-      setBodyAttr();
-    }
-
-    // Matrix control (defined later at bottom of file)
-    if (window.RecoverMatrix) {
-      if (isCypher) RecoverMatrix.start();
-      else RecoverMatrix.stop();
-    }
-  }
-
-  (function initRecoverTheme(){
-const saved =
-  sessionStorage.getItem('theme') ??
-  localStorage.getItem('theme') ??
-  'cypherpunk';
-  window.__savedRecoverTheme = saved;
-
-  const cy = document.getElementById('theme-cypherpunk');
-  const cl = document.getElementById('theme-clean');
-  const isCypher = (saved === 'cypherpunk');
-  if (cy) cy.disabled = !isCypher;
-  if (cl) cl.disabled =  isCypher;
-})();
-</script>
 
 </head>
 <body>
@@ -91,7 +29,7 @@ const saved =
 
 <!-- Button to submit recovery -->
 <div class="button-container">
-  <button class="button" onclick="submitRecovery()">Recover Vault</button>
+  <button class="button" data-action="submitRecovery">Recover Vault</button>
 </div>
 
 <!-- Modal for displaying recovered vault contents and donation prompt -->
@@ -104,7 +42,7 @@ const saved =
         <span class="donation-strong">Thanks for using Memoro Vault.</span><br>
         If you find it valuable, consider sending a small tip in XMR or your preferred cryptocurrency.
       </p>
-      <button class="donation-button" type="button" onclick="donatePreferredCrypto()">
+      <button class="donation-button" type="button" data-action="donatePreferredCrypto">
         Donate with preferred crypto
       </button>
     </div>
@@ -123,7 +61,7 @@ const saved =
     <h2 id="previewTitle">File Preview</h2>
     <div id="previewContent" class="preview-content"></div>
     <div class="modal-buttons">
-      <button onclick="closePreview()">Close</button>
+      <button data-action="closePreview">Close</button>
     </div>
   </div>
 </div>
@@ -165,7 +103,7 @@ const saved =
   or <span class="exactly-one">none at all</span>—never more than one.
 </p>
     <div class="modal-buttons">
-      <button onclick="closeRedHerringModal()">Got it</button>
+      <button data-action="closeRedHerringModal">Got it</button>
     </div>
   </div>
 </div>

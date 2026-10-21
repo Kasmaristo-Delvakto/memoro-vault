@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <script src="js/actions.js"></script>
   <meta charset="UTF-8">
   <title>Create New Vault - Memoro Vault</title>
 
@@ -16,12 +17,12 @@
     <h1>Select the number of security questions</h1>
     <div class="slider-section">
       <span id="questionCount">14</span>
-      <input type="range" id="questionSlider" min="4" max="25" value="14" oninput="updateQuestionCount()" />
+      <input type="range" id="questionSlider" min="4" max="25" value="14" data-action="updateQuestionCount" data-on="input" />
     </div>
 
     <div class="button-container">
-      <button class="button" onclick="goBack()">← Back</button>
-      <button class="button" onclick="startVaultSetup()">Next</button>
+      <button class="button" data-action="goBack">← Back</button>
+      <button class="button" data-action="startVaultSetup">Next</button>
     </div>
   </div>
   <script src="js/create-vault.js"></script>

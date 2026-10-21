@@ -30,6 +30,7 @@
   - Closing the window from the recovery screen now runs the same wipe as leaving it, the unlock hand-off is deleted as soon as it is read, and the session-expiry wipe on the answers page now clears everything it should.
   - New vaults keep the red herring out of the hidden-order group, so the order adds the full 720 combinations.
   - 24 unused npm packages (with 9 known advisories) are no longer bundled into the app, along with unused legacy crypto files.
+- Inline script is no longer allowed anywhere: every page's Content-Security-Policy drops `'unsafe-inline'` for scripts, inline `<script>` blocks moved into files, and buttons are wired through `js/actions.js` (which only calls an allowlist of functions) instead of `onclick` attributes. Even if some markup were ever injected, it could not run script. Together with the text-only rendering above, this resolves the DOM injection report in issue #4.
 
 ### Fixed
 - Large vaults work with the in-memory storage. Data passes between pages in 16 MB pieces (one in-memory write is limited to roughly 128 MB), big vault parts stay out of the capped in-memory Blob storage, verification checks one file at a time, and every storage failure is reported instead of leaving Unlock or an upload waiting forever. Encrypted ZIP entries are now stored uncompressed, which makes saving large vaults much faster. Limits: 1.5 GB per file and 1.9 GB per vault, tested end to end with a 1 GB vault from 1.0.8.

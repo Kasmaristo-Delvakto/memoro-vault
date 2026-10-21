@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+  <script src="js/actions.js"></script>
   <meta charset="UTF-8">
   <title>Setup Your Security Questions - Memoro Vault</title>
 
@@ -25,8 +26,8 @@
 <div class="question-list" id="questionList"></div>
 
 <div class="button-container">
-  <button class="button" onclick="goBack()">Back</button>
-  <button class="button" onclick="showDisclaimer()">Continue</button>
+  <button class="button" data-action="goBack">Back</button>
+  <button class="button" data-action="showDisclaimer">Continue</button>
 </div>
 
 <!-- Help Modal -->
@@ -84,8 +85,8 @@ Layer 2 is where hints can appear, giving real users assistance while still enfo
 
     <div id="suggestionsList" style="max-height: 150px; overflow-y: auto; margin-bottom:15px;"></div>
     <div class="modal-buttons">
-      <button onclick="saveModalEdit()">Save</button>
-      <button onclick="closeModal()">Cancel</button>
+      <button data-action="saveModalEdit">Save</button>
+      <button data-action="closeModal">Cancel</button>
     </div>
   </div>
 </div>
@@ -96,7 +97,7 @@ Layer 2 is where hints can appear, giving real users assistance while still enfo
     <h2 id="messageModalTitle">Notice</h2>
     <p id="messageModalText">Message</p>
     <div class="modal-buttons">
-      <button onclick="closeMessageModal()">OK</button>
+      <button data-action="closeMessageModal">OK</button>
     </div>
   </div>
 </div>
@@ -112,7 +113,7 @@ Layer 2 is where hints can appear, giving real users assistance while still enfo
       Please use a secure device and environment.
     </p>
     <div class="modal-buttons">
-      <button onclick="proceedToAnswers()">I Understand — Continue</button>
+      <button data-action="proceedToAnswers">I Understand — Continue</button>
     </div>
   </div>
 </div>

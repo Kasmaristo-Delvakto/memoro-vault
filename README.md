@@ -94,7 +94,7 @@ The Clean theme gives the same tools a quieter look:
 
 ## Security notes
 
-- **Offline by design:** the app cannot resolve host names, only its own files and in-memory data can be loaded, a strict Content-Security-Policy is applied to every page, and pop-ups and navigation outside the app folder are refused. The only page it can ever open in your browser is the fixed donation link.
+- **Offline by design:** the app cannot resolve host names, only its own files and in-memory data can be loaded, a strict Content-Security-Policy that forbids inline script is applied to every page, and pop-ups and navigation outside the app folder are refused. The only page it can ever open in your browser is the fixed donation link.
 - **Nothing sensitive on disk:** since 1.1.0 all app storage (answers in progress, uploaded files, the unlock hand-off) lives in an in-memory session. Earlier versions kept that data in the browser profile on disk, and the first launch of 1.1.0 overwrites and deletes whatever they left there.
 - **Strong randomness:** every salt, IV, file ID, question shuffle and hidden order comes from the operating system's cryptographic random number generator, using unbiased sampling.
 - **Verified writes and reads:** new and edited vaults are re-opened and fully decrypted before you receive them, and every recovered file is checked against its SHA-256 checksum.
