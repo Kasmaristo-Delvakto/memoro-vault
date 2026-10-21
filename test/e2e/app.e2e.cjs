@@ -53,7 +53,8 @@ const userData = {
   spaceIndexes: ANSWERS.map(a => [...a].flatMap((c, i) => (c === ' ' ? [i] : []))),
   seeds: [],
   hints: {
-    2: { letters: [1], custom: 'think paint', showLength: true, mcqEnabled: false },
+    // a hostile hint value: must render as text, never as markup
+    2: { letters: [1], values: ['<img src=x onerror="window.__mvXss=1">'], custom: 'think paint', showLength: true, mcqEnabled: false },
     5: { letters: [], custom: '', showLength: false, mcqEnabled: true, mcqOptions: ['Civic', 'Accord', 'Corolla', 'Camry', 'Model 3', 'Focus'] },
     9: { letters: [], custom: '', showLength: true, mcqEnabled: false },
   },
@@ -167,6 +168,16 @@ test('dashboard + recover: unlock, recover, verify every file and view them in t
   assert.deepEqual(names, ['photo.png', 'deed.pdf', 'notes.txt', 'drop-me.txt', 'btc_wallet.txt', 'final-message.txt']);
   assert.match(await ctx.page.locator('#finalMessage').innerText(), /blue box under the stairs/);
   assert.match(await ctx.page.locator('#recoveredSeed').innerText(), /6 file\(s\) decrypted and verified/);
+  // the hostile hint showed up as a plain "<" and ran nothing
+  assert.equal(await ctx.page.evaluate(() => window.__mvXss), undefined);
+  const hintText = await ctx.page.evaluate(() => Array.from(document.querySelectorAll('.hint-code')).map(e => e.textContent).join('|'));
+  assert.ok(hintText.includes('<'), 'hint value rendered as text');
+  // the donation button only ever opens the fixed page held by the main process
+  await ctx.page.click('#seedModal .donation-button');
+  await ctx.page.waitForTimeout(300);
+  const opened = await ctx.app.evaluate(() => globalThis.__mvOpened);
+  assert.equal(opened.length, 1);
+  assert.match(opened[0], /^https:\/\/trocador\.app\/en\/anonpay\//);
   const term = await ctx.page.locator('#powTerminal').innerText();
   for (const a of ANSWERS) assert.ok(!term.toLowerCase().includes(a.toLowerCase()), `answer shown on screen: ${a}`);
 
@@ -341,6 +352,19 @@ test('the twice-edited vault recovers byte-for-byte in this release', { timeout:
   await unlock(ctx);
   await recover(ctx);
   assertContents(await downloadAll(ctx), EXPECTED_AFTER_EDIT());
+});
+
+test('paper restore shows hostile file names as text', { timeout: 120000 }, async () => {
+  const ctx = S.ctx;
+  await goto(ctx, 'dashboard.html');
+  await ctx.page.click('button:has-text("Restore Physical Backup")');
+  const evil = writeFixture('<img src=x onerror="window.__mvXss2=1">.png', PNG);
+  await ctx.page.setInputFiles('#paperFiles', evil);
+  await ctx.page.waitForFunction(() => /No QR detected/.test(document.getElementById('paperStatus').textContent), null, { timeout: 60000 });
+  assert.equal(await ctx.page.evaluate(() => window.__mvXss2), undefined);
+  assert.equal(await ctx.page.locator('#paperStatus img').count(), 0);
+  assert.match(await ctx.page.locator('#paperStatus').innerText(), /<img src=x onerror/);
+  await ctx.page.click('#paperDecryptModal button:has-text("Close")');
 });
 
 test('paper backup made by the editor restores and unlocks', { timeout: 400000 }, async () => {

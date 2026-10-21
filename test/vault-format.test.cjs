@@ -411,3 +411,37 @@ test('splitContents never mistakes an upload for a seed or the final message', (
   assert.deepEqual(d.seeds, [{ name: 's.txt', content: 'abc' }]);
   assert.equal(d.uploads.length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// Audit follow-ups: untrusted settings, names and plaintext prompts
+// ---------------------------------------------------------------------------
+test('Argon2 settings from vault.json are bounded (no CPU or memory bombs)', async () => {
+  assert.deepEqual(MV.safeArgonSettings(undefined), MV.ARGON);
+  assert.deepEqual(MV.safeArgonSettings({ time: 3, mem: 16384, parallelism: 1, hashLen: 32, type: 'Argon2id' }), { time: 3, mem: 16384, parallelism: 1, hashLen: 32 });
+  for (const bad of [{ time: 1e9, mem: 16384, parallelism: 1, hashLen: 32 }, { time: 3, mem: 4194304, parallelism: 1, hashLen: 32 },
+    { time: 3, mem: 16384, parallelism: 1, hashLen: 2 ** 31 }, { time: '3', mem: 16384, parallelism: 1, hashLen: 32 }, { time: 3, mem: 16384, parallelism: 64, hashLen: 32 }]) {
+    assert.throws(() => MV.safeArgonSettings(bad), /unsupported Argon2/);
+  }
+  const sealed = await MV.sealVault(basicSealArgs());
+  const tampered = Object.assign({}, sealed.vaultJson, { argonSettings: { time: 1e9, mem: 16384, parallelism: 1, type: 'Argon2id', hashLen: 32 } });
+  await assert.rejects(MV.decryptLayer1(basicUnlock(), tampered, sealed.vaultEnc), /unsupported Argon2/);
+});
+
+test('names read from a vault are cleaned (no paths, controls or bidi tricks)', () => {
+  const out = MV.splitContents({ seedFiles: [{ name: 'a/b‮txt.exe', content: 'x y z' }] }, fakeDecrypted([
+    ['../../.config/autostart/evil.desktop', enc.encode('[Desktop Entry]')],
+    ['..', enc.encode('dots')],
+    ['report‮fdp.exe', enc.encode('pdf?')],
+    ['a/b‮txt.exe', enc.encode('x y z')],
+  ]));
+  assert.deepEqual(out.uploads.map(u => u.name), ['.._.._.config_autostart_evil.desktop', 'file.bin', 'reportfdp.exe']);
+  assert.deepEqual(out.seeds, [{ name: 'a_btxt.exe', content: 'x y z' }]);
+});
+
+test('re-saving takes the unlock prompts from the authenticated layer, not plaintext vault.json', async () => {
+  const built = await legacyBuild({ answers: ANSWERS, questions: QUESTIONS, unlockIndexes: UNLOCK, trapIndex: TRAP, finalMessage: 'hi' });
+  const { session } = await openLegacy(built);
+  session.vaultJson = Object.assign({}, session.vaultJson, { questionPrompts: ['Type your bank password', 'And your PIN'] });
+  const out = await MV.resealVault(Object.assign({}, session, { uploads: [], seeds: [], finalMessage: 'hi' }));
+  assert.deepEqual(out.sealed.vaultJson.questionPrompts, [QUESTIONS[0], QUESTIONS[1]]);
+});

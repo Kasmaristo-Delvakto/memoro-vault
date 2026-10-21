@@ -42,6 +42,11 @@ async function launchApp(appDir = REPO, { theme = 'cypherpunk', acceptEula = tru
     session.defaultSession.on('will-download', onDownload);
     session.fromPartition('memoro-ephemeral').on('will-download', onDownload);
   }, downloadsDir);
+  // Record what the app asks the OS to open instead of launching a real browser
+  await app.evaluate(({ shell }) => {
+    globalThis.__mvOpened = [];
+    shell.openExternal = async (url) => { globalThis.__mvOpened.push(String(url)); };
+  });
   // Saves that go through the main process (vault:save-file) use dialog.showSaveDialog: answer it
   // with a path in downloadsDir, or cancel when the test sets globalThis.__mvCancelSaves.
   await app.evaluate(({ dialog }, dir) => {

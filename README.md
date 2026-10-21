@@ -94,14 +94,22 @@ The Clean theme gives the same tools a quieter look:
 
 ## Security notes
 
-- **Offline by design:** network requests are blocked, a strict Content-Security-Policy is applied to every page, and pop-ups and navigation outside the app folder are refused.
+- **Offline by design:** the app cannot resolve host names, only its own files and in-memory data can be loaded, a strict Content-Security-Policy is applied to every page, and pop-ups and navigation outside the app folder are refused. The only page it can ever open in your browser is the fixed donation link.
 - **Nothing sensitive on disk:** since 1.1.0 all app storage (answers in progress, uploaded files, the unlock hand-off) lives in an in-memory session. Earlier versions kept that data in the browser profile on disk, and the first launch of 1.1.0 overwrites and deletes whatever they left there.
 - **Strong randomness:** every salt, IV, file ID, question shuffle and hidden order comes from the operating system's cryptographic random number generator, using unbiased sampling.
 - **Verified writes and reads:** new and edited vaults are re-opened and fully decrypted before you receive them, and every recovered file is checked against its SHA-256 checksum.
 - **Nothing secret on screen:** the recovery progress display never shows your answers or anything derived from them.
-- **Current runtime:** the app runs on Electron 44, and release builds disable Node.js debugging switches and `ELECTRON_RUN_AS_NODE`.
+- **Current runtime:** the app runs on Electron 44. Release builds turn off DevTools, Node.js debugging switches and `ELECTRON_RUN_AS_NODE`, and ship no third-party npm packages.
+- **Untrusted vaults stay contained:** names, questions and hints read from a vault are always shown as text, unsupported Argon2 settings and oversized archives are refused, and paper-backup QR codes are checked strictly before use.
 
 Memoro Vault cannot protect a vault from malware or a keylogger running on the computer while it is open, from answers that are easy to guess, or from someone who genuinely knows all of the answers. For seed phrases and private keys, open vaults on an offline machine or a freshly booted Tails session, and type rather than paste secrets.
+
+A few limits are worth knowing when you choose questions and hints:
+
+- The first layer (the question list and hints) opens with only the two unlock answers, so pick those two with care. Hints you show, such as answer length, revealed letters and especially multiple-choice options, make each answer easier to guess.
+- The vault's real strength is the combined strength of all your answers, each guess costing one Argon2id run. The hidden order and the red herring add a little on top, roughly 10 and 3 bits.
+- Answers are joined without separators and compared exactly as typed after trimming and lowercasing, so accented letters should be typed the same way when recovering.
+- The paper backup is protected by your answers, not by its printed key, which only guards against damaged or mismatched QR codes.
 
 ## Compatibility
 

@@ -956,12 +956,19 @@ function closeMessageModal() {
   syncScrollLockWithModals(); // release if this was the last open modal
 }
   
-  function securelyClearSensitiveData() {
-  localStorage.removeItem('userAnswers');
-  localStorage.removeItem('userSeeds');
-  localStorage.removeItem('userHints');
-  localStorage.removeItem('finalMessage');
-  localStorage.removeItem('namedSeeds'); // ✅ optional extra safety
+// Session expired: drop everything this vault-in-progress put in storage (answers, seeds, hints,
+// uploaded files, final message). Only the theme survives.
+function securelyClearSensitiveData() {
+  for (const store of [localStorage, sessionStorage]) {
+    for (let i = store.length - 1; i >= 0; i--) {
+      const k = store.key(i);
+      if (k !== 'theme') store.removeItem(k);
+    }
+  }
+  namedSeeds = [];
+  indexedDB.deleteDatabase('memoroVaultDB');
+  indexedDB.deleteDatabase('memoroVaultVaultStorage');
+  document.querySelectorAll('input, textarea').forEach(el => { if (el.type !== 'checkbox') el.value = ''; });
 }
 
   window.onload = () => {
@@ -1078,11 +1085,15 @@ function renderNamedSeeds() {
   namedSeeds.forEach((entry, index) => {
     const div = document.createElement("div");
     div.classList.add("seed-entry");
-    div.innerHTML = `
-      <strong>${entry.name}.txt</strong><br>
-      <code>${entry.content.replace(/\s+/g, " ")}</code><br>
-      <button class="button seed-remove-btn" onclick="deleteNamedSeed(${index})">Remove</button>
-    `;
+    const title = document.createElement("strong");
+    title.textContent = `${entry.name}.txt`;
+    const code = document.createElement("code");
+    code.textContent = String(entry.content || "").replace(/\s+/g, " ");
+    const remove = document.createElement("button");
+    remove.className = "button seed-remove-btn";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => deleteNamedSeed(index));
+    div.append(title, document.createElement("br"), code, document.createElement("br"), remove);
     container.appendChild(div);
   });
 }

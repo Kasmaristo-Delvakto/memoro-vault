@@ -165,6 +165,8 @@ async function onLeave() {
 }
 window.addEventListener("pagehide", onLeave, { once: true });
 window.addEventListener("beforeunload", onLeave, { once: true });
+// main.js calls nukeEverything() before closing the window (destroy() skips unload events)
+window.nukeEverything = onLeave;
 
 /* ---------------------------
    1) Theme & Matrix control
@@ -252,35 +254,22 @@ async function closeSeedModal() {
 }
 
 // recover.js
+// The donation page is a fixed link held by the main process; pages cannot open other URLs.
 function donatePreferredCrypto() {
-  const url = "https://trocador.app/en/anonpay/?ticker_to=xmr&network_to=Mainnet&address=83czGNh6SKbhmjg3wPzeiDRQbN7gkLLqTYSvfMGRQRmKQf1SyQTG88Db67NoBdEvpCii6Qzcxq3BxNt94FDeJutmJ3xBXc6&donation=True&amount=0.1&name=Kasmaristo+Delvakto&description=Memoro+Vault+is+funded+by+donations+only.+Thanks+for+your+support!&ticker_from=xmr&network_from=Mainnet&bgcolor=";
-
   (async () => {
     try {
-      if (window.memoroAPI?.openExternalLink) {
-        const res = await window.memoroAPI.openExternalLink(url);
-        if (res?.ok) {
-          showToast("Opening donation page…", "info");
-          return;
-        }
-        // fall through to copy if blocked
+      if (await window.memoroAPI?.openDonationPage?.()) {
+        showToast("Opening the donation page in your browser.", "info");
+        return;
       }
     } catch (_) {}
-    // Fallback: copy to clipboard so user can paste in a browser
     try {
-      await navigator.clipboard.writeText(url);
-      showToast("Donation link copied—paste into your browser.", "success");
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = url;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      showToast("Donation link copied—paste into your browser.", "success");
-    }
+      if (await window.memoroAPI?.writeDonationLink?.()) {
+        showToast("Donation link copied. Paste it into your browser.", "success");
+        return;
+      }
+    } catch (_) {}
+    showToast("Could not open the donation page.", "error");
   })();
 }
 
@@ -410,6 +399,15 @@ async function hydrateFromIndexedDB() {
   window.vaultJson = data.vaultJson || {};
   window.vaultData = data.decryptedVaultData || {}; // L1-decrypted contents from dashboard
 
+  // The hand-off holds the unlock answers; now that it is read, remove it from storage
+  await new Promise((resolve) => {
+    try {
+      const tx = db.transaction("vaultFiles", "readwrite");
+      tx.objectStore("vaultFiles").delete(lastId + "-transfer");
+      tx.oncomplete = tx.onerror = tx.onabort = () => resolve();
+    } catch (_) { resolve(); }
+  });
+
   // Build a tolerant file map from the original ZIP (preferred)
   const fileMap = {};
   if (!window.zip) {
@@ -419,13 +417,25 @@ async function hydrateFromIndexedDB() {
     const zipBlob = new Blob([data.vaultBlob], { type: "application/zip" });
     const zipReader = new zip.ZipReader(new zip.BlobReader(zipBlob));
     const entries = await zipReader.getEntries();
-    // store each entry by exact name AND lowercase alias
-    for (const entry of entries) {
-      const blob = await entry.getData(new zip.BlobWriter());
-      fileMap[entry.filename] = blob;
-      fileMap[entry.filename.toLowerCase()] = blob;
+    // Unpack only what recovery needs, and refuse archives that would exhaust memory
+    const MAX_ENTRY = 2 * 1024 ** 3, MAX_TOTAL = 4 * 1024 ** 3;
+    let total = 0;
+    try {
+      for (const entry of entries) {
+        const name = String(entry.filename || "");
+        if (entry.directory || /^(readme\.txt|vault_builder_instructions\.txt)$/i.test(name)) continue;
+        const size = Number(entry.uncompressedSize) || 0;
+        total += size;
+        if (size > MAX_ENTRY || total > MAX_TOTAL) throw new Error("This vault is larger than Memoro Vault can open safely.");
+        const blob = await entry.getData(new zip.BlobWriter());
+        if (blob.size !== size) throw new Error(`${name} in this vault is damaged.`);
+        // store each entry by exact name AND lowercase alias
+        fileMap[name] = blob;
+        fileMap[name.toLowerCase()] = blob;
+      }
+    } finally {
+      await zipReader.close();
     }
-    await zipReader.close();
   }
 
   // Merge any serialized blobs we stashed (vault.json/meta/enc)
@@ -477,7 +487,8 @@ function updateHint(renderIdx, originalIdx) {
     return;
   }
 
-  const expectedLength = q.expectedLength || 0;
+  // Hint data comes from the vault: cap the length and render it as text only
+  const expectedLength = Math.min(Math.max(0, Number(q.expectedLength) || 0), 500);
   const spaceIndexes = Array.isArray(q.spaceIndexes) ? q.spaceIndexes : [];
   const hintLetters  = Array.isArray(q.hintLetters)  ? q.hintLetters  : [];
   const hintValues   = Array.isArray(q.hintValues)   ? q.hintValues   : [];
@@ -486,16 +497,24 @@ function updateHint(renderIdx, originalIdx) {
   for (let j=0; j<expectedLength; j++) {
     if (spaceIndexes.includes(j)) rendered += " ";
     else if (hintLetters.includes(letterPos)) {
-      const val = hintValues[valueIndex++]; rendered += (val === undefined ? "_" : val);
+      const val = hintValues[valueIndex++];
+      rendered += (val === undefined ? "_" : (Array.from(String(val))[0] || "_"));
     } else rendered += "_";
     letterPos++;
   }
-  const spaced = rendered.split("").join(" ");
-  hintDiv.innerHTML = `
-    <div class="hint-row">
-      <code class="hint-code">${spaced}</code>
-      ${q.custom ? `<div class="hint-custom-text">Hint: ${escapeHtml(q.custom)}</div>` : ""}
-    </div>`;
+  const row = document.createElement("div");
+  row.className = "hint-row";
+  const code = document.createElement("code");
+  code.className = "hint-code";
+  code.textContent = rendered.split("").join(" ");
+  row.appendChild(code);
+  if (q.custom) {
+    const custom = document.createElement("div");
+    custom.className = "hint-custom-text";
+    custom.textContent = `Hint: ${q.custom}`;
+    row.appendChild(custom);
+  }
+  hintDiv.replaceChildren(row);
 }
 
 function loadQuestions(questionList, gateIndices, remainingL2Indices, selectedL2Indices) {
@@ -667,7 +686,7 @@ async function submitRecovery() {
     const vaultJson = JSON.parse(await (await vaultZip.get("vault.json")).text());
     const fullSalt = vaultJson.fullSalt;
     const vaultMetaIv = new Uint8Array(vaultJson.vaultMetaIv);
-    const argon = vaultJson.argonSettings || { time:3, mem:16384, parallelism:1, hashLen:32 };
+    const argon = MV.safeArgonSettings(vaultJson.argonSettings);
 
     // We already have window.vaultData (from dashboard L1). Pull indices/questions:
     const { selectedL2Indices = [], remainingL2Indices = [], gateIndices = [], questionList = [] } = window.vaultData || {};
@@ -927,13 +946,6 @@ window.RecoverMatrix = {
     window.addEventListener('DOMContentLoaded', apply, { once: true });
   } else apply();
 })();
-window.addEventListener("DOMContentLoaded", () => {
-  hydrateFromIndexedDB().catch(err => {
-    console.error("[recover] bootstrap failed:", err);
-    alert("Could not load your vault from local storage: " + (err.message || err));
-  });
-});
-
 // --- secure exit (preserve theme) ---
 async function secureExit() {
   try {

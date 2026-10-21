@@ -12,21 +12,13 @@ try {
   }
 } catch (_) { /* storage unavailable: pages fall back to their default theme */ }
 
-// --- Bridge: core app APIs (same names you already use) ---
+// --- Bridge: the small set of main-process helpers pages may call ---
 contextBridge.exposeInMainWorld('memoroAPI', {
-  saveVaultFile: (data) => ipcRenderer.send('save-vault', data),
-  showMessage:   (msg)  => ipcRenderer.send('show-message', msg),
-  openExternalLink: (url) => ipcRenderer.send('open-external-link', url),
+  openDonationPage: () => ipcRenderer.invoke('open-donation-page'), // fixed URL, chosen in main
   writeDonationLink: () => ipcRenderer.invoke('copy-donation-link'), // write-only helper (clipboard lives in main)
   saveTheme: (theme) => ipcRenderer.invoke('prefs:set-theme', theme),
   // Resolves { saved, fileName } only after the bytes are on disk; { saved:false, canceled } otherwise
   saveFile: (name, bytes) => ipcRenderer.invoke('vault:save-file', { name, bytes })
-});
-
-// --- Bridge: crypto helpers (unchanged) ---
-contextBridge.exposeInMainWorld('memoroCrypto', {
-  subtle: window.crypto.subtle,
-  getRandomValues: (array) => window.crypto.getRandomValues(array)
 });
 
 // --- Bridge: first-run license modal (used by src/license.html) ---

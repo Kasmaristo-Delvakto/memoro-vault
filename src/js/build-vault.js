@@ -261,11 +261,14 @@ async function startVaultBuild() {
     // hidden answer order (brute-forced at recovery), the rest keep a fixed order.
     const numQuestions = inputs.normalizedAnswers.length;
     const gateIndices = [inputs.unlockIndexes[0], inputs.unlockIndexes[1]];
+    // The red herring (an empty answer) stays out of the six: inside them it would cut the
+    // possible orders from 720 to 120.
+    const trap = Number.isInteger(inputs.trapIndex) ? inputs.trapIndex : -1;
     const layer2Indices = MV.shuffle(
-      Array.from({ length: numQuestions }, (_, i) => i).filter(i => !gateIndices.includes(i))
+      Array.from({ length: numQuestions }, (_, i) => i).filter(i => !gateIndices.includes(i) && i !== trap)
     );
     const selectedL2Indices = layer2Indices.slice(0, 6);
-    const remainingL2Indices = layer2Indices.slice(6);
+    const remainingL2Indices = MV.shuffle([...layer2Indices.slice(6), ...(trap >= 0 && !gateIndices.includes(trap) ? [trap] : [])]);
 
     const namedSeedFiles = JSON.parse(localStorage.getItem("namedSeedFiles") || "[]");
     const answerAt = (i) => inputs.normalizedAnswers[i];
@@ -620,21 +623,11 @@ async function nukeEverything(opts = {}) {
     sessionStorage.setItem(THEME_KEY, preservedTheme);
 
     // 4) Delete only our app DBs
+    // Delete by name right away (no await before it), so it also runs during page unload
     const deleteKnownDBs = async () => {
       try {
-        if (indexedDB.databases) {
-          const dbs = await indexedDB.databases();
-          for (const db of dbs) {
-            const name = db?.name;
-            if (name === "memoroVaultVaultStorage" || name === "memoroVaultDB") {
-              indexedDB.deleteDatabase(name);
-            }
-          }
-        } else {
-          // Fallback for older Chromium/Electron
-          indexedDB.deleteDatabase("memoroVaultVaultStorage");
-          indexedDB.deleteDatabase("memoroVaultDB");
-        }
+        indexedDB.deleteDatabase("memoroVaultVaultStorage");
+        indexedDB.deleteDatabase("memoroVaultDB");
       } catch (e) {
         console.warn("Memoro Vault: DB wipe warning:", e);
       }

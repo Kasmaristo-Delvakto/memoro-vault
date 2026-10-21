@@ -75,6 +75,34 @@
     try { if (u8 instanceof Uint8Array) u8.fill(0); } catch (_) { /* best effort */ }
   }
 
+  /**
+   * Argon2id settings read from an untrusted vault.json. Every real vault uses ARGON; anything far
+   * outside it (minutes of CPU, gigabytes of memory, odd hash lengths) is refused up front instead
+   * of freezing or crashing the window.
+   */
+  function safeArgonSettings(s) {
+    if (!s) return ARGON;
+    const int = (v) => Number.isInteger(v) ? v : NaN;
+    const t = int(s.time), m = int(s.mem), p = int(s.parallelism), len = int(s.hashLen);
+    if (!(t >= 1 && t <= 10) || !(m >= 8192 && m <= 262144) || !(p >= 1 && p <= 4) || len !== 32) {
+      throw new Error('This vault asks for unsupported Argon2 settings.');
+    }
+    return { time: t, mem: m, parallelism: p, hashLen: len };
+  }
+
+  /**
+   * File names that come out of a vault are untrusted: no path separators, control or bidi
+   * characters (which can fake an extension), no "." / "..", at most 200 characters.
+   */
+  function cleanFileName(input, fallback = 'file.bin') {
+    // eslint-disable-next-line no-control-regex
+    let n = String(input ?? '').replace(/[\\/\u0000-\u001f\u007f]/g, '_')
+      .replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
+      .trim().slice(0, 200);
+    if (!n || n === '.' || n === '..') n = fallback;
+    return n;
+  }
+
   function normalizeAnswer(s) {
     return String(s ?? '').trim().toLowerCase();
   }
@@ -442,7 +470,7 @@ Libereco ne estas donaco. Ĝi estas devo.
   // Decrypt helpers shared by verify + editor
   // ---------------------------------------------------------------------------
   async function decryptLayer1(unlockConcat, vaultJson, vaultEnc) {
-    const key = await deriveKey(unlockConcat, vaultJson.layer1Salt, vaultJson.argonSettings || ARGON);
+    const key = await deriveKey(unlockConcat, vaultJson.layer1Salt, safeArgonSettings(vaultJson.argonSettings));
     try {
       const plain = await prims().aesDecrypt(key, Uint8Array.from(vaultEnc.iv), Uint8Array.from(vaultEnc.ciphertext));
       return JSON.parse(dec.decode(toU8(plain)));
@@ -452,7 +480,7 @@ Libereco ne estas donaco. Ĝi estas devo.
   }
 
   async function decryptMeta(permutedConcat, vaultJson, metaBytes) {
-    const key = await deriveKey(permutedConcat, vaultJson.fullSalt, vaultJson.argonSettings || ARGON);
+    const key = await deriveKey(permutedConcat, vaultJson.fullSalt, safeArgonSettings(vaultJson.argonSettings));
     try {
       const plain = await prims().aesDecrypt(key, Uint8Array.from(vaultJson.vaultMetaIv), toU8(metaBytes));
       const meta = JSON.parse(dec.decode(toU8(plain)));
@@ -543,16 +571,16 @@ Libereco ne estas donaco. Ĝi estas devo.
       }
       if (found >= 0) {
         claimed.add(found);
-        seeds.unshift({ name: sf.name, content: strictUtf8(decrypted[found].bytes) });
+        seeds.unshift({ name: cleanFileName(sf.name, 'seed.txt'), content: strictUtf8(decrypted[found].bytes) });
       } else if (typeof sf.content === 'string') {
-        seeds.unshift({ name: sf.name, content: sf.content }); // listed in the index but stored without a file
+        seeds.unshift({ name: cleanFileName(sf.name, 'seed.txt'), content: sf.content }); // listed in the index but stored without a file
       }
     }
 
     const uploads = [];
     decrypted.forEach((d, i) => {
       if (claimed.has(i)) return;
-      uploads.push({ name: d.meta.originalName || d.meta.filename, mime: d.meta.mimeType || '', bytes: d.bytes });
+      uploads.push({ name: cleanFileName(d.meta.originalName || d.meta.filename), mime: String(d.meta.mimeType || ''), bytes: d.bytes });
     });
     return { uploads, seeds, finalMessage };
   }
@@ -602,7 +630,8 @@ Libereco ne estas donaco. Ĝi estas devo.
       gateAnswers: o.gateAnswers,
       remainingAnswers: o.remainingAnswers,
       selectedAnswers: o.selectedAnswers,
-      questionPrompts: o.vaultJson.questionPrompts,
+      // the unlock prompts come from the authenticated question list, not the plaintext vault.json
+      questionPrompts: l1.gateIndices.map((g, i) => (l1.questionList[g] && l1.questionList[g].question) || (o.vaultJson.questionPrompts || [])[i] || `Question ${g + 1}`),
       created: o.vaultJson.created,
       uploads, seeds, finalMessage,
       metaExtras: o.metaExtras,
@@ -626,6 +655,6 @@ Libereco ne estas donaco. Ĝi estas devo.
     randomBytes, randomHex, randomInt, shuffle,
     deriveKey, deriveFileKey, sha256Hex, encryptFile, decryptFile, composeConcat,
     sealVault, packageZip, readVaultZip, decryptLayer1, decryptMeta, verifyVaultZip,
-    splitContents, dedupeNames, resealVault,
+    splitContents, dedupeNames, resealVault, safeArgonSettings, cleanFileName,
   });
 })(typeof window !== 'undefined' ? window : globalThis);
