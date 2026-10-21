@@ -27,7 +27,7 @@ function bytesEqual(a, b) {
 }
 async function zipEntries(blob) {
   const zip = globalThis.zip;
-  const r = new zip.ZipReader(new zip.BlobReader(blob));
+  const r = new zip.ZipReader(blob instanceof Uint8Array ? new zip.Uint8ArrayReader(blob) : new zip.BlobReader(blob));
   const out = {};
   for (const e of await r.getEntries()) out[e.filename] = await e.getData(new zip.Uint8ArrayWriter());
   await r.close();
@@ -218,7 +218,7 @@ test('edit cycle: remove, add, rename, change seed + message; result opens in v1
   }));
 
   // v1.0.8 recovery of the edited vault
-  const back = await legacyRecover(out.blob, { gateAnswer1: ANSWERS[0], gateAnswer2: ANSWERS[1], answersByIndex: recoverAnswers() });
+  const back = await legacyRecover(out.zipBytes, { gateAnswer1: ANSWERS[0], gateAnswer2: ANSWERS[1], answersByIndex: recoverAnswers() });
   assert.deepEqual(back.files.map(f => f.name),
     ['renamed.png', 'deed.pdf', 'final-message (1).txt', 'big.bin', 'old_seed.txt', 'new_seed.txt', 'final-message.txt']);
   assert.equal(back.finalMessage, 'new message', 'old recover shows the real final message, not the renamed upload');
@@ -327,7 +327,7 @@ test('no answers, names or contents appear in plaintext anywhere in the ZIP', as
     finalMessage: 'SECRET-FINAL-MESSAGE',
   });
   const blob = await MV.packageZip(await MV.sealVault(args));
-  const raw = new Uint8Array(await blob.arrayBuffer());
+  const raw = blob instanceof Uint8Array ? blob : new Uint8Array(await blob.arrayBuffer());
   const entries = await zipEntries(blob);
   const haystacks = [raw, ...Object.values(entries)].map(u8 => Buffer.from(u8).toString('latin1'));
   const needles = ['SECRET-FILENAME', 'SECRET-BODY', 'SECRET-SEED', 'SECRET-FINAL', 'image/png', ...ANSWERS.filter((_, i) => i > 1).map(a => a.toLowerCase())];
@@ -376,7 +376,7 @@ test('empty files seal, verify and decrypt (GCM output is just the 16-byte tag)'
   assert.equal((await MV.decryptFile(pc, meta, ciphertext)).length, 0);
   const sealed = await MV.sealVault(basicSealArgs({ uploads: [{ name: 'empty.txt', mime: 'text/plain', bytes: new Uint8Array(0) }] }));
   const blob = await MV.packageZip(sealed);
-  const v = await MV.verifyVaultZip(blob, { unlockConcat: basicUnlock(), permutedConcat: sealed.permutedConcat });
+  const v = await MV.verifyVaultZip(blob, { unlockConcat: basicUnlock(), permutedConcat: sealed.permutedConcat, keepFiles: true });
   assert.equal(v.files[0].bytes.length, 0);
 });
 

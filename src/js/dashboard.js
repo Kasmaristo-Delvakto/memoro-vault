@@ -357,6 +357,7 @@ async function submitUnlock() {
     showMessageModal('Vault Error', 'Required encrypted files are missing or incomplete.'); return;
   }
 
+  let unlockedLayer1;
   try {
     const layer1Salt = vault.vaultData.layer1Salt;
     if (!layer1Salt) throw new Error("Vault metadata is incomplete: layer1Salt not found.");
@@ -378,61 +379,8 @@ async function submitUnlock() {
     // Inject metadata used later
     fullVaultData.finalMessageIv = vault.vaultData.finalMessageIv || null;
     fullVaultData.vaultMetaIv    = vault.vaultData.vaultMetaIv;
+    unlockedLayer1 = fullVaultData;
 
-    // Serialize fileMap
-    const serializedMap = {};
-    for (const [filename, blob] of Object.entries(vault.fileMap)) {
-      const buffer = await blob.arrayBuffer();
-      serializedMap[filename] = {
-        type: blob.type || 'application/octet-stream',
-        data: Array.from(new Uint8Array(buffer))
-      };
-    }
-
-    // Use original imported ZIP blob
-    const vaultBlob = new Uint8Array(await vault.zipBlob.arrayBuffer());
-    if (vaultBlob.length === 0) throw new Error("Original vault ZIP blob is empty.");
-
-    const transferObject = {
-      vaultJson: vault.vaultData,
-      decryptedVaultData: fullVaultData,
-      baseKey: answer1 + answer2,
-      fileMapRaw: serializedMap,
-      vaultEncRaw,
-      vaultMetaRaw,
-      vaultId: currentUnlockVaultId,
-      fullSalt: vault.vaultData.fullSalt,
-      vaultBlob: vaultBlob.buffer
-    };
-
-    // Save to IndexedDB for recover.html handoff
-    await new Promise((resolve, reject) => {
-      const req = indexedDB.open("memoroVaultVaultStorage", 1);
-      req.onupgradeneeded = (ev) => {
-        const db = ev.target.result;
-        if (!db.objectStoreNames.contains("vaultFiles")) {
-          db.createObjectStore("vaultFiles", { keyPath: "vaultId" });
-        }
-      };
-      req.onsuccess = (ev) => {
-        const db = ev.target.result;
-        const tx = db.transaction("vaultFiles", "readwrite");
-        const store = tx.objectStore("vaultFiles");
-        store.put({ vaultId: currentUnlockVaultId + "-transfer", data: transferObject });
-        tx.oncomplete = resolve;
-        tx.onerror = (e) => reject("❌ IndexedDB write error: " + e.target.error.message);
-      };
-      req.onerror = (e) => reject("❌ Failed to open IndexedDB: " + e.target.error.message);
-    });
-
-    // Reset lockout
-    clearInterval(countdownInterval);
-    localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
-    localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
-    localStorage.setItem("lastVaultId", currentUnlockVaultId);
-
-    await delay(500);
-    window.location.href = "recover.html";
   } catch (err) {
     console.warn("❌ Unlock failed:", err.message);
     failedAttempts++;
@@ -444,9 +392,90 @@ async function submitUnlock() {
 
     showMessageModal("Unlock Failed", `Incorrect answers. Attempts: ${failedAttempts}`);
     startCountdown();
+    return;
+  }
+
+  // The answers were right. Hand the vault to recover.html; a problem here is not a wrong answer.
+  const unlockButton = document.getElementById('unlockButton');
+  unlockButton.disabled = true;
+  unlockButton.textContent = 'Opening...';
+  try {
+    await handOffToRecover(vault, unlockedLayer1, answer1 + answer2);
+  } catch (err) {
+    console.error("Vault hand-off failed:", err);
+    unlockButton.disabled = false;
+    unlockButton.textContent = 'Unlock';
+    showMessageModal("Could Not Open Vault",
+      `Your answers were correct, but the vault could not be passed to the recovery screen: ${err.message || err}`);
+    return;
+  }
+
+  // Reset lockout
+  clearInterval(countdownInterval);
+  localStorage.removeItem(`failedAttempts_${currentUnlockVaultId}`);
+  localStorage.removeItem(`lockoutUntil_${currentUnlockVaultId}`);
+  localStorage.setItem("lastVaultId", currentUnlockVaultId);
+
+  await delay(500);
+  window.location.href = "recover.html";
+}
+window.submitUnlock = submitUnlock;
+
+// Passes the unlocked vault to recover.html through in-memory IndexedDB. The vault ZIP can be
+// hundreds of MB, more than one IndexedDB write may carry in memory, so it travels in 16 MB pieces.
+async function handOffToRecover(vault, decryptedVaultData, baseKey) {
+  const C = window.MemoroChunks;
+  const id = currentUnlockVaultId;
+  // In-memory storage is a share of this computer's RAM; check it can hold the vault first
+  try {
+    const est = await navigator.storage.estimate();
+    const free = (est.quota || 0) - (est.usage || 0);
+    if (est.quota && free < vault.zipBlob.size * 1.05) {
+      const gb = (n) => (n / 1024 ** 3).toFixed(2);
+      throw new Error(`this vault needs about ${gb(vault.zipBlob.size)} GB of working memory and only ${gb(free)} GB is available. Close other programs and try again, or open it on a computer with more RAM`);
+    }
+  } catch (err) {
+    if (/working memory/.test(String(err && err.message))) throw err;
+  }
+  const zipBytes = new Uint8Array(await vault.zipBlob.arrayBuffer());
+  if (zipBytes.length === 0) throw new Error("The vault file is empty.");
+
+  const fileMapRaw = {};
+  for (const [filename, blob] of Object.entries(vault.fileMap)) {
+    fileMapRaw[filename] = { type: blob.type || 'application/octet-stream', data: new Uint8Array(await blob.arrayBuffer()) };
+  }
+
+  const db = await new Promise((resolve, reject) => {
+    const req = indexedDB.open("memoroVaultVaultStorage", 1);
+    req.onupgradeneeded = (ev) => {
+      const d = ev.target.result;
+      if (!d.objectStoreNames.contains("vaultFiles")) d.createObjectStore("vaultFiles", { keyPath: "vaultId" });
+    };
+    req.onsuccess = (ev) => resolve(ev.target.result);
+    req.onerror = (ev) => reject(ev.target.error || new Error("Could not open the in-memory store."));
+    req.onblocked = () => reject(new Error("The in-memory store is busy. Close other Memoro windows and try again."));
+  });
+  try {
+    const base = id + "-transfer-zip";
+    const vaultBlobInfo = await C.putBytes(db, "vaultFiles", "vaultId", base, zipBytes);
+    await C.putRecord(db, "vaultFiles", {
+      vaultId: id + "-transfer",
+      data: {
+        vaultJson: vault.vaultData,
+        decryptedVaultData,
+        baseKey,
+        fileMapRaw,
+        vaultId: id,
+        fullSalt: vault.vaultData.fullSalt,
+        vaultBlobKey: base,
+        vaultBlobInfo
+      }
+    });
+  } finally {
+    db.close();
   }
 }
-window.submitUnlock = submitUnlock; // single, not duplicated
+ // single, not duplicated
 
 // Lowercase answers as user types
 document.addEventListener("input", (e) => {
@@ -483,6 +512,7 @@ function saveFilesToIndexedDB(vaultId, fileMapRaw, transferObject = null) {
       }
       tx.oncomplete = resolve;
       tx.onerror = (e) => reject("IndexedDB write failed: " + e.target.error?.message);
+      tx.onabort = () => reject(new Error("IndexedDB write aborted: " + (tx.error?.message || "unknown error")));
     };
     req.onerror = (e) => reject("Failed to open IndexedDB: " + e.target.error?.message);
   });
@@ -507,6 +537,11 @@ async function handleVaultZip(event) {
   const file = event.target.files?.[0];
   if (!file || !file.name.toLowerCase().endsWith('.zip')) {
     showMessageModal('Invalid File', 'Please select a valid .zip vault file.');
+    return;
+  }
+  if (file.size > window.MemoroVaultCore.MAX_VAULT_BYTES) {
+    showMessageModal('Vault Too Large', 'This file is larger than the 1.9 GB Memoro Vault can open.');
+    event.target.value = '';
     return;
   }
 

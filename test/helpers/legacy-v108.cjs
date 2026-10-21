@@ -126,7 +126,8 @@ async function legacyBuild({ answers, questions, unlockIndexes = [0, 1], trapInd
  */
 async function legacyRecover(zipBlob, { gateAnswer1, gateAnswer2, answersByIndex }) {
   const zip = globalThis.zip;
-  const reader = new zip.ZipReader(new zip.BlobReader(zipBlob));
+  // (input plumbing only: newer code hands over ZIP bytes instead of a Blob)
+  const reader = new zip.ZipReader(zipBlob instanceof Uint8Array ? new zip.Uint8ArrayReader(zipBlob) : new zip.BlobReader(zipBlob));
   const fileMap = {};
   for (const entry of await reader.getEntries()) {
     const b = await entry.getData(new zip.BlobWriter());

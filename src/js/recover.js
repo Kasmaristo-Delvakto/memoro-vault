@@ -361,6 +361,16 @@ async function deriveRawKeyBytes(password, saltHex, settings) {
    - exposes vaultJson (raw), vaultData (L1-decrypted)
    - renders question form
 ----------------------------*/
+// Vault parts kept as bytes, with the two Blob methods the older code paths call
+function storedPart(u8) {
+  return {
+    bytes: u8,
+    size: u8.length,
+    async arrayBuffer() { return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.length); },
+    async text() { return new TextDecoder().decode(u8); },
+  };
+}
+
 async function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open("memoroVaultVaultStorage", 1);
@@ -399,6 +409,15 @@ async function hydrateFromIndexedDB() {
   window.vaultJson = data.vaultJson || {};
   window.vaultData = data.decryptedVaultData || {}; // L1-decrypted contents from dashboard
 
+  // The vault ZIP travels in 16 MB pieces (see idb-chunks.js); older hand-offs carried it whole
+  let vaultBytes = null;
+  if (data.vaultBlobInfo && data.vaultBlobKey) {
+    vaultBytes = await window.MemoroChunks.getBytes(db, "vaultFiles", data.vaultBlobKey, data.vaultBlobInfo);
+    await window.MemoroChunks.deleteBytes(db, "vaultFiles", data.vaultBlobKey, data.vaultBlobInfo);
+  } else if (data.vaultBlob && data.vaultBlob.byteLength) {
+    vaultBytes = new Uint8Array(data.vaultBlob);
+  }
+
   // The hand-off holds the unlock answers; now that it is read, remove it from storage
   await new Promise((resolve) => {
     try {
@@ -413,9 +432,11 @@ async function hydrateFromIndexedDB() {
   if (!window.zip) {
     throw new Error("zip.min.js not loaded. Include <script src=\"libs/zip.min.js\"></script>.");
   }
-  if (data.vaultBlob && data.vaultBlob.byteLength) {
-    const zipBlob = new Blob([data.vaultBlob], { type: "application/zip" });
-    const zipReader = new zip.ZipReader(new zip.BlobReader(zipBlob));
+  // Vault parts stay plain bytes: in-memory Blob storage is capped (about 2 GB in total), and a
+  // large vault would not fit there next to its own unpacked copy.
+  if (vaultBytes && vaultBytes.length) {
+    const zipReader = new zip.ZipReader(new zip.Uint8ArrayReader(vaultBytes));
+    vaultBytes = null;
     const entries = await zipReader.getEntries();
     // Unpack only what recovery needs, and refuse archives that would exhaust memory
     const MAX_ENTRY = 2 * 1024 ** 3, MAX_TOTAL = 4 * 1024 ** 3;
@@ -427,11 +448,11 @@ async function hydrateFromIndexedDB() {
         const size = Number(entry.uncompressedSize) || 0;
         total += size;
         if (size > MAX_ENTRY || total > MAX_TOTAL) throw new Error("This vault is larger than Memoro Vault can open safely.");
-        const blob = await entry.getData(new zip.BlobWriter());
-        if (blob.size !== size) throw new Error(`${name} in this vault is damaged.`);
+        const bytes = await entry.getData(new zip.Uint8ArrayWriter());
+        if (bytes.length !== size) throw new Error(`${name} in this vault is damaged.`);
         // store each entry by exact name AND lowercase alias
-        fileMap[name] = blob;
-        fileMap[name.toLowerCase()] = blob;
+        fileMap[name] = storedPart(bytes);
+        fileMap[name.toLowerCase()] = fileMap[name];
       }
     } finally {
       await zipReader.close();
@@ -444,9 +465,8 @@ async function hydrateFromIndexedDB() {
       const u8 = Array.isArray(rec.data) ? new Uint8Array(rec.data)
             : ArrayBuffer.isView(rec.data) ? new Uint8Array(rec.data)
             : new Uint8Array(0);
-      const blob = new Blob([u8], { type: rec.type || 'application/octet-stream' });
-      fileMap[name] = blob;
-      fileMap[name.toLowerCase()] = blob;
+      fileMap[name] = storedPart(u8);
+      fileMap[name.toLowerCase()] = fileMap[name];
     }
   }
 
@@ -646,10 +666,13 @@ async function decryptVaultDocs(vaultMetaFiles, fullConcat) {
   const decrypted = [];
   for (const meta of vaultMetaFiles) {
     try {
-      const blob = window.fileMap[meta.filename] || window.fileMap[String(meta.filename).toLowerCase()];
-      if (!blob) { printLineFast(`[!] Missing ${meta.filename}, skipping.`); continue; }
-      const bytes = await MV.decryptFile(fullConcat, meta, new Uint8Array(await blob.arrayBuffer()));
+      const part = window.fileMap[meta.filename] || window.fileMap[String(meta.filename).toLowerCase()];
+      if (!part) { printLineFast(`[!] Missing ${meta.filename}, skipping.`); continue; }
+      const bytes = await MV.decryptFile(fullConcat, meta, part.bytes);
       decrypted.push({ meta, bytes });
+      // the ciphertext is no longer needed; let large vaults release it
+      delete window.fileMap[meta.filename];
+      delete window.fileMap[String(meta.filename).toLowerCase()];
       printLineFast(`[+] Decrypted and verified ${meta.filename}`);
     } catch (e) {
       printLineFast(`[!] Failed to decrypt ${meta.filename}: ${e.message || e}`);
@@ -860,7 +883,7 @@ function renderRecoveredList() {
 
   const zipAllBtn = h("button", { type: "button", class: "button", text: "Download All as ZIP" });
   zipAllBtn.addEventListener("click", async () => {
-    const writer = new zip.ZipWriter(new zip.BlobWriter("application/zip"));
+    const writer = new zip.ZipWriter(new zip.Uint8ArrayWriter());
     const used = new Set();
     for (const item of items) {
       let name = item.name || "file.bin", n = 1;
@@ -869,11 +892,13 @@ function renderRecoveredList() {
       await writer.add(name, new zip.Uint8ArrayReader(item.bytes));
     }
     const zipped = await writer.close();
-    const url = trackURL(URL.createObjectURL(zipped));
-    const a = h("a", { href: url, download: "Memoro_Recovered_Files.zip" });
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    // through the main process (no huge in-memory Blob); a plain download outside the desktop app
+    if (window.memoroAPI?.saveFile) {
+      const r = await window.memoroAPI.saveFile("Memoro_Recovered_Files.zip", zipped);
+      if (r && r.error) showToast(`Could not save the files: ${r.error}`, "error");
+    } else {
+      downloadBytes(zipped, "Memoro_Recovered_Files.zip", "application/zip");
+    }
   });
 
   host.appendChild(h("div", { class: "btn-row mv-recovered-actions" },

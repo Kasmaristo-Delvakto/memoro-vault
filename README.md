@@ -113,7 +113,9 @@ A few limits are worth knowing when you choose questions and hints:
 
 ## Compatibility
 
-Vaults created or edited with 1.1.0 use the same format as 1.0.8, so they open in any release from 1.0.8 on, and vaults made with 1.0.8 can be opened and edited in 1.1.0. Release builds are produced for Windows 10 and later, macOS 13 (Ventura) and later, and 64-bit Linux (AppImage, deb and rpm).
+Vaults created or edited with 1.1.0 use the same format as 1.0.8, so they open in any release from 1.0.8 on, and vaults made with 1.0.8 can be opened and edited in 1.1.0.
+
+A vault can hold up to about 1.9 GB in total, with any single file up to 1.5 GB. Big vaults take memory while they are open, because everything stays in RAM rather than on disk: editing and saving a 1 GB vault used close to 10 GB of RAM in testing. For vaults over a few hundred megabytes, use a computer with 16 GB of RAM or more. Seed phrases, letters and document scans usually add up to a few megabytes and open in seconds on any machine. Release builds are produced for Windows 10 and later, macOS 13 (Ventura) and later, and 64-bit Linux (AppImage, deb and rpm).
 
 ## Verifying a download
 
